@@ -77,7 +77,7 @@ export default function Sidebar() {
           </div>
           {sidebarOpen && (
             <span className="font-bold text-lg bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-              JobsHunt
+              HireCompass
             </span>
           )}
         </Link>

@@ -16,7 +16,7 @@ import { RateLimitBanner } from "@/components/ui/rate-limit-banner"
 
 // Default user profile — editable in the page
 const DEFAULT_PROFILE = {
-  name: "Job Hunter",
+  name: "Your Name",
   skills: ["React", "TypeScript", "Next.js", "Node.js", "Python", "SQL"],
   projects: [
     { name: "Portfolio Website", tech: ["Next.js", "TypeScript"], description: "Personal portfolio with blog" },

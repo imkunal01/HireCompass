@@ -4,8 +4,8 @@ import React, { useState } from "react"
 import { Settings, Shield, Bell, User, Lock, Mail } from "lucide-react"
 
 export default function SettingsPage() {
-  const [name, setName] = useState("Demo Job Hunter")
-  const [email, setEmail] = useState("demo@jobshunt.com")
+  const [name, setName] = useState("Demo User")
+  const [email, setEmail] = useState("demo@hirecompass.app")
 
   return (
     <div className="space-y-6">

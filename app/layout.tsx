@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "JobsHunt - Premium Job Hunt Tracker",
+  title: "HireCompass - Premium Job Application Tracker",
   description: "Organize, monitor, and optimize your job applications, interviews, and offers in one professional dashboard.",
 };
 

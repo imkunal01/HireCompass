@@ -62,7 +62,7 @@ export default function LoginPage() {
             Welcome back
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Sign in to your JobsHunt account
+            Sign in to your HireCompass account
           </p>
         </div>
 

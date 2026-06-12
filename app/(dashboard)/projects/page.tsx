@@ -502,7 +502,7 @@ function ProjectForm({ editProject, onClose, onSaved }: ProjectFormProps) {
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. JobsHunt Tracker"
+              placeholder="e.g. HireCompass Tracker"
               className="w-full rounded-xl border border-border bg-secondary/20 px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50"
             />
           </div>
