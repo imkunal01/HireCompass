@@ -1,144 +1,478 @@
 "use client"
 
-import React, { useState } from "react"
-import { Settings, Shield, Bell, User, Lock, Mail } from "lucide-react"
+import React, { useState, useEffect } from "react"
+import {
+  Shield, Bell, User, Lock, Mail, Save,
+  ChevronRight, CheckCircle2, Database,
+  Palette, Sliders, Send, Plus, X, Github, Linkedin, Globe
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { useUser } from "@/hooks/useUser"
+
+/* ── Toggle Switch ── */
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent",
+        "transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1",
+        checked ? "bg-indigo-600" : "bg-slate-200"
+      )}
+    >
+      <span
+        className={cn(
+          "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm",
+          "transform transition-transform duration-200",
+          checked ? "translate-x-4" : "translate-x-0"
+        )}
+      />
+    </button>
+  )
+}
+
+/* ── Section Card ── */
+function SectionCard({
+  icon: Icon,
+  iconBg,
+  iconColor,
+  title,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  iconBg: string
+  iconColor: string
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+      <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100">
+        <div className={cn("flex h-8 w-8 items-center justify-center rounded-xl", iconBg)}>
+          <Icon className={cn("h-4 w-4", iconColor)} />
+        </div>
+        <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
+      </div>
+      <div className="p-6">{children}</div>
+    </div>
+  )
+}
+
+/* ── Input Field ── */
+function InputField({
+  label, type = "text", value, onChange, placeholder, icon: Icon
+}: {
+  label: string; type?: string; value?: string
+  onChange?: (v: string) => void; placeholder?: string
+  icon?: React.ComponentType<{ className?: string }>
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-xs font-semibold text-slate-600">{label}</label>
+      <div className="relative">
+        {Icon && (
+          <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+        )}
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange?.(e.target.value)}
+          placeholder={placeholder}
+          className={cn(
+            "w-full h-10 rounded-xl border border-slate-200 bg-slate-50/60 text-sm text-slate-900",
+            "placeholder:text-slate-400 transition-all duration-150",
+            "focus:outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100",
+            Icon ? "pl-10 pr-4" : "px-4"
+          )}
+        />
+      </div>
+    </div>
+  )
+}
 
 export default function SettingsPage() {
-  const [name, setName] = useState("Demo User")
-  const [email, setEmail] = useState("demo@hirecompass.app")
+  const { user } = useUser()
+
+  const [name,    setName]    = useState(user?.name  || "Demo User")
+  const [email,   setEmail]   = useState(user?.email || "demo@hirecompass.app")
+  const [saved,   setSaved]   = useState(false)
+
+  /* Notification toggles */
+  const [emailAlerts,    setEmailAlerts]    = useState(true)
+  const [weeklyReport,   setWeeklyReport]   = useState(true)
+  const [interviewRemind,setInterviewRemind] = useState(true)
+  const [marketingEmails,setMarketingEmails] = useState(false)
+
+  /* Outreach Profile */
+  const [profileLoaded, setProfileLoaded] = useState(false)
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileSaved,  setProfileSaved]  = useState(false)
+  const [opFullName,    setOpFullName]    = useState("")
+  const [opEmail,       setOpEmail]       = useState("")
+  const [opPhone,       setOpPhone]       = useState("")
+  const [opLinkedin,    setOpLinkedin]    = useState("")
+  const [opGithub,      setOpGithub]      = useState("")
+  const [opPortfolio,   setOpPortfolio]   = useState("")
+  const [opBio,         setOpBio]         = useState("")
+  const [opSkills,      setOpSkills]      = useState<string[]>([])
+  const [opSkillInput,  setOpSkillInput]  = useState("")
+  const [opProjects,    setOpProjects]    = useState<{ id: string; name: string; description: string; techStack: string[] }[]>([])
+
+  useEffect(() => {
+    fetch("/api/outreach/profile")
+      .then((r) => r.json())
+      .then((p) => {
+        if (p) {
+          setOpFullName(p.fullName || "")
+          setOpEmail(p.email || "")
+          setOpPhone(p.phone || "")
+          setOpLinkedin(p.linkedin || "")
+          setOpGithub(p.github || "")
+          setOpPortfolio(p.portfolio || "")
+          setOpBio(p.bio || "")
+          setOpSkills(p.skills || [])
+          setOpProjects(p.projects || [])
+        }
+        setProfileLoaded(true)
+      })
+      .catch(() => setProfileLoaded(true))
+  }, [])
+
+  const handleSaveProfile = async () => {
+    setProfileSaving(true)
+    await fetch("/api/outreach/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fullName: opFullName,
+        email: opEmail,
+        phone: opPhone,
+        linkedin: opLinkedin,
+        github: opGithub,
+        portfolio: opPortfolio,
+        bio: opBio,
+        skills: opSkills,
+        projects: opProjects,
+      }),
+    })
+    setProfileSaving(false)
+    setProfileSaved(true)
+    setTimeout(() => setProfileSaved(false), 2500)
+  }
+
+  const handleSave = () => {
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border/40 pb-6">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight">Settings</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Configure profile variables, notification behaviors, and password parameters.
+    <div className="space-y-6 max-w-5xl animate-slide-up">
+
+      {/* ── Page Header ── */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-2">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Settings</h2>
+          <p className="text-sm text-slate-500">
+            Manage your profile, notifications, and account security.
           </p>
         </div>
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-1.5 text-xs text-slate-400">
+          <span>Dashboard</span>
+          <ChevronRight className="h-3 w-3" />
+          <span className="font-semibold text-slate-700">Settings</span>
+        </nav>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Form Settings */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Section: Profile */}
-          <div className="rounded-2xl border border-border bg-card/20 backdrop-blur-md p-6 space-y-4">
-            <h3 className="font-semibold text-base flex items-center gap-2 border-b border-border/40 pb-3 mb-2">
-              <User className="h-4.5 w-4.5 text-primary" /> Profile Settings
-            </h3>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5 pl-1">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full h-10 rounded-xl border border-border bg-secondary/10 px-4 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                />
+        {/* ── Left Column (main forms) ── */}
+        <div className="lg:col-span-2 space-y-5">
+
+          {/* Profile */}
+          <SectionCard icon={User} iconBg="bg-indigo-50" iconColor="text-indigo-600" title="Profile Settings">
+            <div className="space-y-5">
+              {/* Avatar row */}
+              <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center font-black text-white text-xl shadow-lg shadow-indigo-500/20">
+                  {name?.[0]?.toUpperCase() || "U"}
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">{name}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{email}</p>
+                  <button className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors">
+                    Change avatar →
+                  </button>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5 pl-1">
-                  Email Address
-                </label>
-                <input
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <InputField
+                  label="Full Name"
+                  value={name}
+                  onChange={setName}
+                  placeholder="Your name"
+                  icon={User}
+                />
+                <InputField
+                  label="Email Address"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full h-10 rounded-xl border border-border bg-secondary/10 px-4 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <button className="rounded-xl bg-primary hover:bg-primary/95 text-white px-4 py-2 text-xs font-semibold shadow-lg shadow-primary/10 transition-all duration-200">
-                Save Changes
-              </button>
-            </div>
-          </div>
-
-          {/* Section: Password Update */}
-          <div className="rounded-2xl border border-border bg-card/20 backdrop-blur-md p-6 space-y-4">
-            <h3 className="font-semibold text-base flex items-center gap-2 border-b border-border/40 pb-3 mb-2">
-              <Lock className="h-4.5 w-4.5 text-purple-400" /> Update Password
-            </h3>
-
-            <div className="space-y-4 max-w-md">
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5 pl-1">
-                  Current Password
-                </label>
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  className="w-full h-10 rounded-xl border border-border bg-secondary/10 px-4 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  onChange={setEmail}
+                  placeholder="you@example.com"
+                  icon={Mail}
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5 pl-1">
-                  New Password
-                </label>
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  className="w-full h-10 rounded-xl border border-border bg-secondary/10 px-4 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                />
+              <div className="flex items-center justify-between pt-1">
+                <p className="text-xs text-slate-400">Last updated: June 2026</p>
+                <button
+                  onClick={handleSave}
+                  className={cn(
+                    "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all duration-200",
+                    saved
+                      ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20"
+                      : "text-white"
+                  )}
+                  style={saved ? {} : {
+                    background: "linear-gradient(135deg, #6366F1 0%, #7C3AED 100%)",
+                    boxShadow:  "0 4px 12px rgba(99, 102, 241, 0.3)",
+                  }}
+                >
+                  {saved ? (
+                    <><CheckCircle2 className="h-3.5 w-3.5" /> Saved!</>
+                  ) : (
+                    <><Save className="h-3.5 w-3.5" /> Save Changes</>
+                  )}
+                </button>
               </div>
             </div>
+          </SectionCard>
 
-            <div className="pt-2">
-              <button className="rounded-xl bg-secondary hover:bg-secondary/80 text-foreground border border-border px-4 py-2 text-xs font-semibold transition">
-                Change Password
-              </button>
+          {/* Password */}
+          <SectionCard icon={Lock} iconBg="bg-violet-50" iconColor="text-violet-600" title="Update Password">
+            <div className="space-y-4 max-w-sm">
+              <InputField label="Current Password" type="password" placeholder="••••••••" icon={Lock} />
+              <InputField label="New Password"     type="password" placeholder="••••••••" icon={Lock} />
+              <InputField label="Confirm Password" type="password" placeholder="••••••••" icon={Lock} />
+
+              <div className="pt-1">
+                <button className={cn(
+                  "flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700",
+                  "hover:border-slate-300 hover:bg-slate-50 transition-all duration-150 shadow-sm"
+                )}>
+                  <Lock className="h-3.5 w-3.5 text-slate-400" />
+                  Change Password
+                </button>
+              </div>
             </div>
-          </div>
+          </SectionCard>
+
+          {/* Outreach Profile */}
+          <SectionCard icon={Send} iconBg="bg-indigo-50" iconColor="text-indigo-600" title="Outreach Profile">
+            <div className="space-y-5">
+              <p className="text-xs text-slate-500">
+                This profile is used to personalize outreach emails. Fill in your skills, projects, and links.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <InputField label="Full Name" value={opFullName} onChange={setOpFullName} placeholder="Kunal Sharma" icon={User} />
+                <InputField label="Email" type="email" value={opEmail} onChange={setOpEmail} placeholder="you@example.com" icon={Mail} />
+                <InputField label="Phone" value={opPhone} onChange={setOpPhone} placeholder="+91 98765 43210" />
+                <InputField label="LinkedIn URL" value={opLinkedin} onChange={setOpLinkedin} placeholder="linkedin.com/in/yourname" icon={Linkedin} />
+                <InputField label="GitHub URL" value={opGithub} onChange={setOpGithub} placeholder="github.com/yourname" icon={Github} />
+                <InputField label="Portfolio URL" value={opPortfolio} onChange={setOpPortfolio} placeholder="yourportfolio.com" icon={Globe} />
+              </div>
+
+              {/* Bio */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-600">Short Bio / Summary</label>
+                <textarea
+                  value={opBio}
+                  onChange={(e) => setOpBio(e.target.value)}
+                  rows={3}
+                  placeholder="Final year CS student at IIT Delhi, passionate about building products..."
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 resize-none focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
+                />
+              </div>
+
+              {/* Skills */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-600">Skills</label>
+                <div className="flex flex-wrap gap-1.5 min-h-[2rem]">
+                  {opSkills.map((s) => (
+                    <span key={s} className="flex items-center gap-1 rounded-full bg-indigo-100 text-indigo-700 px-2.5 py-0.5 text-xs font-semibold">
+                      {s}
+                      <button onClick={() => setOpSkills(opSkills.filter((x) => x !== s))}>
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    value={opSkillInput}
+                    onChange={(e) => setOpSkillInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && opSkillInput.trim()) {
+                        e.preventDefault()
+                        setOpSkills([...opSkills, opSkillInput.trim()])
+                        setOpSkillInput("")
+                      }
+                    }}
+                    placeholder="Add skill + Enter"
+                    className="rounded-lg border border-dashed border-slate-300 bg-transparent px-2.5 py-0.5 text-xs focus:outline-none focus:border-indigo-400 w-28"
+                  />
+                </div>
+              </div>
+
+              {/* Projects */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-600">Projects (up to 5)</label>
+                  {opProjects.length < 5 && (
+                    <button
+                      onClick={() => setOpProjects([...opProjects, { id: Date.now().toString(), name: "", description: "", techStack: [] }])}
+                      className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                    >
+                      <Plus className="h-3 w-3" /> Add Project
+                    </button>
+                  )}
+                </div>
+                {opProjects.map((proj, idx) => (
+                  <div key={proj.id} className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Project {idx + 1}</span>
+                      <button onClick={() => setOpProjects(opProjects.filter((_, i) => i !== idx))} className="text-slate-400 hover:text-rose-500">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <input
+                      value={proj.name}
+                      onChange={(e) => setOpProjects(opProjects.map((p, i) => i === idx ? { ...p, name: e.target.value } : p))}
+                      placeholder="Project name"
+                      className="w-full h-8 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-900 focus:outline-none focus:border-indigo-300 transition-all"
+                    />
+                    <input
+                      value={proj.description}
+                      onChange={(e) => setOpProjects(opProjects.map((p, i) => i === idx ? { ...p, description: e.target.value } : p))}
+                      placeholder="Brief description"
+                      className="w-full h-8 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-900 focus:outline-none focus:border-indigo-300 transition-all"
+                    />
+                    <input
+                      value={proj.techStack.join(", ")}
+                      onChange={(e) => setOpProjects(opProjects.map((p, i) => i === idx ? { ...p, techStack: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) } : p))}
+                      placeholder="Tech stack (comma-separated)"
+                      className="w-full h-8 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-900 focus:outline-none focus:border-indigo-300 transition-all"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-end pt-1">
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={profileSaving}
+                  className={cn(
+                    "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all duration-200",
+                    profileSaved
+                      ? "bg-emerald-500 text-white shadow-md"
+                      : "text-white"
+                  )}
+                  style={profileSaved ? {} : {
+                    background: "linear-gradient(135deg, #6366F1 0%, #7C3AED 100%)",
+                    boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
+                  }}
+                >
+                  {profileSaved ? (
+                    <><CheckCircle2 className="h-3.5 w-3.5" /> Saved!</>
+                  ) : (
+                    <><Save className="h-3.5 w-3.5" /> Save Profile</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </SectionCard>
         </div>
 
-        {/* Right Column: Preferences Mockups */}
-        <div className="space-y-6">
-          {/* Preferences Settings */}
-          <div className="rounded-2xl border border-border bg-card/20 backdrop-blur-md p-6 space-y-4">
-            <h3 className="font-semibold text-base flex items-center gap-2 border-b border-border/40 pb-3 mb-2">
-              <Bell className="h-4.5 w-4.5 text-amber-400" /> Notifications
-            </h3>
+        {/* ── Right Column ── */}
+        <div className="space-y-5">
 
-            <div className="space-y-3 pt-2 text-xs">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" defaultChecked className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary" />
-                <div>
-                  <span className="font-semibold text-foreground block">Email alerts</span>
-                  <span className="text-muted-foreground">Receive upcoming interview schedules in your inbox.</span>
+          {/* Notifications */}
+          <SectionCard icon={Bell} iconBg="bg-amber-50" iconColor="text-amber-500" title="Notifications">
+            <div className="space-y-4">
+              {[
+                { label: "Email alerts", sub: "Interview schedules in your inbox", val: emailAlerts, set: setEmailAlerts },
+                { label: "Weekly report", sub: "Progress & ghost rate summary", val: weeklyReport,   set: setWeeklyReport },
+                { label: "Interview reminders", sub: "24hr advance reminders",     val: interviewRemind, set: setInterviewRemind },
+                { label: "Marketing emails", sub: "Tips and product updates",      val: marketingEmails, set: setMarketingEmails },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center justify-between gap-3 py-1">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-slate-800">{item.label}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">{item.sub}</p>
+                  </div>
+                  <Toggle checked={item.val} onChange={item.set} />
                 </div>
-              </label>
-
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" defaultChecked className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary" />
-                <div>
-                  <span className="font-semibold text-foreground block">Weekly report summary</span>
-                  <span className="text-muted-foreground">Receive overall ghost rate and progress yields email weekly.</span>
-                </div>
-              </label>
+              ))}
             </div>
-          </div>
+          </SectionCard>
 
-          {/* Privacy settings */}
-          <div className="rounded-2xl border border-border bg-card/20 backdrop-blur-md p-6 space-y-4">
-            <h3 className="font-semibold text-base flex items-center gap-2 border-b border-border/40 pb-3 mb-2">
-              <Shield className="h-4.5 w-4.5 text-blue-400" /> Privacy & Security
-            </h3>
-
-            <div className="text-xs text-muted-foreground space-y-3">
-              <p>Your databases are powered by MongoDB, meaning all your personal resume tracking coordinates reside securely in your NoSQL collection environments.</p>
-              <div className="rounded-xl bg-blue-500/5 border border-blue-500/10 p-3 text-[11px] text-blue-300">
-                Database Status: MongoDB Active
+          {/* Privacy & Security */}
+          <SectionCard icon={Shield} iconBg="bg-sky-50" iconColor="text-sky-600" title="Privacy & Security">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 rounded-xl bg-emerald-50 border border-emerald-200 p-3">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-emerald-700">Account Secured</p>
+                  <p className="text-[11px] text-emerald-600 mt-0.5">2FA not enabled — consider adding it</p>
+                </div>
               </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2.5 rounded-xl bg-slate-50 border border-slate-200 p-3">
+                  <Database className="h-3.5 w-3.5 text-sky-500 shrink-0" />
+                  <div>
+                    <p className="text-[11px] font-semibold text-slate-700">Database Status</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">MongoDB Atlas • Connected</p>
+                  </div>
+                  <div className="ml-auto flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse-dot" />
+                    <span className="text-[10px] font-bold text-emerald-600">Live</span>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                All your data is encrypted at rest and in transit using industry-standard AES-256 encryption.
+              </p>
             </div>
-          </div>
+          </SectionCard>
+
+          {/* Appearance */}
+          <SectionCard icon={Palette} iconBg="bg-pink-50" iconColor="text-pink-500" title="Appearance">
+            <div className="space-y-3">
+              <p className="text-xs text-slate-500">Theme preference</p>
+              <div className="grid grid-cols-2 gap-2">
+                {["Light", "System"].map((t) => (
+                  <button
+                    key={t}
+                    className={cn(
+                      "rounded-xl border py-2.5 text-xs font-semibold transition-all duration-150",
+                      t === "Light"
+                        ? "border-indigo-300 bg-indigo-50 text-indigo-700 shadow-sm"
+                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Dark mode coming soon — stay tuned!
+              </p>
+            </div>
+          </SectionCard>
         </div>
       </div>
     </div>

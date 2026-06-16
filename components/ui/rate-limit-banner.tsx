@@ -36,19 +36,19 @@ export function RateLimitBanner({ message, retryAfter, onRetry, className }: Rat
 
   return (
     <div className={cn(
-      "rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 space-y-4",
+      "rounded-2xl border border-amber-200 bg-amber-50 p-5 space-y-4",
       className
     )}>
       {/* Header */}
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/10">
-          <AlertTriangle className="h-5 w-5 text-amber-400" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100">
+          <AlertTriangle className="h-5 w-5 text-amber-600" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm text-amber-300">
+          <p className="font-bold text-sm text-amber-800">
             {isQuotaExhausted ? "Daily AI Quota Exhausted" : "Gemini Rate Limit Hit"}
           </p>
-          <p className="text-xs text-amber-200/70 mt-0.5 leading-relaxed">
+          <p className="text-xs text-amber-600 mt-0.5 leading-relaxed">
             {isQuotaExhausted
               ? "You've used all free-tier requests for today across all Gemini models. The quota resets at midnight Pacific Time."
               : message}
@@ -58,12 +58,12 @@ export function RateLimitBanner({ message, retryAfter, onRetry, className }: Rat
 
       {/* Countdown or action */}
       {!isQuotaExhausted && secondsLeft > 0 && (
-        <div className="flex items-center gap-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-2.5">
-          <Clock className="h-4 w-4 text-amber-400 animate-pulse" />
-          <span className="text-sm text-amber-300 font-mono font-semibold">
+        <div className="flex items-center gap-2 rounded-xl bg-amber-100 border border-amber-200 px-4 py-2.5">
+          <Clock className="h-4 w-4 text-amber-600 animate-pulse" />
+          <span className="text-sm text-amber-700 font-mono font-bold">
             {secondsLeft}s
           </span>
-          <span className="text-xs text-amber-200/70">until retry is available</span>
+          <span className="text-xs text-amber-600">until retry is available</span>
         </div>
       )}
 
@@ -72,7 +72,7 @@ export function RateLimitBanner({ message, retryAfter, onRetry, className }: Rat
         {canRetry && onRetry && (
           <button
             onClick={onRetry}
-            className="flex items-center gap-2 rounded-xl bg-amber-500/20 border border-amber-500/30 px-4 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-500/30 transition-all"
+            className="flex items-center gap-2 rounded-xl bg-amber-600 text-white px-4 py-2 text-xs font-semibold hover:bg-amber-700 transition-all shadow-sm"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Try Again
           </button>
@@ -81,7 +81,7 @@ export function RateLimitBanner({ message, retryAfter, onRetry, className }: Rat
           href="https://aistudio.google.com/app/apikey"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 rounded-xl border border-amber-500/20 px-4 py-2 text-xs font-medium text-amber-200/70 hover:text-amber-300 transition-all"
+          className="flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-4 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 transition-all"
         >
           <ExternalLink className="h-3.5 w-3.5" /> Get a new API key
         </a>
@@ -89,7 +89,7 @@ export function RateLimitBanner({ message, retryAfter, onRetry, className }: Rat
           href="https://ai.google.dev/pricing"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 rounded-xl border border-amber-500/20 px-4 py-2 text-xs font-medium text-amber-200/70 hover:text-amber-300 transition-all"
+          className="flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-4 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 transition-all"
         >
           <ExternalLink className="h-3.5 w-3.5" /> Enable billing (paid tier)
         </a>
@@ -97,13 +97,13 @@ export function RateLimitBanner({ message, retryAfter, onRetry, className }: Rat
 
       {/* What's happening explanation */}
       <details className="group">
-        <summary className="text-[11px] text-amber-200/50 cursor-pointer hover:text-amber-300 transition-colors list-none flex items-center gap-1">
+        <summary className="text-[11px] text-amber-500 cursor-pointer hover:text-amber-700 transition-colors list-none flex items-center gap-1">
           <span className="group-open:rotate-90 transition-transform inline-block">▶</span>
           Why am I seeing this?
         </summary>
-        <div className="mt-2 text-[11px] text-amber-200/50 space-y-1 leading-relaxed pl-3 border-l border-amber-500/20">
-          <p>The Gemini free tier allows <strong className="text-amber-200/70">1,500 requests/day</strong> and <strong className="text-amber-200/70">15 requests/minute</strong> across all your API usage.</p>
-          <p>ApplyFlow automatically tries <strong className="text-amber-200/70">3 different Gemini models</strong> before giving up. All free-tier quotas are shared per API key per day.</p>
+        <div className="mt-2 text-[11px] text-amber-600 space-y-1 leading-relaxed pl-3 border-l-2 border-amber-200">
+          <p>The Gemini free tier allows <strong className="text-amber-800">1,500 requests/day</strong> and <strong className="text-amber-800">15 requests/minute</strong> across all your API usage.</p>
+          <p>ApplyFlow automatically tries <strong className="text-amber-800">3 different Gemini models</strong> before giving up. All free-tier quotas are shared per API key per day.</p>
           <p>To remove limits: enable billing at Google AI Studio (~$0.075 per 1M tokens with Gemini 1.5 Flash).</p>
         </div>
       </details>

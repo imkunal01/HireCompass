@@ -20,45 +20,34 @@ interface KanbanColumnProps {
 }
 
 export function KanbanColumn({
-  status,
-  label,
-  opportunities,
-  onCardClick,
-  onEdit,
-  onDelete,
-  onApply,
-  onAddJob,
+  status, label, opportunities, onCardClick, onEdit, onDelete, onApply, onAddJob,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: status })
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.SAVED
   const ids = opportunities.map((o) => o.id)
 
   return (
-    <div className="flex flex-col min-w-[240px] max-w-[280px] flex-shrink-0">
+    <div className="flex flex-col min-w-[248px] max-w-[280px] flex-shrink-0">
       {/* Column Header */}
       <div
         className={cn(
-          "rounded-t-xl border border-b-0 border-border/60 bg-card/40 backdrop-blur-md px-3.5 py-3",
-          "border-t-4",
-          config.borderColor
+          "rounded-t-xl border border-b-0 border-slate-200/80 bg-white px-4 py-3",
+          "border-t-4", config.borderColor
         )}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-foreground">{label}</span>
-            <span
-              className={cn(
-                "flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
-                config.bgColor,
-                config.textColor
-              )}
-            >
+            <span className="text-sm font-bold text-slate-800">{label}</span>
+            <span className={cn(
+              "flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+              config.bgColor, config.textColor
+            )}>
               {opportunities.length}
             </span>
           </div>
           <button
             onClick={() => onAddJob?.(status)}
-            className="flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+            className="flex h-6 w-6 items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-150"
             title={`Add to ${label}`}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -70,9 +59,11 @@ export function KanbanColumn({
       <div
         ref={setNodeRef}
         className={cn(
-          "flex-1 rounded-b-xl border border-t-0 border-border/60 bg-card/20 backdrop-blur-md p-2",
-          "transition-colors duration-200 min-h-[400px]",
-          isOver ? "bg-primary/5 border-primary/30" : ""
+          "flex-1 rounded-b-xl border border-t-0 border-slate-200/80 p-2",
+          "transition-colors duration-200 min-h-[420px]",
+          isOver
+            ? "bg-indigo-50/60 border-indigo-200"
+            : "bg-slate-50/60"
         )}
       >
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
@@ -88,15 +79,22 @@ export function KanbanColumn({
               />
             ))}
             {opportunities.length === 0 && !isOver && (
-              <div
-                className="flex flex-col items-center justify-center py-10 rounded-xl border border-dashed border-border/40 text-center"
-              >
-                <p className="text-[11px] text-muted-foreground italic">Drop cards here</p>
+              <div className="flex flex-col items-center justify-center py-12 rounded-xl border-2 border-dashed border-slate-200 text-center">
+                <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center mb-2">
+                  <Plus className="h-4 w-4 text-slate-400" />
+                </div>
+                <p className="text-[11px] text-slate-400 font-medium">Drop cards here</p>
+                <button
+                  onClick={() => onAddJob?.(status)}
+                  className="mt-2 text-[10px] text-indigo-500 hover:text-indigo-700 font-semibold"
+                >
+                  + Add {label}
+                </button>
               </div>
             )}
             {isOver && (
-              <div className="h-16 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 flex items-center justify-center">
-                <p className="text-xs text-primary font-medium">Drop here</p>
+              <div className="h-16 rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50 flex items-center justify-center">
+                <p className="text-xs text-indigo-600 font-semibold">Drop here</p>
               </div>
             )}
           </div>
