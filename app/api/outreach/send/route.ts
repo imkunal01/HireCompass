@@ -2,10 +2,16 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
 import clientPromise from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
-import { Resend } from "resend"
+import nodemailer from "nodemailer"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "outreach@resend.dev"
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+})
+const FROM_EMAIL = process.env.GMAIL_USER || ""
 
 // ── POST /api/outreach/send ────────────────────────────────────────────────────
 // Sends approved emails for a campaign, respecting rate limits
@@ -23,9 +29,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "campaignId is required" }, { status: 400 })
     }
 
-    if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === "your_resend_api_key_here") {
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_APP_PASSWORD === "your_16_char_app_password_here") {
       return NextResponse.json({
-        error: "RESEND_API_KEY not configured. Add it to .env to enable email sending."
+        error: "GMAIL_APP_PASSWORD not configured. Add it to .env to enable email sending."
       }, { status: 503 })
     }
 
@@ -119,16 +125,15 @@ export async function POST(request: NextRequest) {
           }]
         }
 
-        const { data, error } = await resend.emails.send(payload)
-
-        if (error) throw new Error(error.message)
+        const info = await transporter.sendMail(payload)
+        const messageId = info.messageId
 
         const sentAt = new Date()
 
         // Update record as SENT
         await db.collection("outreach_records").updateOne(
           { _id: record._id },
-          { $set: { status: "SENT", sentAt, messageId: data?.id || null, updatedAt: new Date() } }
+          { $set: { status: "SENT", sentAt, messageId: messageId || null, updatedAt: new Date() } }
         )
 
         // Auto-create opportunity record
@@ -160,13 +165,27 @@ export async function POST(request: NextRequest) {
 
         const oppResult = await db.collection("opportunities").insertOne(opportunityDoc)
 
+        // Insert follow-up reminder
+        await db.collection("reminders").insertOne({
+          userId: session.user.id,
+          jobId: oppResult.insertedId.toString(),
+          jobTitle: opportunityDoc.title,
+          company: record.companyName,
+          type: "FOLLOWUP",
+          dueAt: new Date(sentAt.getTime() + 7 * 86400000), // 7 days from now
+          message: "Follow up on outreach email",
+          done: false,
+          createdAt: sentAt,
+          updatedAt: sentAt,
+        })
+
         // Link opportunity back to record
         await db.collection("outreach_records").updateOne(
           { _id: record._id },
           { $set: { opportunityId: oppResult.insertedId.toString() } }
         )
 
-        results.push({ recordId, success: true, messageId: data?.id })
+        results.push({ recordId, success: true, messageId: messageId })
 
         // Delay before next email (except last)
         if (i < records.length - 1) {

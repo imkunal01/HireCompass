@@ -28,13 +28,7 @@ const TYPE_CONFIG = {
   INTERVIEW: { label: "Interview",  color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20", icon: Calendar },
 }
 
-const MOCK_REMINDERS: Reminder[] = [
-  { id: "r1", jobId: "m1", jobTitle: "Software Engineer Intern", company: "Google",  type: "INTERVIEW", dueAt: new Date(Date.now() + 1 * 86400000).toISOString(), message: "Technical Round 2 — prep DS&A", done: false, createdAt: "" },
-  { id: "r2", jobId: "m3", jobTitle: "Fullstack Developer",      company: "Stripe",  type: "FOLLOWUP",  dueAt: new Date(Date.now() + 0 * 86400000).toISOString(), message: "7 days since applying — send follow-up email", done: false, createdAt: "" },
-  { id: "r3", jobId: "m2", jobTitle: "Frontend Engineer",        company: "Vercel",  type: "DEADLINE",  dueAt: new Date(Date.now() + 2 * 86400000).toISOString(), message: "Application deadline", done: false, createdAt: "" },
-  { id: "r4", jobId: "m5", jobTitle: "Platform Engineer",        company: "Figma",   type: "DEADLINE",  dueAt: new Date(Date.now() + 4 * 86400000).toISOString(), message: "Take-home assessment due", done: false, createdAt: "" },
-  { id: "r5", jobId: "m6", jobTitle: "React Developer",          company: "Notion",  type: "FOLLOWUP",  dueAt: new Date(Date.now() - 1 * 86400000).toISOString(), message: "Check in on application status", done: true, createdAt: "" },
-]
+const MOCK_REMINDERS: Reminder[] = []
 
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"]
@@ -219,9 +213,7 @@ function RemindersInner() {
       return res.json()
     },
   })
-  const reminders = (apiReminders && apiReminders.length > 0) ? apiReminders : MOCK_REMINDERS.filter(
-    r => filter === "all" ? true : filter === "pending" ? !r.done : r.done
-  )
+  const reminders = apiReminders || []
 
   const toggleMutation = useMutation({
     mutationFn: async ({ id, done }: { id: string; done: boolean }) => {

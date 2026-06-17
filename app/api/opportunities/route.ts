@@ -150,6 +150,21 @@ export async function POST(request: NextRequest) {
 
     const result = await col.insertOne(doc)
 
+    if (deadline) {
+      await db.collection("reminders").insertOne({
+        userId: session.user.id,
+        jobId: result.insertedId.toString(),
+        jobTitle: title,
+        company: company,
+        type: "DEADLINE",
+        dueAt: new Date(deadline),
+        message: "Application deadline",
+        done: false,
+        createdAt: now,
+        updatedAt: now,
+      })
+    }
+
     return NextResponse.json({
       ...doc,
       id: result.insertedId.toString(),

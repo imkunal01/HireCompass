@@ -56,37 +56,55 @@ export async function POST(request: NextRequest) {
 
     // ── Heuristic Extraction for Tabular Data ────────────────────────────────
     if (fileType === "csv" || fileType === "xlsx" || fileType === "xls") {
-      // It's structured data, use heuristic matching on headers instead of LLM
-      for (const r of mapped) {
-        const record: any = { techStack: [] }
-        for (const [key, val] of Object.entries(r)) {
-          if (!val) continue
-          const k = key.toLowerCase()
-          const v = String(val).trim()
-
-          if (k.includes("email")) {
-            record.recruiterEmail = v
-          } else if (k.includes("company") || k.includes("organization") || k.includes("employer") || k.includes("account")) {
-            record.companyName = v
-          } else if ((k.includes("name") || k.includes("contact")) && !k.includes("company") && !record.recruiterName) {
-            record.recruiterName = v
-          } else if (k.includes("role") || k.includes("title") || k.includes("position")) {
-            record.recruiterRole = v
-          } else if (k.includes("industry") || k.includes("domain") || k.includes("sector")) {
-            record.industry = v
-          } else if (k.includes("tech") || k.includes("stack") || k.includes("skills")) {
-            record.techStack = v.split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean)
-          } else if (k.includes("desc") || k.includes("about") || k.includes("overview")) {
-            record.companyDescription = v
-          } else if (k.includes("req") || k.includes("qual")) {
-            record.hiringRequirements = v
-          } else if (k.includes("product") || k.includes("service")) {
-            record.productsServices = v
-          } else if (k.includes("note") || k.includes("add")) {
-            record.additionalNotes = v
-          }
+      if (columnMapping && Object.keys(columnMapping).length > 0) {
+        // Explicit mapping provided by user, skip heuristics
+        for (const r of mapped) {
+          records.push({
+            recruiterName: r.recruiterName || "",
+            recruiterEmail: r.recruiterEmail || "",
+            recruiterRole: r.recruiterRole || "",
+            companyName: r.companyName || "",
+            companyDescription: r.companyDescription || "",
+            industry: r.industry || "",
+            productsServices: r.productsServices || "",
+            techStack: r.techStack ? r.techStack.split(/[,;\n]+/).map((s: string) => s.trim()).filter(Boolean) : [],
+            hiringRequirements: r.hiringRequirements || "",
+            additionalNotes: r.additionalNotes || ""
+          })
         }
-        records.push(record)
+      } else {
+        // It's structured data, use heuristic matching on headers instead of LLM
+        for (const r of mapped) {
+          const record: any = { techStack: [] }
+          for (const [key, val] of Object.entries(r)) {
+            if (!val) continue
+            const k = key.toLowerCase()
+            const v = String(val).trim()
+
+            if (k.includes("email")) {
+              record.recruiterEmail = v
+            } else if (k.includes("company") || k.includes("organization") || k.includes("employer") || k.includes("account")) {
+              record.companyName = v
+            } else if ((k.includes("name") || k.includes("contact")) && !k.includes("company") && !record.recruiterName) {
+              record.recruiterName = v
+            } else if (k.includes("role") || k.includes("title") || k.includes("position")) {
+              record.recruiterRole = v
+            } else if (k.includes("industry") || k.includes("domain") || k.includes("sector")) {
+              record.industry = v
+            } else if (k.includes("tech") || k.includes("stack") || k.includes("skills")) {
+              record.techStack = v.split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean)
+            } else if (k.includes("desc") || k.includes("about") || k.includes("overview")) {
+              record.companyDescription = v
+            } else if (k.includes("req") || k.includes("qual")) {
+              record.hiringRequirements = v
+            } else if (k.includes("product") || k.includes("service")) {
+              record.productsServices = v
+            } else if (k.includes("note") || k.includes("add")) {
+              record.additionalNotes = v
+            }
+          }
+          records.push(record)
+        }
       }
     } else {
       // ── AI Extraction for Unstructured Text ──────────────────────────────────

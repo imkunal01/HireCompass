@@ -12,7 +12,10 @@ import { cn } from "@/lib/utils"
 import { RecruiterRow } from "@/types/outreach"
 import { CVDocument } from "@/types/outreach"
 
-type Stage = "upload" | "extracting" | "preview" | "configuring" | "creating"
+import Papa from "papaparse"
+import * as XLSX from "xlsx"
+
+type Stage = "upload" | "mapping" | "extracting" | "preview" | "configuring" | "creating"
 
 const FIELD_LABELS: Record<keyof Omit<RecruiterRow, "id" | "emailValid" | "isDuplicate">, string> = {
   recruiterName: "Recruiter Name",
@@ -43,57 +46,118 @@ export default function OutreachUploadPage() {
   const [showSkipped, setShowSkipped] = useState(false)
   const [creating, setCreating] = useState(false)
 
+  // Mapping state
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([])
+  const [columnMapping, setColumnMapping] = useState<Record<string, string>>({})
+  const [fileContent, setFileContent] = useState<{ content: string; type: string } | null>(null)
+
   // Load user CVs
   const { data: cvList = [] } = useQuery<CVDocument[]>({
     queryKey: ["documents"],
     queryFn: () => fetch("/api/documents").then((r) => r.json()),
   })
 
-  const processFile = useCallback(async (f: File) => {
-    setFile(f)
+  const handleAutoExtract = async (content: string, fileType: string) => {
     setStage("extracting")
-    setError("")
-
     try {
-      let content: string
-      let fileType: string
-
-      if (f.name.endsWith(".xlsx") || f.name.endsWith(".xls")) {
-        fileType = "xlsx"
-        content = await new Promise<string>((resolve) => {
-          const reader = new FileReader()
-          reader.onload = (e) => resolve((e.target?.result as string).split(",")[1])
-          reader.readAsDataURL(f)
-        })
-      } else if (f.name.endsWith(".csv")) {
-        fileType = "csv"
-        content = await f.text()
-      } else {
-        fileType = "text"
-        content = await f.text()
-      }
-
       const res = await fetch("/api/outreach/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, fileType }),
+        body: JSON.stringify({ content, fileType }), // no mapping, use heuristics
       })
 
-      if (!res.ok) {
-        const e = await res.json()
-        throw new Error(e.error || "Extraction failed")
-      }
+      if (!res.ok) throw new Error((await res.json()).error || "Extraction failed")
 
       const data = await res.json()
       setRecords(data.records)
       setExtractStats(data.stats)
-      setCampaignName(f.name.replace(/\.[^.]+$/, "") + " Campaign")
       setStage("preview")
     } catch (e) {
       setError(e instanceof Error ? e.message : "Extraction failed")
       setStage("upload")
     }
+  }
+
+  const processFile = useCallback(async (f: File) => {
+    setFile(f)
+    setError("")
+
+    try {
+      const fileName = f.name.toLowerCase()
+      setCampaignName(f.name.replace(/\.[^.]+$/, "") + " Campaign")
+
+      if (fileName.endsWith(".csv")) {
+        const content = await f.text()
+        setFileContent({ content, type: "csv" })
+        Papa.parse(f, {
+          header: true,
+          preview: 1,
+          complete: (results) => {
+            setCsvHeaders(results.meta.fields || [])
+            setColumnMapping({})
+            handleAutoExtract(content, "csv")
+          },
+          error: (err) => {
+            setError("Failed to parse CSV: " + err.message)
+            setStage("upload")
+          }
+        })
+        return
+      } else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
+        const arrayBuffer = await f.arrayBuffer()
+        const workbook = XLSX.read(arrayBuffer, { type: "array" })
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" })
+        
+        const content = await new Promise<string>((resolve) => {
+          const reader = new FileReader()
+          reader.onload = (e) => resolve((e.target?.result as string).split(",")[1])
+          reader.readAsDataURL(f)
+        })
+        setFileContent({ content, type: "xlsx" })
+
+        if (rows.length > 0) {
+          setCsvHeaders(Object.keys(rows[0]))
+          setColumnMapping({})
+        }
+        handleAutoExtract(content, "xlsx")
+        return
+      }
+
+      // Plain text or unknown, just send directly to AI
+      const content = await f.text()
+      setFileContent({ content, type: "text" })
+      handleAutoExtract(content, "text")
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Extraction failed")
+      setStage("upload")
+    }
   }, [])
+
+  const handleConfirmMapping = async () => {
+    setStage("extracting")
+    try {
+      const res = await fetch("/api/outreach/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          content: fileContent!.content, 
+          fileType: fileContent!.type,
+          columnMapping 
+        }),
+      })
+
+      if (!res.ok) throw new Error((await res.json()).error || "Extraction failed")
+
+      const data = await res.json()
+      setRecords(data.records)
+      setExtractStats(data.stats)
+      setStage("preview")
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Extraction failed")
+      setStage("mapping")
+    }
+  }
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -253,6 +317,67 @@ export default function OutreachUploadPage() {
         </div>
       )}
 
+      {/* ── Stage: Mapping ── */}
+      {stage === "mapping" && (
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-50">
+                <FileSpreadsheet className="h-6 w-6 text-indigo-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Map Your Columns</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  We found {csvHeaders.length} columns in your file. Match them to the required fields below.
+                  This ensures 100% accurate data extraction.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {Object.entries(FIELD_LABELS).map(([fieldKey, fieldLabel]) => (
+                <div key={fieldKey} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-slate-700">
+                      {fieldLabel}
+                      {fieldKey === "companyName" && <span className="ml-2 text-[10px] uppercase font-bold text-rose-500 tracking-wider">Required</span>}
+                    </p>
+                  </div>
+                  <div className="flex-1">
+                    <select
+                      className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400"
+                      value={columnMapping[fieldKey] || ""}
+                      onChange={(e) => setColumnMapping({ ...columnMapping, [fieldKey]: e.target.value })}
+                    >
+                      <option value="">-- Ignore this field --</option>
+                      {csvHeaders.map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 flex items-center justify-between">
+              <button
+                onClick={() => { setStage("upload"); setFile(null); setFileContent(null) }}
+                className="text-sm font-semibold text-slate-500 hover:text-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmMapping}
+                disabled={!columnMapping.companyName && !columnMapping.recruiterEmail}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white px-6 py-2.5 text-sm font-semibold shadow-lg shadow-indigo-500/25 disabled:opacity-50 hover:-translate-y-px transition-all duration-200"
+              >
+                Confirm Mapping <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Stage: Extracting ── */}
       {stage === "extracting" && (
         <div className="rounded-2xl border border-border bg-white p-12 text-center space-y-4">
@@ -300,6 +425,15 @@ export default function OutreachUploadPage() {
                   Ready to Send ({validCount})
                 </span>
               </div>
+              
+              {csvHeaders.length > 0 && (
+                <button
+                  onClick={() => setStage("mapping")}
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors border border-indigo-100"
+                >
+                  Map Columns Manually
+                </button>
+              )}
             </div>
 
             <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">

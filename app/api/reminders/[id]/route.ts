@@ -23,6 +23,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (typeof done === "boolean") updates.done = done
 
+    if (!ObjectId.isValid(params.id)) {
+      return NextResponse.json({ error: "Invalid reminder ID format" }, { status: 400 })
+    }
+
     if (snooze) {
       const snoozeMap: Record<string, number> = {
         "1day": 1, "3days": 3, "1week": 7,
@@ -68,6 +72,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const client = await clientPromise
     const db = client.db()
     const col = db.collection("reminders")
+
+    if (!ObjectId.isValid(params.id)) {
+      return NextResponse.json({ error: "Invalid reminder ID format" }, { status: 400 })
+    }
 
     const result = await col.deleteOne({
       _id: new ObjectId(params.id),

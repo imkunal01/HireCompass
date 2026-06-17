@@ -89,6 +89,37 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Not found" }, { status: 404 })
     }
 
+    if (status && (status === "APPLIED" || status === "INTERVIEW")) {
+      const reminderCol = db.collection("reminders")
+      const dueDays = status === "APPLIED" ? 7 : 1
+      const type = status === "APPLIED" ? "FOLLOWUP" : "INTERVIEW"
+      const message = status === "APPLIED" ? "Follow up on application" : "Prepare for interview"
+      
+      const dueAt = new Date(now.getTime() + dueDays * 86400000)
+      
+      // Prevent duplicates
+      const existing = await reminderCol.findOne({
+        jobId: params.id,
+        type,
+        done: false
+      })
+      
+      if (!existing) {
+        await reminderCol.insertOne({
+          userId: session.user.id,
+          jobId: params.id,
+          jobTitle: result.title,
+          company: result.company,
+          type,
+          dueAt,
+          message,
+          done: false,
+          createdAt: now,
+          updatedAt: now,
+        })
+      }
+    }
+
     return NextResponse.json({
       ...result,
       id: result._id.toString(),

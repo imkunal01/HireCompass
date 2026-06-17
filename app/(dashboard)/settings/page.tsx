@@ -4,7 +4,8 @@ import React, { useState, useEffect } from "react"
 import {
   Shield, Bell, User, Lock, Mail, Save,
   ChevronRight, CheckCircle2, Database,
-  Palette, Sliders, Send, Plus, X, Github, Linkedin, Globe
+  Palette, Sliders, Send, Plus, X, Github, Linkedin, Globe,
+  Sparkles, Loader2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/hooks/useUser"
@@ -119,6 +120,44 @@ export default function SettingsPage() {
   const [opSkills,      setOpSkills]      = useState<string[]>([])
   const [opSkillInput,  setOpSkillInput]  = useState("")
   const [opProjects,    setOpProjects]    = useState<{ id: string; name: string; description: string; techStack: string[] }[]>([])
+  const [isAutofilling, setIsAutofilling] = useState(false)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+  const handleAutofill = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsAutofilling(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      
+      const res = await fetch("/api/outreach/profile/autofill", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to parse")
+      
+      const data = await res.json()
+      
+      if (data.bio) setOpBio(data.bio)
+      if (data.skills?.length) setOpSkills(data.skills)
+      if (data.projects?.length) {
+        setOpProjects(data.projects.map((p: any, idx: number) => ({
+          id: Date.now().toString() + idx,
+          name: p.name || "",
+          description: p.description || "",
+          techStack: p.techStack || []
+        })))
+      }
+    } catch (err) {
+      alert("Failed to autofill: " + (err instanceof Error ? err.message : "Unknown error"))
+    } finally {
+      setIsAutofilling(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
 
   useEffect(() => {
     fetch("/api/outreach/profile")
@@ -273,9 +312,20 @@ export default function SettingsPage() {
           {/* Outreach Profile */}
           <SectionCard icon={Send} iconBg="bg-indigo-50" iconColor="text-indigo-600" title="Outreach Profile">
             <div className="space-y-5">
-              <p className="text-xs text-slate-500">
-                This profile is used to personalize outreach emails. Fill in your skills, projects, and links.
-              </p>
+              <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-3">
+                <p className="text-xs text-slate-500">
+                  This profile is used to personalize outreach emails. Fill in your skills, projects, and links.
+                </p>
+                <input type="file" accept="application/pdf" className="hidden" ref={fileInputRef} onChange={handleAutofill} />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isAutofilling}
+                  className="flex items-center gap-1.5 rounded-lg bg-indigo-50 text-indigo-600 px-3 py-2 text-xs font-semibold hover:bg-indigo-100 transition-colors shrink-0 disabled:opacity-60"
+                >
+                  {isAutofilling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  {isAutofilling ? "Reading CV..." : "Autofill from CV"}
+                </button>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <InputField label="Full Name" value={opFullName} onChange={setOpFullName} placeholder="Kunal Sharma" icon={User} />

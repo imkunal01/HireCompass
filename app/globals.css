@@ -22,28 +22,28 @@
     --popover-foreground: 222 47% 11%;
 
     /* ── Primary (Indigo → Violet) ── */
-    --primary:         243 75% 59%;   /* #6366F1 indigo-500    */
+    --primary:         243 85% 65%;   /* more vibrant indigo */
     --primary-foreground: 0 0% 100%;
 
     /* ── Secondary / Muted surfaces ── */
-    --secondary:       220 14% 96%;   /* #F1F5F9 slate-100     */
+    --secondary:       220 14% 96%;   
     --secondary-foreground: 215 25% 27%;
 
     --muted:           220 14% 96%;
-    --muted-foreground: 215 16% 47%;  /* slate-500             */
+    --muted-foreground: 215 16% 47%;  
 
     /* ── Accent (soft indigo tint) ── */
-    --accent:          238 100% 97%;  /* #EEF2FF indigo-50     */
-    --accent-foreground: 243 75% 59%;
+    --accent:          238 100% 98%;  
+    --accent-foreground: 243 85% 65%;
 
     /* ── Destructive ── */
     --destructive:     0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
     /* ── Borders & Inputs ── */
-    --border:          220 13% 91%;   /* slate-200             */
+    --border:          220 13% 91%;   
     --input:           220 13% 91%;
-    --ring:            243 75% 59%;
+    --ring:            243 85% 65%;
 
     /* ── Border radius ── */
     --radius: 0.75rem;
@@ -107,10 +107,11 @@
 
 /* Glass — light variant */
 .glass-light {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.05);
 }
 
 /* Gradient text */

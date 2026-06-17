@@ -68,11 +68,14 @@ export default function Sidebar() {
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-20 flex flex-col bg-white border-r border-slate-200/80",
+        "fixed z-40 flex flex-col bg-white/95 backdrop-blur-xl border border-white/40",
         "transition-all duration-300 ease-in-out",
-        sidebarOpen ? "w-64" : "w-[72px]"
+        // Desktop floating layout
+        "md:top-4 md:bottom-4 md:left-4 md:rounded-3xl md:shadow-xl md:shadow-slate-200/50",
+        // Mobile drawer layout
+        "top-0 bottom-0 left-0 rounded-r-3xl md:rounded-3xl",
+        !sidebarOpen ? "-translate-x-full md:translate-x-0 md:w-[72px]" : "translate-x-0 w-72 md:w-64"
       )}
-      style={{ boxShadow: "2px 0 12px rgba(0,0,0,0.04)" }}
     >
       {/* ── Brand Header ── */}
       <div className={cn(
@@ -156,14 +159,18 @@ export default function Sidebar() {
                 )} />
 
                 {/* Label */}
-                {sidebarOpen && (
-                  <span className="flex-1 truncate">{item.name}</span>
+                {(sidebarOpen || true) && (
+                  <span className={cn(
+                    "flex-1 truncate transition-opacity duration-200",
+                    !sidebarOpen && "md:opacity-0 md:hidden"
+                  )}>{item.name}</span>
                 )}
 
                 {/* Badge */}
-                {sidebarOpen && item.badge && (
+                {(sidebarOpen || true) && item.badge && (
                   <span className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+                    "rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide transition-opacity",
+                    !sidebarOpen && "md:opacity-0 md:hidden",
                     item.badgeVariant === "ai"
                       ? "bg-violet-100 text-violet-600"
                       : "bg-emerald-100 text-emerald-600"
@@ -173,24 +180,22 @@ export default function Sidebar() {
                 )}
 
                 {/* Collapsed tooltip */}
-                {!sidebarOpen && (
-                  <div className={cn(
-                    "absolute left-16 z-50 rounded-xl border border-slate-200 bg-white px-3 py-2",
-                    "shadow-lg shadow-slate-900/10 text-xs font-semibold text-slate-700 whitespace-nowrap",
-                    "pointer-events-none opacity-0 scale-95 transition-all duration-150",
-                    "group-hover:opacity-100 group-hover:scale-100"
-                  )}>
-                    {item.name}
-                    {item.badge && (
-                      <span className={cn(
-                        "ml-1.5 rounded-full px-1 py-0.5 text-[9px] font-bold",
-                        item.badgeVariant === "ai" ? "bg-violet-100 text-violet-600" : "bg-emerald-100 text-emerald-600"
-                      )}>
-                        {item.badge}
-                      </span>
-                    )}
-                  </div>
-                )}
+                <div className={cn(
+                  "absolute left-16 z-50 rounded-xl border border-slate-200 bg-white px-3 py-2 hidden md:block",
+                  "shadow-lg shadow-slate-900/10 text-xs font-semibold text-slate-700 whitespace-nowrap",
+                  "pointer-events-none opacity-0 scale-95 transition-all duration-150",
+                  !sidebarOpen && "group-hover:opacity-100 group-hover:scale-100"
+                )}>
+                  {item.name}
+                  {item.badge && (
+                    <span className={cn(
+                      "ml-1.5 rounded-full px-1 py-0.5 text-[9px] font-bold",
+                      item.badgeVariant === "ai" ? "bg-violet-100 text-violet-600" : "bg-emerald-100 text-emerald-600"
+                    )}>
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
               </Link>
             </React.Fragment>
           )
@@ -200,8 +205,11 @@ export default function Sidebar() {
       {/* ── User Footer ── */}
       <div className="shrink-0 p-3 border-t border-slate-100 space-y-1">
         {/* User info card */}
-        {user && sidebarOpen && (
-          <div className="flex items-center gap-3 px-3 py-2.5 mb-1 rounded-xl bg-slate-50 border border-slate-100">
+        {user && (
+          <div className={cn(
+            "flex items-center gap-3 px-3 py-2.5 mb-1 rounded-xl bg-slate-50 border border-slate-100 transition-all",
+            !sidebarOpen && "md:hidden"
+          )}>
             {/* Avatar */}
             <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center font-bold text-white text-xs shadow-sm">
               {user.name?.[0]?.toUpperCase() || "U"}
@@ -230,11 +238,11 @@ export default function Sidebar() {
           className={cn(
             "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium",
             "text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-all duration-150",
-            !sidebarOpen && "justify-center px-2"
+            !sidebarOpen && "md:justify-center md:px-2"
           )}
         >
           <LogOut className="h-4 w-4 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5" />
-          {sidebarOpen && <span>Sign Out</span>}
+          <span className={cn(!sidebarOpen && "md:hidden")}>Sign Out</span>
         </button>
       </div>
     </aside>

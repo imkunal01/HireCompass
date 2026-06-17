@@ -3,10 +3,16 @@ import { getSession } from "@/lib/session"
 import clientPromise from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
 import { extractJSON } from "@/lib/gemini"
-import { Resend } from "resend"
+import nodemailer from "nodemailer"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "outreach@resend.dev"
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+})
+const FROM_EMAIL = process.env.GMAIL_USER || ""
 
 function buildFollowUpPrompt(record: any, profile: any, daysSinceSent: number) {
   return `You are a professional email writer. Write a brief, warm follow-up email.
@@ -83,7 +89,7 @@ export async function POST(request: NextRequest) {
       prompt + "\n\nReturn JSON: { \"subject\": \"...\", \"body\": \"...\" }"
     )
 
-    if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === "your_resend_api_key_here") {
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_APP_PASSWORD === "your_16_char_app_password_here") {
       // Preview mode — return generated email without sending
       return NextResponse.json({
         preview: true,
@@ -113,8 +119,7 @@ export async function POST(request: NextRequest) {
       payload.attachments = [{ filename: attachmentData.filename, content: attachmentData.content }]
     }
 
-    const { data, error } = await resend.emails.send(payload)
-    if (error) throw new Error(error.message)
+    const info = await transporter.sendMail(payload)
 
     const now = new Date()
     await db.collection("outreach_records").updateOne(
@@ -122,7 +127,7 @@ export async function POST(request: NextRequest) {
       { $set: { status: "FOLLOW_UP_SENT", followUpSentAt: now, updatedAt: now } }
     )
 
-    return NextResponse.json({ success: true, messageId: data?.id })
+    return NextResponse.json({ success: true, messageId: info.messageId })
   } catch (err) {
     console.error("[POST /api/outreach/followup]", err)
     return NextResponse.json({ error: err instanceof Error ? err.message : "Follow-up failed" }, { status: 500 })

@@ -33,7 +33,7 @@ INSTRUCTIONS:
 1. Start with a compelling subject line
 2. Address recruiter by name if available, else "Hiring Team"
 3. First sentence: show you know what the company does
-4. Second paragraph: Introduce yourself briefly (mention your tech background and experience). Then connect 2-3 of your specific skills/projects (from Profile or Resume) to the company's tech stack or needs.
+4. Second paragraph: Introduce yourself briefly (mention your tech background and experience). Then, extract exactly 2 or 3 of my ACTUAL skills or projects from the Profile or Resume provided above, and write a sentence explaining how they make me a great fit for the company's tech stack. DO NOT write placeholder text like "add skills here".
 5. Third paragraph: express genuine interest + clear ask (15-min call or internship consideration)
 6. Keep it under 200 words total (tight, punchy, no fluff)
 7. Tone: Genuine, a little casual but still highly professional.
@@ -91,8 +91,11 @@ export async function POST(request: NextRequest) {
       
       if (cvDoc?.data && cvDoc.mimeType === "application/pdf") {
         try {
-          const buffer = Buffer.from(cvDoc.data, "base64")
-          const pdfData = await pdfParse(buffer)
+          const base64Data = cvDoc.data.includes(',') ? cvDoc.data.split(',')[1] : cvDoc.data;
+          const buffer = Buffer.from(base64Data, "base64")
+          const { PDFParse } = require("pdf-parse")
+          const parser = new PDFParse({ data: buffer })
+          const pdfData = await parser.getText()
           cvText = pdfData.text
         } catch (err) {
           console.error("Error parsing PDF CV:", err)

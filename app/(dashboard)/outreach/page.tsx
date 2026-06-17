@@ -56,15 +56,15 @@ function CampaignRow({ campaign, onDelete }: { campaign: OutreachCampaign, onDel
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <h3 className="font-bold text-sm text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
+        <div className="flex flex-wrap items-center gap-2 mb-1">
+          <h3 className="font-bold text-sm text-slate-900 truncate group-hover:text-indigo-600 transition-colors max-w-[200px] sm:max-w-xs">
             {campaign.name}
           </h3>
           <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide", statusColors[campaign.status] || statusColors.DRAFT)}>
             {campaign.status}
           </span>
         </div>
-        <div className="flex items-center gap-3 text-xs text-slate-400">
+        <div className="flex flex-wrap items-center gap-y-1 gap-x-3 text-xs text-slate-400">
           <span className="flex items-center gap-1"><Users className="h-3 w-3" />{campaign.totalRecords} recruiters</span>
           <span className="flex items-center gap-1"><Send className="h-3 w-3" />{campaign.sentCount} sent</span>
           {campaign.repliedCount > 0 && (

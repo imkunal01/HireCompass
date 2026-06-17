@@ -1,6 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react"
+import { createPortal } from "react-dom"
 import { X, CheckCircle2, AlertCircle, Info } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -27,6 +28,33 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const toast = useCallback((opts: Omit<Toast, "id">) => {
     const id = Math.random().toString(36).slice(2)
     setToasts((prev) => [...prev, { ...opts, id }])
+
+    // Play "ting" sound
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      if (AudioCtx) {
+        const ctx = new AudioCtx()
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        
+        // "Ting" sound: sine wave starting at A5 (880Hz), slight pitch shift, fast fade
+        osc.type = "sine"
+        osc.frequency.setValueAtTime(880, ctx.currentTime)
+        osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.05)
+        
+        gain.gain.setValueAtTime(0.3, ctx.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3)
+        
+        osc.start(ctx.currentTime)
+        osc.stop(ctx.currentTime + 0.3)
+      }
+    } catch (e) {
+      console.warn("Could not play toast sound", e)
+    }
+
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id))
     }, 4000)
@@ -63,9 +91,13 @@ const styles: Record<ToastType, string> = {
 }
 
 function ToastContainer({ toasts, dismiss }: { toasts: Toast[]; dismiss: (id: string) => void }) {
-  if (toasts.length === 0) return null
-  return (
-    <div className="fixed bottom-6 right-6 z-[200] flex flex-col gap-3 pointer-events-none">
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  if (!mounted || toasts.length === 0) return null
+  
+  return createPortal(
+    <div className="fixed top-24 right-6 z-[9999] flex flex-col gap-3 pointer-events-none">
       {toasts.map((t) => {
         const Icon = icons[t.type]
         return (
@@ -73,7 +105,7 @@ function ToastContainer({ toasts, dismiss }: { toasts: Toast[]; dismiss: (id: st
             key={t.id}
             className={cn(
               "pointer-events-auto flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-xl backdrop-blur-md min-w-[280px] max-w-sm",
-              "animate-in slide-in-from-bottom-4 fade-in duration-300",
+              "animate-in slide-in-from-top-4 fade-in duration-300",
               styles[t.type]
             )}
           >
@@ -91,6 +123,7 @@ function ToastContainer({ toasts, dismiss }: { toasts: Toast[]; dismiss: (id: st
           </div>
         )
       })}
-    </div>
+    </div>,
+    document.body
   )
 }

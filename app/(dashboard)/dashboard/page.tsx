@@ -20,44 +20,18 @@ import { JobDrawer } from "@/components/features/kanban/job-drawer"
 import { ToastProvider } from "@/components/ui/toast"
 import { SmartSuggestions } from "@/components/features/dashboard/smart-suggestions"
 
-/* ── Mock data ── */
-const MOCK_STATS: DashboardStats = {
-  totalSaved: 18, applicationsSent: 11,
-  interviewsScheduled: 4, responseRate: 36, followUpsDue: 3,
+const EMPTY_STATS: DashboardStats = {
+  totalSaved: 0, applicationsSent: 0,
+  interviewsScheduled: 0, responseRate: 0, followUpsDue: 0,
 }
 
-const MOCK_PIPELINE = [
-  { status: "SAVED",       count: 5,  label: "Saved"      },
-  { status: "INTERESTED",  count: 3,  label: "Interested"  },
-  { status: "APPLIED",     count: 6,  label: "Applied"     },
-  { status: "ASSESSMENT",  count: 2,  label: "Assessment"  },
-  { status: "INTERVIEW",   count: 2,  label: "Interview"   },
-  { status: "OFFER",       count: 1,  label: "Offer"       },
-]
-
-const MOCK_TASKS = [
-  { id: "t1", done: false, label: "Follow up with Stripe (applied 7d ago)", dueLabel: "Today",    urgency: "high"   },
-  { id: "t2", done: false, label: "Prepare DS&A for Google interview",      dueLabel: "Today",    urgency: "high"   },
-  { id: "t3", done: false, label: "Submit Vercel application",              dueLabel: "Tomorrow", urgency: "medium" },
-  { id: "t4", done: true,  label: "Research Linear company culture",        dueLabel: "Jun 14",   urgency: "done"   },
-  { id: "t5", done: false, label: "Complete Figma take-home assessment",    dueLabel: "Jun 15",   urgency: "low"    },
-]
-
-const MOCK_ACTIVITY: ActivityItem[] = [
-  { id: "a1", type: "INTERVIEW_SCHEDULED", title: "Interview scheduled", description: "Google – Software Engineer Intern", timestamp: new Date(Date.now() - 2 * 3600000).toISOString(), company: "Google" },
-  { id: "a2", type: "STATUS_CHANGED",      title: "Status changed",      description: "Linear moved to Offer 🎉",          timestamp: new Date(Date.now() - 5 * 3600000).toISOString(), company: "Linear" },
-  { id: "a3", type: "JOB_ADDED",           title: "Job saved",           description: "Figma – Platform Engineer",          timestamp: new Date(Date.now() - 1 * 86400000).toISOString(), company: "Figma"  },
-  { id: "a4", type: "EMAIL_SENT",          title: "Follow-up sent",      description: "Emailed recruiter @ Notion",         timestamp: new Date(Date.now() - 2 * 86400000).toISOString(), company: "Notion" },
-  { id: "a5", type: "JOB_ADDED",           title: "Job saved",           description: "Stripe – Fullstack Developer",       timestamp: new Date(Date.now() - 3 * 86400000).toISOString(), company: "Stripe" },
-]
-
-const MOCK_CARDS: Opportunity[] = [
-  { id: "mc1", userId: "", company: "Google", title: "Software Engineer Intern", status: "INTERVIEW",   priority: "HIGH",   deadline: new Date(Date.now() + 2 * 86400000).toISOString(), createdAt: "" },
-  { id: "mc2", userId: "", company: "Linear", title: "Senior Product Engineer",  status: "OFFER",       priority: "HIGH",   createdAt: "" },
-  { id: "mc3", userId: "", company: "Vercel", title: "Frontend Engineer",        status: "SAVED",       priority: "HIGH",   deadline: new Date(Date.now() + 8 * 86400000).toISOString(), createdAt: "" },
-  { id: "mc4", userId: "", company: "Stripe", title: "Fullstack Developer",      status: "APPLIED",     priority: "MEDIUM", deadline: new Date(Date.now() + 5 * 86400000).toISOString(), createdAt: "" },
-  { id: "mc5", userId: "", company: "Figma",  title: "Platform Engineer",        status: "ASSESSMENT",  priority: "MEDIUM", deadline: new Date(Date.now() + 3 * 86400000).toISOString(), createdAt: "" },
-  { id: "mc6", userId: "", company: "Notion", title: "React Developer",          status: "INTERESTED",  priority: "LOW",    createdAt: "" },
+const EMPTY_PIPELINE = [
+  { status: "SAVED",       count: 0,  label: "Saved"      },
+  { status: "INTERESTED",  count: 0,  label: "Interested"  },
+  { status: "APPLIED",     count: 0,  label: "Applied"     },
+  { status: "ASSESSMENT",  count: 0,  label: "Assessment"  },
+  { status: "INTERVIEW",   count: 0,  label: "Interview"   },
+  { status: "OFFER",       count: 0,  label: "Offer"       },
 ]
 
 const STAT_CARDS = [
@@ -145,7 +119,7 @@ function formatRelativeTime(ts: string | Date) {
 }
 
 export default function DashboardPage() {
-  const [tasks,       setTasks]       = useState(MOCK_TASKS)
+  const [tasks,       setTasks]       = useState<any[]>([])
   const [addModalOpen,setAddModalOpen] = useState(false)
   const [selectedOpp, setSelectedOpp]  = useState<Opportunity | null>(null)
 
@@ -153,11 +127,11 @@ export default function DashboardPage() {
   const { data: activity }     = useQuery<ActivityItem[]>({ queryKey: ["dashboard-activity"], queryFn: async () => { const r = await fetch("/api/dashboard/activity"); if (!r.ok) throw new Error(); return r.json() } })
   const { data: opportunities } = useQuery<Opportunity[]>({ queryKey: ["opportunities"],      queryFn: async () => { const r = await fetch("/api/opportunities");       if (!r.ok) throw new Error(); return r.json() } })
 
-  const displayStats    = stats    || MOCK_STATS
-  const displayActivity = (activity && activity.length > 0) ? activity : MOCK_ACTIVITY
-  const pipelineCards   = (opportunities && opportunities.length > 0) ? opportunities : MOCK_CARDS
+  const displayStats    = stats    || EMPTY_STATS
+  const displayActivity = activity || []
+  const pipelineCards   = opportunities || []
 
-  const pipelineCounts = MOCK_PIPELINE.map((col) => {
+  const pipelineCounts = EMPTY_PIPELINE.map((col) => {
     if (opportunities && opportunities.length > 0) {
       const count = opportunities.filter(
         (o) => normalizeStatus(o.status) === col.status || o.status === col.status
