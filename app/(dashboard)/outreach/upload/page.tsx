@@ -117,7 +117,7 @@ export default function OutreachUploadPage() {
         setFileContent({ content, type: "xlsx" })
 
         if (rows.length > 0) {
-          setCsvHeaders(Object.keys(rows[0]))
+          setCsvHeaders(Object.keys(rows[0] as object))
           setColumnMapping({})
         }
         handleAutoExtract(content, "xlsx")
