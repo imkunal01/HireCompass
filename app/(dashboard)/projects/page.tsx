@@ -339,7 +339,7 @@ function SnippetEditor({ project, editingSnippet, onClose, onSaved }: SnippetEdi
               Target Role <span className="text-rose-400">*</span>
             </label>
             <RoleTagInput value={roleTag} onChange={setRoleTag} />
-            <p className="text-[10px] text-muted-foreground mt-1">e.g. "Backend SDE Intern", "Fullstack Developer"</p>
+            <p className="text-[10px] text-muted-foreground mt-1">e.g. &quot;Backend SDE Intern&quot;, &quot;Fullstack Developer&quot;</p>
           </div>
 
           {/* Length selector */}
@@ -873,7 +873,7 @@ function ProjectVaultContent() {
           <Sparkles className="h-4 w-4 text-violet-400 shrink-0 mt-0.5" />
           <p className="text-xs text-muted-foreground">
             <span className="text-foreground font-medium">Pro tip:</span> The more complete your master description and metrics, the better AI-generated snippets will be.
-            Open any job's detail drawer and switch to the{" "}
+            Open any job&apos;s detail drawer and switch to the{" "}
             <span className="text-primary font-medium">Form Kit</span> tab to get ranked, ready-to-paste snippets for that specific role.
           </p>
         </div>

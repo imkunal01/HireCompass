@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
+// @ts-ignore
 import pdfParse from "pdf-parse"
 import { extractJSON } from "@/lib/gemini"
 

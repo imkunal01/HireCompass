@@ -199,7 +199,7 @@ export default function OpportunitiesPage() {
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">
               {filtered.length} result{filtered.length !== 1 ? "s" : ""} found
-              {search && <span> for "<span className="text-foreground">{search}</span>"</span>}
+              {search && <span> for &quot;<span className="text-foreground">{search}</span>&quot;</span>}
             </p>
           </div>
           <button

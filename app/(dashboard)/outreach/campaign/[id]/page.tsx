@@ -19,6 +19,52 @@ interface CampaignData {
 
 const EMAIL_TEMPLATES = [
   {
+    name: "All In One",
+    subject: "Internship Application — Full-Stack / Backend / DevOps | Final Year CS @ LPU",
+    body: `Hi {{Hiring Manager Name}},
+
+I'm Kunal Dhangar, a final-year CS student at LPU actively looking for a software internship — open to full-stack, backend, or DevOps roles.
+
+What I bring to the table:
+
+→ Full-Stack: React, Next.js, Node.js, PostgreSQL, MongoDB, Redis — built production-grade apps with 800ms API response under 1k+ concurrent users
+→ Backend: REST APIs, JWT + OAuth 2.0 RBAC, WebSockets (Socket.io), Razorpay webhook automation — reduced API latency by 30% at Orbosis Global
+→ DevOps: Docker, Jenkins, CI/CD pipelines, AWS (S3, EC2, Lambda), GCP — containerized deployments and cloud integrations across projects
+
+Two things I've shipped:
+• Creolink — real-time video collaboration platform with 100ms WebSocket state sync, Adobe UXP plugin, 80% bandwidth reduction via metadata-only sync
+• KripaConnect — ecommerce platform with ACID-compliant payment pipeline (Razorpay), RBAC, Redis caching, JWT refresh token rotation securing 5,000+ active sessions
+
+I'm comfortable owning features end-to-end — from REST API design and database optimization to CI/CD setup and cloud deployment.
+
+Live projects + docs: github.com/imkunal01
+Would love to connect can we schedule a quick call?
+
+Kunal Dhangar
++91-62660-89196 | kunaldhangar184@gmail.com
+linkedin.com/in/kunaldhangar`
+  },
+  {
+    name: "Full-Stack Intern (Custom)",
+    subject: "Full-Stack Intern Application — MERN/Next.js/PostgreSQL",
+    body: `Hi {{Hiring Manager Name}},
+
+I'm Kunal Dhangar, a final-year CS student at Lovely Professional University with hands-on full-stack experience in React, Next.js, Node.js, PostgreSQL, Redis, and Docker.
+
+A few things I've shipped:
+• Creolink — real-time collaborative video PM platform (WebSockets, Socket.io, PostgreSQL, Adobe UXP plugin) with 100ms state sync and 80% bandwidth reduction
+• KripaConnect — full-stack ecommerce with JWT + Google OAuth 2.0 RBAC, Redis caching delivering 800ms API response under 1k+ concurrent users
+• Orbosis Internship — reduced API latency by 30% via Redis caching, automated payment verification via Razorpay webhooks
+
+I'd love to contribute to {{Company}}'s engineering team as an intern. My GitHub (github.com/imkunal01) has both projects live with documented READs.
+
+Could we schedule a quick call?
+
+Kunal Dhangar
++91-62660-89196 | kunaldhangar184@gmail.com
+github.com/imkunal01 | linkedin.com/in/kunaldhangar`
+  },
+  {
     name: "Backend Developer (MERN)",
     subject: "Backend Developer (MERN/Node.js) - Kunal Dhangar",
     body: `Hi {{Hiring Manager Name}},
@@ -134,10 +180,10 @@ function RecruiterListItem({
         ? "bg-indigo-50 border border-indigo-200 shadow-sm"
         : "hover:bg-slate-50 border border-transparent"
     )}>
-      <input 
-        type="checkbox" 
-        checked={isChecked} 
-        onChange={(e) => onCheck(e.target.checked)} 
+      <input
+        type="checkbox"
+        checked={isChecked}
+        onChange={(e) => onCheck(e.target.checked)}
         className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer ml-1 shrink-0"
       />
       <button onClick={onClick} className="flex-1 flex items-center gap-3 min-w-0 text-left">
@@ -153,7 +199,13 @@ function RecruiterListItem({
           </p>
           <p className="text-[10px] text-slate-400 truncate">{record.recruiterEmail}</p>
         </div>
-        <span className={cn("shrink-0 h-2 w-2 rounded-full", cfg.color)} style={{ backgroundColor: cfg.color }} />
+        {["SENT", "REPLIED", "INTERVIEW", "OFFER", "FOLLOW_UP_SENT"].includes(record.status) ? (
+          <span className={cn("shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider", cfg.bgColor, cfg.textColor)}>
+            {record.status === "FOLLOW_UP_SENT" ? "FOLLOW-UP" : record.status}
+          </span>
+        ) : (
+          <span className={cn("shrink-0 h-2 w-2 rounded-full", cfg.color)} style={{ backgroundColor: cfg.color }} />
+        )}
       </button>
     </div>
   )
@@ -276,22 +328,22 @@ export default function CampaignPage({ params }: { params: { id: string } }) {
   // Approve/skip record
   const handleApplyTemplate = (template: typeof EMAIL_TEMPLATES[0], record: OutreachRecord) => {
     if (!profile) { showToast("error", "Please set up your outreach profile first"); return }
-    
+
     let body = template.body
       .replace(/\{\{Hiring Manager Name\}\}/g, record.recruiterName || "Hiring Manager")
       .replace(/\{\{Company\}\}/g, record.companyName || "your company")
       .replace(/\{\{Phone\}\}/g, profile.phone || "[Phone]")
       .replace(/\{\{LinkedIn\}\}/g, profile.linkedin || "[LinkedIn]")
       .replace(/\{\{GitHub\}\}/g, profile.github || "[GitHub]")
-      
+
     let subject = template.subject
       .replace(/\{\{Hiring Manager Name\}\}/g, record.recruiterName || "Hiring Manager")
       .replace(/\{\{Company\}\}/g, record.companyName || "your company")
-      
+
     setEditedEmail(body)
     setEditedSubject(subject)
     setEditMode(true)
-    
+
     // Save draft state
     fetch(`/api/outreach/records/${record.id}`, {
       method: "PATCH",
@@ -309,15 +361,20 @@ export default function CampaignPage({ params }: { params: { id: string } }) {
     })
   }
 
-  // Approve/skip record
-  const handleStatusChange = async (record: OutreachRecord, status: "APPROVED" | "SKIPPED") => {
+  // Approve/skip/sent record
+  const handleStatusChange = async (record: OutreachRecord, status: "APPROVED" | "SKIPPED" | "SENT") => {
     const emailToSave = editedEmail || getEmailText(record)
     const subjectToSave = editedSubject || getSubjectText(record)
 
     await fetch(`/api/outreach/records/${record.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, finalEmail: emailToSave, finalSubject: subjectToSave }),
+      body: JSON.stringify({
+        status,
+        finalEmail: emailToSave,
+        finalSubject: subjectToSave,
+        ...(status === "SENT" ? { sentAt: new Date().toISOString() } : {})
+      }),
     })
 
     setData((prev) => prev ? {
@@ -328,7 +385,7 @@ export default function CampaignPage({ params }: { params: { id: string } }) {
       )
     } : prev)
 
-    showToast("success", status === "APPROVED" ? "✓ Approved" : "Skipped")
+    showToast("success", status === "APPROVED" ? "✓ Approved" : status === "SENT" ? "✓ Marked as Sent" : "Skipped")
 
     // Auto-advance
     if (selectedIdx < (data?.records.length ?? 0) - 1) {
@@ -340,11 +397,11 @@ export default function CampaignPage({ params }: { params: { id: string } }) {
   }
 
   // Bulk Status Update
-  const handleBulkStatusChange = async (status: "APPROVED" | "SKIPPED") => {
+  const handleBulkStatusChange = async (status: "APPROVED" | "SKIPPED" | "SENT") => {
     const ids = Array.from(selectedIds)
     if (ids.length === 0) return
     if (!confirm(`Mark ${ids.length} records as ${status}?`)) return
-    
+
     setLoading(true)
     await Promise.all(ids.map(id => {
       const record = data?.records.find(r => r.id === id)
@@ -354,10 +411,15 @@ export default function CampaignPage({ params }: { params: { id: string } }) {
       return fetch(`/api/outreach/records/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, finalEmail: emailToSave, finalSubject: subjectToSave }),
+        body: JSON.stringify({
+          status,
+          finalEmail: emailToSave,
+          finalSubject: subjectToSave,
+          ...(status === "SENT" ? { sentAt: new Date().toISOString() } : {})
+        }),
       })
     }))
-    
+
     // Refresh campaign
     const refreshed = await fetch(`/api/outreach/campaigns/${campaignId}`)
     if (refreshed.ok) setData(await refreshed.json())
@@ -375,7 +437,7 @@ export default function CampaignPage({ params }: { params: { id: string } }) {
       showToast("error", "No pending records selected to generate")
       return
     }
-    
+
     // generate sequentially to avoid rate limits
     for (const record of pendingRecords) {
       await handleGenerate(record)
@@ -555,11 +617,12 @@ export default function CampaignPage({ params }: { params: { id: string } }) {
         <div className="w-full lg:w-72 shrink-0 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden h-[45vh] lg:h-full min-h-[300px]">
           {/* List header */}
           <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 space-y-3 shrink-0">
-            <div className="flex gap-2 text-[10px] font-bold">
+            <div className="flex gap-2 text-[10px] font-bold flex-wrap">
               {[
                 { label: "ALL", count: records.length, filter: null },
                 { label: "PENDING", count: pendingCount, filter: "PENDING" },
                 { label: "APPROVED", count: approvedCount, filter: "APPROVED" },
+                { label: "SENT", count: sentCount, filter: "SENT" },
               ].map((f) => (
                 <span key={f.label} className="rounded-full bg-slate-100 text-slate-500 px-2 py-0.5">
                   {f.label} {f.count}
@@ -570,8 +633,8 @@ export default function CampaignPage({ params }: { params: { id: string } }) {
             {/* Bulk Selection Actions */}
             <div className="flex items-center justify-between text-xs min-h-[24px]">
               <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-600">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   checked={selectedIds.size === records.length && records.length > 0}
                   onChange={(e) => {
                     if (e.target.checked) {
@@ -584,12 +647,13 @@ export default function CampaignPage({ params }: { params: { id: string } }) {
                 />
                 Select All
               </label>
-              
+
               {selectedIds.size > 0 && (
                 <div className="flex items-center gap-2.5">
                   <button onClick={() => handleBulkStatusChange("SKIPPED")} className="text-slate-400 hover:text-rose-500 transition-colors" title="Skip Selected"><SkipForward className="h-4 w-4" /></button>
                   <button onClick={handleBulkGenerate} className="text-slate-400 hover:text-indigo-500 transition-colors" title="Generate Selected"><Sparkles className="h-4 w-4" /></button>
                   <button onClick={() => handleBulkStatusChange("APPROVED")} className="text-slate-400 hover:text-emerald-500 transition-colors" title="Approve Selected"><CheckCircle2 className="h-4 w-4" /></button>
+                  <button onClick={() => handleBulkStatusChange("SENT")} className="text-slate-400 hover:text-cyan-500 transition-colors" title="Mark as Sent"><Send className="h-4 w-4" /></button>
                 </div>
               )}
             </div>
@@ -685,7 +749,7 @@ export default function CampaignPage({ params }: { params: { id: string } }) {
                             : <RefreshCw className="h-3.5 w-3.5" />}
                           Regenerate
                         </button>
-                        
+
                         <div className="relative group/dropdown">
                           <button className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 px-3 py-2 text-xs font-semibold hover:border-indigo-200 hover:text-indigo-600 transition-all">
                             Template <ChevronDown className="h-3.5 w-3.5" />
@@ -741,6 +805,14 @@ export default function CampaignPage({ params }: { params: { id: string } }) {
                             <CheckCircle2 className="h-3.5 w-3.5" /> Approve
                           </button>
                         )}
+                        {currentRecord.status === "APPROVED" && (
+                          <button
+                            onClick={() => handleStatusChange(currentRecord, "SENT")}
+                            className="flex items-center gap-1.5 rounded-xl bg-cyan-500 text-white px-4 py-2 text-xs font-semibold hover:bg-cyan-600 transition-all shadow-md shadow-cyan-500/20"
+                          >
+                            <Send className="h-3.5 w-3.5" /> Mark as Sent
+                          </button>
+                        )}
                       </>
                     )}
 
@@ -794,7 +866,7 @@ export default function CampaignPage({ params }: { params: { id: string } }) {
                     <div>
                       <h3 className="font-bold text-slate-900 text-lg">Ready to Generate</h3>
                       <p className="text-sm text-slate-500 mt-1 max-w-xs">
-                        AI will write a personalized email referencing {currentRecord.companyName}'s products, tech stack, and your matching skills.
+                        AI will write a personalized email referencing {currentRecord.companyName}&apos;s products, tech stack, and your matching skills.
                       </p>
                     </div>
                     <div className="flex items-center gap-3 relative">
@@ -804,7 +876,7 @@ export default function CampaignPage({ params }: { params: { id: string } }) {
                       >
                         <Sparkles className="h-4 w-4" /> Generate Email
                       </button>
-                      
+
                       <div className="relative group/dropdown">
                         <button className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white text-slate-600 px-6 py-3 text-sm font-semibold hover:border-indigo-200 hover:text-indigo-600 transition-all">
                           Use Template <ChevronDown className="h-4 w-4" />

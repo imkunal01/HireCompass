@@ -180,7 +180,7 @@ function ImportPageInner() {
       return
     }
     processStream("/api/import/text", { text: pastedText.trim() })
-  }, [pastedText, processStream])
+  }, [pastedText, processStream, toast])
 
   const handleSave = async () => {
     if (!editedJob.company || !editedJob.role) {
@@ -448,7 +448,7 @@ Example:
               {mode === "url" && (
                 <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-400 text-left">
                   <p className="font-semibold mb-1">💡 Try Paste Mode instead</p>
-                  <p>Many job sites (LinkedIn, Glassdoor) block automated fetching. Switch to the <strong>"Paste Job Description"</strong> tab, copy the text from the page, and paste it here — AI works the same way!</p>
+                  <p>Many job sites (LinkedIn, Glassdoor) block automated fetching. Switch to the <strong>&quot;Paste Job Description&quot;</strong> tab, copy the text from the page, and paste it here — AI works the same way!</p>
                 </div>
               )}
               <div className="flex items-center justify-center gap-3">

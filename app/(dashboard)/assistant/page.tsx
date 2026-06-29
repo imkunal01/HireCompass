@@ -444,7 +444,7 @@ function AssistantInner() {
             <div className="rounded-2xl border border-border/60 bg-card/20 backdrop-blur-md p-5 text-center space-y-3">
               <Target className="h-8 w-8 text-muted-foreground mx-auto" />
               <p className="text-sm font-semibold text-foreground">AI Match Score</p>
-              <p className="text-xs text-muted-foreground">Click "Check Fit" to see how well your profile matches this role.</p>
+              <p className="text-xs text-muted-foreground">Click &quot;Check Fit&quot; to see how well your profile matches this role.</p>
               <button
                 onClick={checkFit}
                 disabled={loadingMatch || !selectedJob}

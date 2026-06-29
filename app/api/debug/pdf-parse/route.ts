@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+// @ts-ignore
 import pdfParse from "pdf-parse"
 
 export const dynamic = 'force-dynamic'

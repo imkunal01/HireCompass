@@ -213,7 +213,7 @@ function RemindersInner() {
       return res.json()
     },
   })
-  const reminders = apiReminders || []
+  const reminders = useMemo(() => apiReminders || [], [apiReminders])
 
   const toggleMutation = useMutation({
     mutationFn: async ({ id, done }: { id: string; done: boolean }) => {
