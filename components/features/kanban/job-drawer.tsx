@@ -373,18 +373,35 @@ export function JobDrawer({ opportunityId, onClose, initialData }: JobDrawerProp
               )}
 
               {/* Emails Tab */}
-              {activeTab === "emails" && (
-                <div className="py-10 text-center space-y-3">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                    <Mail className="h-6 w-6" />
+              {activeTab === "emails" && opportunity && (
+                <div className="space-y-4 py-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-border/40">
+                    <Mail className="h-4 w-4 text-primary" />
+                    <p className="text-sm font-semibold text-foreground">AI Email Generator</p>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Email Templates</p>
-                    <p className="text-xs text-muted-foreground mt-1">Coming soon — generate cover letters & follow-ups with AI</p>
+                  <p className="text-xs text-muted-foreground">
+                    Generate a personalized outreach email or cover letter for{" "}
+                    <span className="font-semibold text-foreground">{opportunity.company} — {opportunity.title}</span>{" "}
+                    using the AI Assistant.
+                  </p>
+                  <div className="rounded-xl border border-border/40 bg-secondary/10 p-4 space-y-2 text-xs">
+                    <p className="font-semibold text-foreground text-[11px] uppercase tracking-wide">What you can generate:</p>
+                    <ul className="space-y-1 text-muted-foreground">
+                      <li className="flex items-center gap-2"><ChevronRight className="h-3 w-3 text-primary shrink-0" /> Cold outreach email to recruiter</li>
+                      <li className="flex items-center gap-2"><ChevronRight className="h-3 w-3 text-primary shrink-0" /> Cover letter tailored to job requirements</li>
+                      <li className="flex items-center gap-2"><ChevronRight className="h-3 w-3 text-primary shrink-0" /> Follow-up email after applying</li>
+                    </ul>
                   </div>
-                  <button className="rounded-xl bg-primary/10 border border-primary/20 text-primary px-4 py-2 text-xs font-semibold hover:bg-primary/20 transition-colors">
-                    Generate Email Draft
-                  </button>
+                  <a
+                    href={`/assistant?jobId=${opportunity.id}`}
+                    className="flex items-center justify-center gap-2 w-full rounded-xl bg-primary text-white px-4 py-2.5 text-sm font-semibold hover:bg-primary/90 transition-colors"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Open AI Assistant for this Job
+                  </a>
+                  <p className="text-[10px] text-muted-foreground text-center">
+                    The assistant will auto-select this job and generate content for you.
+                  </p>
                 </div>
               )}
 

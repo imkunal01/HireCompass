@@ -5,10 +5,11 @@ import {
   Shield, Bell, User, Lock, Mail, Save,
   ChevronRight, CheckCircle2, Database,
   Palette, Sliders, Send, Plus, X, Github, Linkedin, Globe,
-  Sparkles, Loader2
+  Sparkles, Loader2, AlertCircle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/hooks/useUser"
+import { useQueryClient } from "@tanstack/react-query"
 
 /* ── Toggle Switch ── */
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -95,16 +96,36 @@ function InputField({
 
 export default function SettingsPage() {
   const { user } = useUser()
+  const queryClient = useQueryClient()
 
-  const [name,    setName]    = useState(user?.name  || "Demo User")
-  const [email,   setEmail]   = useState(user?.email || "demo@hirecompass.app")
-  const [saved,   setSaved]   = useState(false)
+  const [name,       setName]       = useState(user?.name  || "")
+  const [email,      setEmail]      = useState(user?.email || "")
+  const [saving,     setSaving]     = useState(false)
+  const [saved,      setSaved]      = useState(false)
+  const [saveError,  setSaveError]  = useState("")
+
+  // Sync with user once loaded
+  useEffect(() => {
+    if (user) {
+      setName(user.name)
+      setEmail(user.email)
+    }
+  }, [user?.name, user?.email])
 
   /* Notification toggles */
   const [emailAlerts,    setEmailAlerts]    = useState(true)
   const [weeklyReport,   setWeeklyReport]   = useState(true)
   const [interviewRemind,setInterviewRemind] = useState(true)
   const [marketingEmails,setMarketingEmails] = useState(false)
+  const [notifSaving, setNotifSaving] = useState(false)
+
+  /* Password change */
+  const [currentPw,   setCurrentPw]   = useState("")
+  const [newPw,       setNewPw]       = useState("")
+  const [confirmPw,   setConfirmPw]   = useState("")
+  const [pwSaving,    setPwSaving]    = useState(false)
+  const [pwSaved,     setPwSaved]     = useState(false)
+  const [pwError,     setPwError]     = useState("")
 
   /* Outreach Profile */
   const [profileLoaded, setProfileLoaded] = useState(false)
@@ -201,9 +222,90 @@ export default function SettingsPage() {
     setTimeout(() => setProfileSaved(false), 2500)
   }
 
-  const handleSave = () => {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+  // Load notification prefs from profile API
+  useEffect(() => {
+    fetch("/api/auth/profile")
+      .then((r) => r.json())
+      .then((p) => {
+        if (p?.notifications) {
+          setEmailAlerts(p.notifications.emailAlerts ?? true)
+          setWeeklyReport(p.notifications.weeklyReport ?? true)
+          setInterviewRemind(p.notifications.interviewRemind ?? true)
+          setMarketingEmails(p.notifications.marketingEmails ?? false)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleSave = async () => {
+    setSaving(true)
+    setSaveError("")
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to save")
+      queryClient.invalidateQueries({ queryKey: ["auth-me"] })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (e: any) {
+      setSaveError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSaveNotifications = async () => {
+    setNotifSaving(true)
+    try {
+      await fetch("/api/auth/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          notifications: { emailAlerts, weeklyReport, interviewRemind, marketingEmails },
+        }),
+      })
+    } finally {
+      setNotifSaving(false)
+    }
+  }
+
+  const handlePasswordChange = async () => {
+    setPwError("")
+    if (!currentPw || !newPw || !confirmPw) {
+      setPwError("All password fields are required.")
+      return
+    }
+    if (newPw !== confirmPw) {
+      setPwError("New passwords do not match.")
+      return
+    }
+    if (newPw.length < 8) {
+      setPwError("New password must be at least 8 characters.")
+      return
+    }
+    setPwSaving(true)
+    try {
+      const res = await fetch("/api/auth/password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to change password")
+      setCurrentPw("")
+      setNewPw("")
+      setConfirmPw("")
+      setPwSaved(true)
+      setTimeout(() => setPwSaved(false), 2500)
+    } catch (e: any) {
+      setPwError(e.message)
+    } finally {
+      setPwSaving(false)
+    }
   }
 
   return (
@@ -266,9 +368,17 @@ export default function SettingsPage() {
               </div>
 
               <div className="flex items-center justify-between pt-1">
-                <p className="text-xs text-slate-400">Last updated: June 2026</p>
+                <p className="text-xs text-slate-400">
+                  {user?.email ? `Signed in as ${user.email}` : "Loading..."}
+                </p>
+                {saveError && (
+                  <p className="text-xs text-rose-500 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" /> {saveError}
+                  </p>
+                )}
                 <button
                   onClick={handleSave}
+                  disabled={saving}
                   className={cn(
                     "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all duration-200",
                     saved
@@ -280,7 +390,9 @@ export default function SettingsPage() {
                     boxShadow:  "0 4px 12px rgba(99, 102, 241, 0.3)",
                   }}
                 >
-                  {saved ? (
+                  {saving ? (
+                    <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving...</>
+                  ) : saved ? (
                     <><CheckCircle2 className="h-3.5 w-3.5" /> Saved!</>
                   ) : (
                     <><Save className="h-3.5 w-3.5" /> Save Changes</>
@@ -290,20 +402,57 @@ export default function SettingsPage() {
             </div>
           </SectionCard>
 
-          {/* Password */}
           <SectionCard icon={Lock} iconBg="bg-violet-50" iconColor="text-violet-600" title="Update Password">
             <div className="space-y-4 max-w-sm">
-              <InputField label="Current Password" type="password" placeholder="••••••••" icon={Lock} />
-              <InputField label="New Password"     type="password" placeholder="••••••••" icon={Lock} />
-              <InputField label="Confirm Password" type="password" placeholder="••••••••" icon={Lock} />
+              <InputField
+                label="Current Password"
+                type="password"
+                value={currentPw}
+                onChange={setCurrentPw}
+                placeholder="••••••••"
+                icon={Lock}
+              />
+              <InputField
+                label="New Password"
+                type="password"
+                value={newPw}
+                onChange={setNewPw}
+                placeholder="Min. 8 characters"
+                icon={Lock}
+              />
+              <InputField
+                label="Confirm New Password"
+                type="password"
+                value={confirmPw}
+                onChange={setConfirmPw}
+                placeholder="Repeat new password"
+                icon={Lock}
+              />
+
+              {pwError && (
+                <p className="text-xs text-rose-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" /> {pwError}
+                </p>
+              )}
 
               <div className="pt-1">
-                <button className={cn(
-                  "flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700",
-                  "hover:border-slate-300 hover:bg-slate-50 transition-all duration-150 shadow-sm"
-                )}>
-                  <Lock className="h-3.5 w-3.5 text-slate-400" />
-                  Change Password
+                <button
+                  onClick={handlePasswordChange}
+                  disabled={pwSaving}
+                  className={cn(
+                    "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all duration-200",
+                    pwSaved
+                      ? "bg-emerald-500 text-white shadow-md"
+                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 shadow-sm"
+                  )}
+                >
+                  {pwSaving ? (
+                    <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Changing...</>
+                  ) : pwSaved ? (
+                    <><CheckCircle2 className="h-3.5 w-3.5" /> Password Changed!</>
+                  ) : (
+                    <><Lock className="h-3.5 w-3.5 text-slate-400" /> Change Password</>
+                  )}
                 </button>
               </div>
             </div>
@@ -448,7 +597,6 @@ export default function SettingsPage() {
         {/* ── Right Column ── */}
         <div className="space-y-5">
 
-          {/* Notifications */}
           <SectionCard icon={Bell} iconBg="bg-amber-50" iconColor="text-amber-500" title="Notifications">
             <div className="space-y-4">
               {[
@@ -462,9 +610,22 @@ export default function SettingsPage() {
                     <p className="text-xs font-semibold text-slate-800">{item.label}</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">{item.sub}</p>
                   </div>
-                  <Toggle checked={item.val} onChange={item.set} />
+                  <Toggle
+                    checked={item.val}
+                    onChange={(v) => { item.set(v) }}
+                  />
                 </div>
               ))}
+              <div className="pt-1 border-t border-slate-100">
+                <button
+                  onClick={handleSaveNotifications}
+                  disabled={notifSaving}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
+                >
+                  {notifSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                  Save preferences
+                </button>
+              </div>
             </div>
           </SectionCard>
 
@@ -503,23 +664,42 @@ export default function SettingsPage() {
           <SectionCard icon={Palette} iconBg="bg-pink-50" iconColor="text-pink-500" title="Appearance">
             <div className="space-y-3">
               <p className="text-xs text-slate-500">Theme preference</p>
-              <div className="grid grid-cols-2 gap-2">
-                {["Light", "System"].map((t) => (
-                  <button
-                    key={t}
-                    className={cn(
-                      "rounded-xl border py-2.5 text-xs font-semibold transition-all duration-150",
-                      t === "Light"
-                        ? "border-indigo-300 bg-indigo-50 text-indigo-700 shadow-sm"
-                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
-                    )}
-                  >
-                    {t}
-                  </button>
-                ))}
+              <div className="grid grid-cols-3 gap-2">
+                {(["Light", "Dark", "System"] as const).map((t) => {
+                  const stored = typeof window !== "undefined" ? localStorage.getItem("theme") || "System" : "System"
+                  const isActive = stored === t
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => {
+                        localStorage.setItem("theme", t)
+                        const root = document.documentElement
+                        if (t === "Dark") {
+                          root.classList.add("dark")
+                        } else if (t === "Light") {
+                          root.classList.remove("dark")
+                        } else {
+                          // System
+                          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+                          prefersDark ? root.classList.add("dark") : root.classList.remove("dark")
+                        }
+                        // Force re-render
+                        window.dispatchEvent(new Event("theme-change"))
+                      }}
+                      className={cn(
+                        "rounded-xl border py-2.5 text-xs font-semibold transition-all duration-150",
+                        isActive
+                          ? "border-indigo-300 bg-indigo-50 text-indigo-700 shadow-sm"
+                          : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                      )}
+                    >
+                      {t}
+                    </button>
+                  )
+                })}
               </div>
               <p className="text-[11px] text-slate-400">
-                Dark mode coming soon — stay tuned!
+                Changes apply immediately. Dark mode requires theme support in CSS.
               </p>
             </div>
           </SectionCard>

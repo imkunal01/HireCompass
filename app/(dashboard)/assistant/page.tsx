@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useSearchParams } from "next/navigation"
 import {
   Sparkles, RefreshCw, Copy, CheckCircle2, Download, Send,
   ChevronDown, Loader2, Brain, Target, Zap, User2, Edit2,
@@ -59,6 +60,8 @@ function parseEmailTags(text: string) {
 function AssistantInner() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const searchParams = useSearchParams()
+  const jobIdFromUrl = searchParams.get("jobId")
 
   const [selectedJob, setSelectedJob] = useState<Opportunity | null>(null)
   const [showJobPicker, setShowJobPicker] = useState(false)
@@ -76,6 +79,8 @@ function AssistantInner() {
   const [matchRateLimit, setMatchRateLimit] = useState<{ message: string; retryAfter: number | null } | null>(null)
   const [userProfile] = useState(DEFAULT_PROFILE)
   const [showProfileEdit, setShowProfileEdit] = useState(false)
+  const [markingApplied, setMarkingApplied] = useState(false)
+  const [markedApplied, setMarkedApplied] = useState(false)
 
   // Fetch real opportunities
   const { data: apiJobs } = useQuery<Opportunity[]>({
@@ -88,10 +93,15 @@ function AssistantInner() {
   })
   const jobs = (apiJobs && apiJobs.length > 0) ? apiJobs : MOCK_JOBS
 
-  // Auto-select first job
+  // Auto-select job from URL ?jobId= or fall back to first
   useEffect(() => {
-    if (jobs.length > 0 && !selectedJob) setSelectedJob(jobs[0])
-  }, [jobs, selectedJob])
+    if (!jobs.length) return
+    if (jobIdFromUrl) {
+      const found = jobs.find((j) => j.id === jobIdFromUrl)
+      if (found) { setSelectedJob(found); return }
+    }
+    if (!selectedJob) setSelectedJob(jobs[0])
+  }, [jobs, jobIdFromUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const streamGeneration = async (type: "email" | "cover") => {
     if (!selectedJob) return
@@ -487,8 +497,43 @@ function AssistantInner() {
               <button onClick={() => coverLetter && copyToClipboard(coverLetter, "cover")} className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-secondary/20 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-all">
                 <ClipboardList className="h-3.5 w-3.5" /> Copy Cover
               </button>
-              <button className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-secondary/20 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-all col-span-2">
-                <Send className="h-3.5 w-3.5" /> Mark as Applied
+              <button
+                onClick={async () => {
+                  if (!selectedJob?.id || markingApplied) return
+                  setMarkingApplied(true)
+                  try {
+                    const res = await fetch(`/api/opportunities/${selectedJob.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ status: "APPLIED" }),
+                    })
+                    if (!res.ok) throw new Error("Failed to update")
+                    queryClient.invalidateQueries({ queryKey: ["opportunities"] })
+                    toast({ type: "success", title: `${selectedJob.company} marked as Applied!` })
+                    setMarkedApplied(true)
+                    setTimeout(() => setMarkedApplied(false), 3000)
+                  } catch {
+                    toast({ type: "error", title: "Failed to update status" })
+                  } finally {
+                    setMarkingApplied(false)
+                  }
+                }}
+                disabled={!selectedJob || markingApplied}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-xs font-medium transition-all col-span-2",
+                  markedApplied
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                    : "border-border bg-secondary/20 text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                )}
+              >
+                {markingApplied ? (
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Updating...</>
+                ) : markedApplied ? (
+                  <><CheckCircle2 className="h-3.5 w-3.5" /> Applied!
+                  </>
+                ) : (
+                  <><Send className="h-3.5 w-3.5" /> Mark as Applied</>
+                )}
               </button>
             </div>
           </div>

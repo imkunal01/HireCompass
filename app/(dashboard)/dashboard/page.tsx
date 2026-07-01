@@ -119,13 +119,14 @@ function formatRelativeTime(ts: string | Date) {
 }
 
 export default function DashboardPage() {
-  const [tasks,       setTasks]       = useState<any[]>([])
+  const [localTaskDone, setLocalTaskDone] = useState<Record<string, boolean>>({})
   const [addModalOpen,setAddModalOpen] = useState(false)
   const [selectedOpp, setSelectedOpp]  = useState<Opportunity | null>(null)
 
   const { data: stats }        = useQuery<DashboardStats>({ queryKey: ["dashboard-stats"],    queryFn: async () => { const r = await fetch("/api/dashboard/stats");    if (!r.ok) throw new Error(); return r.json() } })
   const { data: activity }     = useQuery<ActivityItem[]>({ queryKey: ["dashboard-activity"], queryFn: async () => { const r = await fetch("/api/dashboard/activity"); if (!r.ok) throw new Error(); return r.json() } })
   const { data: opportunities } = useQuery<Opportunity[]>({ queryKey: ["opportunities"],      queryFn: async () => { const r = await fetch("/api/opportunities");       if (!r.ok) throw new Error(); return r.json() } })
+  const { data: reminders }     = useQuery<any[]>({         queryKey: ["reminders"],           queryFn: async () => { const r = await fetch("/api/reminders");            if (!r.ok) return [];  return r.json() } })
 
   const displayStats    = stats    || EMPTY_STATS
   const displayActivity = activity || []
@@ -141,11 +142,58 @@ export default function DashboardPage() {
     return col
   })
 
+  // Build tasks from real data sources
+  const tasks = React.useMemo(() => {
+    const items: { id: string; label: string; dueLabel: string; urgency: string; done: boolean }[] = []
+    const now = Date.now()
+
+    // Add due reminders as tasks
+    if (reminders) {
+      for (const rem of reminders) {
+        const dueDate = rem.dueDate ? new Date(rem.dueDate) : null
+        if (!dueDate) continue
+        const daysUntil = Math.ceil((dueDate.getTime() - now) / 86400000)
+        if (daysUntil > 7) continue
+        const urgency = daysUntil < 0 ? "high" : daysUntil === 0 ? "high" : daysUntil <= 2 ? "medium" : "low"
+        const dueLabel = daysUntil < 0 ? "Overdue" : daysUntil === 0 ? "Today" : daysUntil === 1 ? "Tomorrow" : `${daysUntil}d`
+        items.push({
+          id: `rem-${rem.id || rem._id}`,
+          label: `${rem.company ? `[${rem.company}] ` : ""}${rem.message || rem.title || "Follow up"}`,
+          dueLabel,
+          urgency,
+          done: localTaskDone[`rem-${rem.id || rem._id}`] || false,
+        })
+      }
+    }
+
+    // Add follow-up suggestions from applied opportunities > 7 days ago
+    if (opportunities) {
+      const followUps = opportunities.filter((o) => {
+        if (normalizeStatus(o.status) !== "APPLIED") return false
+        if (!o.createdAt) return false
+        const daysSince = Math.floor((now - new Date(o.createdAt).getTime()) / 86400000)
+        return daysSince >= 7 && daysSince <= 30
+      })
+      for (const opp of followUps.slice(0, 3)) {
+        const id = `followup-${opp.id}`
+        items.push({
+          id,
+          label: `Follow up with ${opp.company} (${opp.title})`,
+          dueLabel: "Due",
+          urgency: "medium",
+          done: localTaskDone[id] || false,
+        })
+      }
+    }
+
+    return items.slice(0, 8)
+  }, [reminders, opportunities, localTaskDone])
+
   const toggleTask = (id: string) =>
-    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, done: !t.done } : t))
+    setLocalTaskDone((prev) => ({ ...prev, [id]: !prev[id] }))
 
   const completedCount = tasks.filter((t) => t.done).length
-  const progressPct    = Math.round((completedCount / tasks.length) * 100)
+  const progressPct    = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0
 
   return (
     <ToastProvider>
@@ -389,7 +437,14 @@ export default function DashboardPage() {
 
               {/* Task list */}
               <div className="divide-y divide-slate-50">
-                {tasks.map((task, idx) => (
+                {tasks.length === 0 ? (
+                  <div className="px-5 py-8 text-center space-y-2">
+                    <p className="text-xs font-semibold text-slate-500">All caught up! 🎉</p>
+                    <p className="text-[11px] text-slate-400">
+                      No pending tasks. Reminders due soon and follow-ups will appear here.
+                    </p>
+                  </div>
+                ) : tasks.map((task) => (
                   <div
                     key={task.id}
                     className="flex items-center gap-3.5 px-5 py-3.5 hover:bg-slate-50/60 transition-colors duration-100"
