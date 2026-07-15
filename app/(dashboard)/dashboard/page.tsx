@@ -14,6 +14,7 @@ import {
   Opportunity, DashboardStats, ActivityItem,
   normalizeStatus, STATUS_CONFIG
 } from "@/types/opportunity"
+import { Project } from "@/types/project"
 import { CompanyAvatar, PriorityBadge, StatusBadge } from "@/components/ui/badge"
 import { AddJobModal } from "@/components/features/kanban/add-job-modal"
 import { JobDrawer } from "@/components/features/kanban/job-drawer"
@@ -127,6 +128,7 @@ export default function DashboardPage() {
   const { data: activity }     = useQuery<ActivityItem[]>({ queryKey: ["dashboard-activity"], queryFn: async () => { const r = await fetch("/api/dashboard/activity"); if (!r.ok) throw new Error(); return r.json() } })
   const { data: opportunities } = useQuery<Opportunity[]>({ queryKey: ["opportunities"],      queryFn: async () => { const r = await fetch("/api/opportunities");       if (!r.ok) throw new Error(); return r.json() } })
   const { data: reminders }     = useQuery<any[]>({         queryKey: ["reminders"],           queryFn: async () => { const r = await fetch("/api/reminders");            if (!r.ok) return [];  return r.json() } })
+  const { data: projects }      = useQuery<Project[]>({     queryKey: ["projects"],            queryFn: async () => { const r = await fetch("/api/projects");             if (!r.ok) return [];  return r.json() } })
 
   const displayStats    = stats    || EMPTY_STATS
   const displayActivity = activity || []
@@ -540,6 +542,65 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* ═══════════════════════════════════════════════
+            PROJECTS PREVIEW
+        ═══════════════════════════════════════════════ */}
+        {projects && projects.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden animate-slide-up delay-300">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50">
+                  <Star className="h-3.5 w-3.5 text-emerald-500" />
+                </div>
+                <h2 className="font-bold text-slate-900 text-sm">My Projects</h2>
+              </div>
+              <Link
+                href="/projects"
+                className="flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 px-2.5 py-1.5 rounded-lg transition-all duration-150"
+              >
+                Manage Projects <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-5">
+              {projects.slice(0, 3).map((proj) => (
+                <Link
+                  key={proj.id}
+                  href="/projects"
+                  className="flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white p-4 hover:border-emerald-200 hover:shadow-card-hover transition-all duration-200 text-left group block"
+                >
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-slate-900 truncate">{proj.name}</h3>
+                    {proj.snippets?.length > 0 && (
+                      <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                        {proj.snippets.length} summaries
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                    {proj.description || "No description provided."}
+                  </p>
+                  {proj.techStack && proj.techStack.length > 0 && (
+                    <div className="flex gap-1.5 flex-wrap mt-auto pt-2">
+                      {proj.techStack.slice(0, 3).map((tech) => (
+                        <span key={tech} className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                          {tech}
+                        </span>
+                      ))}
+                      {proj.techStack.length > 3 && (
+                        <span className="text-[10px] font-medium text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded">
+                          +{proj.techStack.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
 
       <AddJobModal isOpen={addModalOpen} onClose={() => setAddModalOpen(false)} />

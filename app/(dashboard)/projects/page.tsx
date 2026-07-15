@@ -184,13 +184,19 @@ function SnippetCard({
           <span className="rounded-full bg-violet-500/10 border border-violet-500/20 px-2.5 py-0.5 text-[11px] font-semibold text-violet-400">
             {snippet.roleTag}
           </span>
+          {snippet.companyName && (
+            <span className="flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
+              🏢 {snippet.companyName}
+            </span>
+          )}
           <span className={cn(
             "rounded-full px-2 py-0.5 text-[10px] font-semibold border",
             snippet.length === "short" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
             snippet.length === "medium" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
-            "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+            snippet.length === "long" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+            "bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20"
           )}>
-            {SNIPPET_LENGTH_CONFIG[snippet.length].label}
+            {snippet.length === "custom" ? `${snippet.customWords} words` : SNIPPET_LENGTH_CONFIG[snippet.length]?.label}
           </span>
           {snippet.isAiGenerated && (
             <span className="flex items-center gap-0.5 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] text-primary">
@@ -246,8 +252,13 @@ function SnippetEditor({ project, editingSnippet, onClose, onSaved }: SnippetEdi
   const { toast } = useToast()
   const [roleTag, setRoleTag] = useState(editingSnippet?.roleTag || "")
   const [length, setLength] = useState<SnippetLength>(editingSnippet?.length || "medium")
+  const [customWords, setCustomWords] = useState<number>(editingSnippet?.customWords || 100)
+  const [companyName, setCompanyName] = useState(editingSnippet?.companyName || "")
+  const [jobDescription, setJobDescription] = useState(editingSnippet?.jobDescription || "")
   const [content, setContent] = useState(editingSnippet?.content || "")
   const [generating, setGenerating] = useState(false)
+  
+  const [isJDSummary, setIsJDSummary] = useState(!!editingSnippet?.jobDescription)
 
   const isEditing = !!editingSnippet
 
@@ -264,12 +275,16 @@ function SnippetEditor({ project, editingSnippet, onClose, onSaved }: SnippetEdi
         body: JSON.stringify({
           projectName: project.name,
           description: project.description,
+          documentationText: project.documentationText,
           techStack: project.techStack,
           roleCategories: project.roleCategories,
           metrics: project.metrics,
           links: project.links,
           roleTag,
           length,
+          customWords: length === "custom" ? customWords : undefined,
+          companyName: isJDSummary ? companyName : undefined,
+          jobDescription: isJDSummary ? jobDescription : undefined,
         }),
       })
       const data = await res.json()
@@ -289,19 +304,28 @@ function SnippetEditor({ project, editingSnippet, onClose, onSaved }: SnippetEdi
       return
     }
 
+    const payload = { 
+      roleTag, 
+      length, 
+      content, 
+      customWords: length === "custom" ? customWords : undefined,
+      companyName: isJDSummary ? companyName : undefined,
+      jobDescription: isJDSummary ? jobDescription : undefined,
+    }
+
     try {
       if (isEditing) {
         const res = await fetch(`/api/projects/${project.id}/snippets`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ snippetId: editingSnippet!.id, roleTag, length, content }),
+          body: JSON.stringify({ snippetId: editingSnippet!.id, ...payload }),
         })
         if (!res.ok) throw new Error("Failed to update")
       } else {
         const res = await fetch(`/api/projects/${project.id}/snippets`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roleTag, length, content, isAiGenerated: generating }),
+          body: JSON.stringify({ ...payload, isAiGenerated: generating }),
         })
         if (!res.ok) throw new Error("Failed to save")
       }
@@ -333,19 +357,65 @@ function SnippetEditor({ project, editingSnippet, onClose, onSaved }: SnippetEdi
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* Generate Mode Toggle */}
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setIsJDSummary(false)}
+              className={cn("text-xs font-semibold pb-1 border-b-2 transition-all", !isJDSummary ? "border-primary text-primary" : "border-transparent text-muted-foreground")}
+            >
+              Standard Snippet
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsJDSummary(true)}
+              className={cn("text-xs font-semibold pb-1 border-b-2 transition-all", isJDSummary ? "border-primary text-primary" : "border-transparent text-muted-foreground")}
+            >
+              Tailor to Job Description
+            </button>
+          </div>
+
+          {isJDSummary && (
+            <div className="space-y-4 rounded-xl border border-border/60 bg-secondary/10 p-4">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
+                  Company Name
+                </label>
+                <input
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="e.g. Google, Stripe..."
+                  className="w-full rounded-xl border border-border bg-secondary/20 px-3.5 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
+                  Job Description <span className="text-rose-400">*</span>
+                </label>
+                <textarea
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  rows={4}
+                  placeholder="Paste the full job description here..."
+                  className="w-full rounded-xl border border-border bg-secondary/20 px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Role Tag */}
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-              Target Role <span className="text-rose-400">*</span>
+              Target Role / Job Title <span className="text-rose-400">*</span>
             </label>
             <RoleTagInput value={roleTag} onChange={setRoleTag} />
-            <p className="text-[10px] text-muted-foreground mt-1">e.g. &quot;Backend SDE Intern&quot;, &quot;Fullstack Developer&quot;</p>
+            <p className="text-[10px] text-muted-foreground mt-1">e.g. "Backend SDE Intern", "Fullstack Developer"</p>
           </div>
 
           {/* Length selector */}
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Length</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {(Object.entries(SNIPPET_LENGTH_CONFIG) as [SnippetLength, typeof SNIPPET_LENGTH_CONFIG[SnippetLength]][]).map(([key, cfg]) => (
                 <button
                   key={key}
@@ -363,6 +433,17 @@ function SnippetEditor({ project, editingSnippet, onClose, onSaved }: SnippetEdi
                 </button>
               ))}
             </div>
+            {length === "custom" && (
+              <div className="mt-3 flex items-center gap-3">
+                <label className="text-xs text-muted-foreground">Word Count:</label>
+                <input
+                  type="number"
+                  value={customWords}
+                  onChange={(e) => setCustomWords(parseInt(e.target.value) || 100)}
+                  className="w-24 rounded-lg border border-border bg-secondary/20 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+            )}
           </div>
 
           {/* AI Generate */}
@@ -438,6 +519,7 @@ function ProjectForm({ editProject, onClose, onSaved }: ProjectFormProps) {
   const { toast } = useToast()
   const [name, setName] = useState(editProject?.name || "")
   const [description, setDescription] = useState(editProject?.description || "")
+  const [documentationText, setDocumentationText] = useState(editProject?.documentationText || "")
   const [techStack, setTechStack] = useState<string[]>(editProject?.techStack || [])
   const [roleCategories, setRoleCategories] = useState<string[]>(editProject?.roleCategories || [])
   const [metrics, setMetrics] = useState<string[]>(editProject?.metrics || [])
@@ -457,6 +539,7 @@ function ProjectForm({ editProject, onClose, onSaved }: ProjectFormProps) {
       const payload = {
         name,
         description,
+        documentationText,
         techStack,
         roleCategories,
         metrics,
@@ -510,16 +593,52 @@ function ProjectForm({ editProject, onClose, onSaved }: ProjectFormProps) {
           {/* Master Description */}
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-              Master Description
+              Nutshell Description
             </label>
             <p className="text-[10px] text-muted-foreground mb-2">
-              Write the most complete description of your project. AI will use this full context to generate tailored snippets.
+              A short summary explaining the project in a nutshell.
             </p>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={7}
-              placeholder="Describe what the project does, your role, key technical decisions, architecture, challenges solved…"
+              rows={3}
+              placeholder="Briefly describe what the project does..."
+              className="w-full rounded-xl border border-border bg-secondary/20 px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none placeholder:text-muted-foreground/40"
+            />
+          </div>
+
+          {/* Full Documentation */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Comprehensive Documentation
+              </label>
+              <label className="cursor-pointer text-[10px] font-semibold text-primary hover:underline">
+                Upload File (.md, .txt)
+                <input 
+                  type="file" 
+                  accept=".md,.txt" 
+                  className="hidden" 
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                      if (evt.target?.result) setDocumentationText(evt.target.result as string);
+                    };
+                    reader.readAsText(f);
+                  }}
+                />
+              </label>
+            </div>
+            <p className="text-[10px] text-muted-foreground mb-2">
+              Paste your long-ass project documentation here, or upload a markdown/text file. AI will use this full context to generate tailored JD summaries.
+            </p>
+            <textarea
+              value={documentationText}
+              onChange={(e) => setDocumentationText(e.target.value)}
+              rows={8}
+              placeholder="Paste full documentation, architecture, decisions, schema details..."
               className="w-full rounded-xl border border-border bg-secondary/20 px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none placeholder:text-muted-foreground/40"
             />
           </div>

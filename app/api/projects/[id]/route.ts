@@ -58,7 +58,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { name, description, techStack, roleCategories, metrics, links } = body
+    const { name, description, documentationText, techStack, roleCategories, metrics, links } = body
 
     const client = await clientPromise
     const db = client.db()
@@ -66,6 +66,7 @@ export async function PATCH(
     const updateDoc: Record<string, any> = { updatedAt: new Date() }
     if (name !== undefined) updateDoc.name = name
     if (description !== undefined) updateDoc.description = description
+    if (documentationText !== undefined) updateDoc.documentationText = documentationText
     if (techStack !== undefined) updateDoc.techStack = techStack
     if (roleCategories !== undefined) updateDoc.roleCategories = roleCategories
     if (metrics !== undefined) updateDoc.metrics = metrics

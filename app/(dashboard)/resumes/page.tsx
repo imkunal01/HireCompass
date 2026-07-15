@@ -71,7 +71,7 @@ function UploadZone({ onUpload }: { onUpload: (file: File) => void }) {
         <Upload className="h-6 w-6" />
       </div>
       <h4 className="font-semibold text-sm text-slate-800 mb-1">
-        {dragging ? "Drop to upload" : "Upload resume or document"}
+        {dragging ? "Drop to upload" : "Upload resume"}
       </h4>
       <p className="text-xs text-slate-500 max-w-[260px] leading-relaxed">
         Drag and drop a PDF or DOCX file here, or click to browse. Max 10MB.
@@ -99,7 +99,7 @@ function UploadModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6 space-y-5 animate-scale-in">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-slate-900">Upload Document</h3>
+          <h3 className="font-bold text-slate-900">Upload Resume</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <X className="h-5 w-5" />
           </button>
@@ -116,7 +116,7 @@ function UploadModal({
 
         {/* Type selector */}
         <div className="space-y-2">
-          <label className="text-xs font-semibold text-slate-600">Document Type</label>
+          <label className="text-xs font-semibold text-slate-600">Resume Type</label>
           <div className="grid grid-cols-3 gap-2">
             {DOC_TYPE_OPTIONS.map((t) => (
               <button
@@ -252,7 +252,7 @@ function DocumentCard({
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
-export default function DocumentsPage() {
+export default function ResumesPage() {
   const qc = useQueryClient()
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -348,16 +348,16 @@ export default function DocumentsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-2">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Documents & Resumes</h2>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Resumes</h2>
           <p className="text-sm text-slate-500 mt-0.5">
-            Store multiple resume variants and documents. Attach them to outreach campaigns.
+            Store multiple resume variants. Attach them to outreach campaigns.
           </p>
         </div>
         <button
           onClick={() => document.getElementById("doc-upload-input")?.click()}
           className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white px-4 py-2.5 text-sm font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:-translate-y-px transition-all duration-200"
         >
-          <Plus className="h-4 w-4" /> Add Document
+          <Plus className="h-4 w-4" /> Add Resume
         </button>
         <input
           id="doc-upload-input"
@@ -375,7 +375,7 @@ export default function DocumentsPage() {
       {docs.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Total Documents", value: docs.length, color: "stat-indigo" },
+            { label: "Total Resumes", value: docs.length, color: "stat-indigo" },
             { label: "Resumes", value: resumes.length, color: "stat-violet" },
             { label: "Other Files", value: others.length, color: "stat-emerald" },
           ].map((s) => (
@@ -400,7 +400,7 @@ export default function DocumentsPage() {
       {!isLoading && docs.length === 0 && (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-12 text-center">
           <FileText className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-          <h3 className="font-bold text-slate-800 mb-1">No documents yet</h3>
+          <h3 className="font-bold text-slate-800 mb-1">No resumes yet</h3>
           <p className="text-sm text-slate-500">Upload your first resume to get started with outreach campaigns.</p>
         </div>
       )}
@@ -430,7 +430,7 @@ export default function DocumentsPage() {
             <div>
               <h3 className="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
-                Other Documents ({others.length})
+                Other Resumes ({others.length})
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {others.map((doc) => (

@@ -546,8 +546,8 @@ export default function OutreachUploadPage() {
               {cvList.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center">
                   <p className="text-xs text-slate-500">No CVs uploaded yet.</p>
-                  <a href="/documents" className="text-xs text-indigo-600 font-semibold hover:underline mt-1 block">
-                    Upload a CV in Documents →
+                  <a href="/resumes" className="text-xs text-indigo-600 font-semibold hover:underline mt-1 block">
+                    Upload a CV in Resumes →
                   </a>
                 </div>
               ) : (

@@ -1,9 +1,12 @@
-export type SnippetLength = "short" | "medium" | "long"
+export type SnippetLength = "short" | "medium" | "long" | "custom"
 
 export interface ProjectSnippet {
   id: string
   roleTag: string          // e.g. "Backend SDE Intern", "ML Engineer"
-  length: SnippetLength    // short ~50w, medium ~150w, long ~300w (AI up to 500w)
+  length: SnippetLength    // short ~50w, medium ~150w, long ~300w, custom
+  customWords?: number     // if length === 'custom'
+  companyName?: string     // if generated for a specific JD
+  jobDescription?: string  // the JD used to generate this
   content: string
   isAiGenerated: boolean
   createdAt: string | Date
@@ -19,7 +22,8 @@ export interface Project {
   id: string
   userId: string
   name: string
-  description: string          // long master description — full context for AI
+  description: string          // nutshell / master description
+  documentationText?: string   // full long-ass documentation parsed from file
   techStack: string[]          // ["Next.js", "MongoDB", "Groq"]
   roleCategories: string[]     // ["fullstack", "backend"] — broad category hints
   metrics: string[]            // ["reduced load time 40%", "10k users"]
@@ -72,4 +76,5 @@ export const SNIPPET_LENGTH_CONFIG: Record<SnippetLength, { label: string; words
   short:  { label: "Short",  words: "~50 words",  maxWords: 70 },
   medium: { label: "Medium", words: "~150 words", maxWords: 200 },
   long:   { label: "Long",   words: "~300 words", maxWords: 500 },
+  custom: { label: "Custom", words: "custom", maxWords: 1000 },
 }

@@ -33,6 +33,7 @@ export function KanbanBoard({ opportunities: initialOpps, onCardClick, onEdit, o
     initialOpps.map((o) => ({ ...o, status: normalizeStatus(o.status) as OpportunityStatus }))
   )
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [activeOriginalStatus, setActiveOriginalStatus] = useState<OpportunityStatus | null>(null)
 
   // Keep items in sync with external data changes
   React.useEffect(() => {
@@ -46,6 +47,7 @@ export function KanbanBoard({ opportunities: initialOpps, onCardClick, onEdit, o
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: OpportunityStatus }) => {
+      if (id.startsWith("m")) return; // Mock data bypass
       const res = await fetch(`/api/opportunities/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -61,6 +63,7 @@ export function KanbanBoard({ opportunities: initialOpps, onCardClick, onEdit, o
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      if (id.startsWith("m")) return; // Mock data bypass
       const res = await fetch(`/api/opportunities/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete")
     },
@@ -88,6 +91,7 @@ export function KanbanBoard({ opportunities: initialOpps, onCardClick, onEdit, o
 
   function handleDragStart(event: DragStartEvent) {
     setActiveId(event.active.id as string)
+    setActiveOriginalStatus(findContainer(event.active.id as string) || null)
   }
 
   function handleDragOver(event: DragOverEvent) {
@@ -100,39 +104,46 @@ export function KanbanBoard({ opportunities: initialOpps, onCardClick, onEdit, o
     if (!activeContainer || !overContainer || activeContainer === overContainer) return
 
     setItems((prev) => {
-      return prev.map((item) =>
-        item.id === (active.id as string)
-          ? { ...item, status: overContainer }
-          : item
-      )
+      const activeIndex = prev.findIndex((i) => i.id === active.id)
+      const overIndex = prev.findIndex((i) => i.id === over.id)
+      
+      const newItems = [...prev]
+      const [movedItem] = newItems.splice(activeIndex, 1)
+      
+      const insertIndex = overIndex >= 0 ? overIndex : newItems.length
+      newItems.splice(insertIndex, 0, { ...movedItem, status: overContainer })
+      
+      return newItems
     })
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     setActiveId(null)
+    const originalStatus = activeOriginalStatus
+    setActiveOriginalStatus(null)
+
     if (!over) return
 
-    const activeContainer = findContainer(active.id as string)
     const overContainer = findContainer(over.id as string) ?? (over.id as OpportunityStatus)
+    if (!overContainer) return
 
-    if (!activeContainer || !overContainer) return
-
-    if (activeContainer !== overContainer) {
+    if (originalStatus && originalStatus !== overContainer) {
       // Status changed — persist to DB
       updateStatusMutation.mutate({ id: active.id as string, status: overContainer })
-    } else {
-      // Reorder within same column
-      const colItems = getColumnItems(activeContainer)
-      const oldIndex = colItems.findIndex((i) => i.id === active.id)
-      const newIndex = colItems.findIndex((i) => i.id === over.id)
-      if (oldIndex !== newIndex) {
-        const reordered = arrayMove(colItems, oldIndex, newIndex)
-        setItems((prev) => {
-          const others = prev.filter((i) => normalizeStatus(i.status) !== activeContainer)
-          return [...others, ...reordered]
-        })
-      }
+    }
+
+    // Reorder within the same column
+    const colItems = getColumnItems(overContainer)
+    const oldIndex = colItems.findIndex((i) => i.id === active.id)
+    const newIndex = colItems.findIndex((i) => i.id === over.id)
+    
+    if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+      const reordered = arrayMove(colItems, oldIndex, newIndex)
+      setItems((prev) => {
+        const others = prev.filter((i) => normalizeStatus(i.status) !== overContainer)
+        return [...others, ...reordered]
+      })
     }
   }
 

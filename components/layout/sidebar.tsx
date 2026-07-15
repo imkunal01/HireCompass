@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
@@ -47,7 +47,7 @@ const sidebarItems: SidebarItem[] = [
   { name: "Outreach",      href: "/outreach",        icon: Send,       badge: "NEW", badgeVariant: "new" },
   { name: "AI Assistant",  href: "/assistant",       icon: Brain,      badge: "AI",  badgeVariant: "ai" },
   { name: "Projects",      href: "/projects",        icon: FolderGit2, dividerBefore: true },
-  { name: "Documents",     href: "/documents",       icon: FileText },
+  { name: "Resumes",       href: "/resumes",         icon: FileText },
   { name: "Settings",      href: "/settings",        icon: Settings },
 ]
 
@@ -64,6 +64,13 @@ export default function Sidebar() {
     router.push("/login")
     router.refresh()
   }
+
+  // Close sidebar on mobile when navigating
+  const handleNavClick = useCallback(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      useStore.getState().toggleSidebar()
+    }
+  }, [])
 
   return (
     <aside
@@ -138,8 +145,9 @@ export default function Sidebar() {
 
               <Link
                 href={item.href}
+                onClick={handleNavClick}
                 className={cn(
-                  "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150",
+                  "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 min-h-[44px]",
                   isActive
                     ? "text-indigo-600 bg-gradient-to-r from-indigo-50 to-violet-50/50 shadow-sm"
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",

@@ -15,7 +15,11 @@ import { SNIPPET_LENGTH_CONFIG, SnippetLength } from "@/types/project"
  *   metrics: string[]
  *   links: { github?, live? }
  *   roleTag: string              // target role, e.g. "Backend SDE Intern"
- *   length: "short" | "medium" | "long"
+ *   length: "short" | "medium" | "long" | "custom"
+ *   customWords?: number
+ *   companyName?: string
+ *   jobDescription?: string
+ *   documentationText?: string
  * }
  *
  * Returns: { snippet: string }
@@ -37,6 +41,10 @@ export async function POST(request: NextRequest) {
       links,
       roleTag,
       length,
+      customWords,
+      companyName,
+      jobDescription,
+      documentationText,
     } = body
 
     if (!projectName || !roleTag || !length) {
@@ -63,17 +71,23 @@ export async function POST(request: NextRequest) {
       .filter(Boolean)
       .join(", ") || "None"
 
+    const isJD = !!jobDescription;
+    const wordTarget = length === "custom" && customWords ? `exactly ${customWords} words` : `around ${lengthConfig.words} (maximum ${lengthConfig.maxWords} words)`;
+
     const prompt = `You are an expert career coach and technical writer specializing in job applications.
 
-A candidate wants a tailored project description snippet for a specific role.
+A candidate wants a tailored project description snippet ${isJD ? `for a job application at ${companyName || 'a company'}` : `for a specific role`}.
 
 ## Full Project Context (use all of this to write the snippet)
 
 **Project Name**: ${projectName}
 
-**Master Description**:
+**Nutshell Description**:
 ${description || "Not provided"}
 
+${documentationText ? `**Comprehensive Documentation**:
+${documentationText}
+` : ""}
 **Tech Stack**: ${techStackStr}
 
 **Role Categories**: ${(roleCategories || []).join(", ") || "Not specified"}
@@ -84,14 +98,22 @@ ${metricsStr}
 **Project Links**: ${linksStr}
 
 ---
+${isJD ? `## Job Description (JD) Target
+Analyze this Job Description and highly tailor the project summary to emphasize overlapping skills, requirements, and responsibilities.
+
+**Target Role**: ${roleTag}
+**Company**: ${companyName || 'Not provided'}
+**Job Description**:
+${jobDescription}
+---` : ""}
 
 ## Task
 
-Write a project description snippet tailored specifically for a **${roleTag}** role.
+Write a project description snippet tailored specifically for the **${roleTag}** role${isJD ? ` at ${companyName || 'this company'}` : ""}.
 
 Requirements:
-- Target word count: **${lengthConfig.words}** (maximum ${lengthConfig.maxWords} words)
-- Emphasize skills and aspects most relevant to the "${roleTag}" role
+- Target word count: **${wordTarget}**
+- Emphasize skills and aspects most relevant to the ${isJD ? "Job Description" : `"${roleTag}" role`}
 - Use active, confident language — first person is fine
 - Lead with the most impressive or relevant aspect
 - Include 1-2 specific metrics/impact points if available

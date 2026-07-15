@@ -5,7 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   X, ExternalLink, Edit2, Send, Calendar, Clock, MapPin, Tag,
   FileText, CheckSquare, Mail, Activity, ChevronRight, Loader2,
-  ClipboardList, Copy, Check, Sparkles, FolderGit2, Zap, RefreshCw
+  ClipboardList, Copy, Check, Sparkles, FolderGit2, Zap, RefreshCw,
+  Trash2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Opportunity, STATUS_CONFIG, PRIORITY_CONFIG, normalizeStatus } from "@/types/opportunity"
@@ -80,6 +81,22 @@ export function JobDrawer({ opportunityId, onClose, initialData }: JobDrawerProp
     }
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (opportunityId?.startsWith("m")) return; // Mock data bypass
+      const res = await fetch(`/api/opportunities/${opportunityId}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete")
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["opportunities"] })
+      toast({ type: "success", title: "Job deleted" })
+      onClose()
+    },
+    onError: () => {
+      toast({ type: "error", title: "Failed to delete" })
+    }
+  })
+
   const saveNotes = () => {
     updateMutation.mutate({ notes: notesValue } as any)
     setEditingNotes(false)
@@ -95,8 +112,9 @@ export function JobDrawer({ opportunityId, onClose, initialData }: JobDrawerProp
         onClick={onClose}
       />
 
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 bottom-0 z-[90] w-full max-w-[480px] flex flex-col border-l border-border bg-card/95 backdrop-blur-xl shadow-2xl shadow-black/40 animate-in slide-in-from-right duration-300">
+      {/* Modal Container */}
+      <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 sm:p-6 pointer-events-none">
+        <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-border bg-card/95 backdrop-blur-xl shadow-2xl shadow-black/40 pointer-events-auto animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
         {/* Header */}
         <div className="flex items-start justify-between p-5 border-b border-border/60">
           {isLoading ? (
@@ -136,25 +154,36 @@ export function JobDrawer({ opportunityId, onClose, initialData }: JobDrawerProp
 
         {/* Quick Actions */}
         {opportunity && (
-          <div className="flex gap-2 p-4 border-b border-border/40">
+          <div className="flex gap-2 p-4 border-b border-border/40 bg-secondary/10 overflow-x-auto">
             <button
               onClick={() => updateMutation.mutate({ status: "APPLIED" } as any)}
-              className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 py-2 text-xs font-semibold transition-all"
+              className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 py-2 text-xs font-semibold transition-all"
             >
               <Send className="h-3.5 w-3.5" /> Mark Applied
             </button>
             <button
               onClick={() => updateMutation.mutate({ status: "INTERVIEW" } as any)}
-              className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-500/20 py-2 text-xs font-semibold transition-all"
+              className="flex-1 min-w-[140px] flex items-center justify-center gap-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-500/20 py-2 text-xs font-semibold transition-all"
             >
               <Calendar className="h-3.5 w-3.5" /> Schedule Interview
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm("Are you sure you want to delete this job?")) {
+                  deleteMutation.mutate()
+                }
+              }}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 px-3 py-2 text-xs font-semibold transition-all shrink-0"
+              title="Delete Job"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
             {opportunity.url && (
               <a
                 href={opportunity.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-1.5 rounded-xl bg-secondary/30 border border-border px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all"
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-secondary/30 border border-border px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all shrink-0"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
@@ -412,6 +441,7 @@ export function JobDrawer({ opportunityId, onClose, initialData }: JobDrawerProp
             </>
           )}
         </div>
+        </div>
       </div>
     </>
   )
@@ -489,7 +519,8 @@ function FormKitTab({ opportunity }: { opportunity: Opportunity }) {
   const getSnippetContent = (item: FormKitItem, len: SnippetLength): string | null => {
     const generated = generatedSnippets[`${item.projectId}-${len}`]
     if (generated) return generated
-    const s = item.snippets[len]
+    const validKey = len as keyof typeof item.snippets
+    const s = item.snippets[validKey]
     return s?.content || null
   }
 
@@ -632,7 +663,7 @@ function FormKitTab({ opportunity }: { opportunity: Opportunity }) {
             {/* Length selector */}
             <div className="flex gap-1.5 px-3.5 pt-3">
               {(["short", "medium", "long"] as SnippetLength[]).map((l) => {
-                const hasSnippet = !!(item.snippets[l] || generatedSnippets[`${item.projectId}-${l}`])
+                const hasSnippet = !!(item.snippets[l as keyof typeof item.snippets] || generatedSnippets[`${item.projectId}-${l}`])
                 return (
                   <button
                     key={l}

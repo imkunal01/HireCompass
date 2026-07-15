@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, description, techStack, roleCategories, metrics, links } = body
+    const { name, description, documentationText, techStack, roleCategories, metrics, links } = body
 
     if (!name) {
       return NextResponse.json({ error: "Project name is required" }, { status: 400 })
@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
       userId: session.user.id,
       name,
       description: description || "",
+      documentationText: documentationText || "",
       techStack: techStack || [],
       roleCategories: roleCategories || [],
       metrics: metrics || [],

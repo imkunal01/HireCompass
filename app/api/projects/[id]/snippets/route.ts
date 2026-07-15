@@ -16,7 +16,7 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { roleTag, length, content, isAiGenerated } = body
+    const { roleTag, length, customWords, companyName, jobDescription, content, isAiGenerated } = body
 
     if (!roleTag || !length || !content) {
       return NextResponse.json({ error: "roleTag, length, and content are required" }, { status: 400 })
@@ -26,6 +26,9 @@ export async function POST(
       id: crypto.randomUUID(),
       roleTag,
       length,
+      customWords,
+      companyName,
+      jobDescription,
       content,
       isAiGenerated: Boolean(isAiGenerated),
       createdAt: new Date(),
@@ -69,7 +72,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { snippetId, roleTag, length, content, isAiGenerated } = body
+    const { snippetId, roleTag, length, customWords, companyName, jobDescription, content, isAiGenerated } = body
 
     if (!snippetId) {
       return NextResponse.json({ error: "snippetId is required" }, { status: 400 })
@@ -81,6 +84,9 @@ export async function PATCH(
     const setFields: Record<string, any> = { updatedAt: new Date() }
     if (roleTag !== undefined) setFields["snippets.$[elem].roleTag"] = roleTag
     if (length !== undefined) setFields["snippets.$[elem].length"] = length
+    if (customWords !== undefined) setFields["snippets.$[elem].customWords"] = customWords
+    if (companyName !== undefined) setFields["snippets.$[elem].companyName"] = companyName
+    if (jobDescription !== undefined) setFields["snippets.$[elem].jobDescription"] = jobDescription
     if (content !== undefined) setFields["snippets.$[elem].content"] = content
     if (isAiGenerated !== undefined) setFields["snippets.$[elem].isAiGenerated"] = isAiGenerated
 
