@@ -180,43 +180,50 @@ export async function sendReminderConfirmation(
 export async function sendEventAlertEmail(
   to: string,
   reminder: ReminderEmailData,
-  alertType: "24h" | "5h",
-  dateType: "event" | "registration"
+  alertType: "24h" | "5h" | "exact",
+  dateType: "event" | "registration" | "exact"
 ) {
   const title = reminder.company
     ? `${reminder.company}${reminder.jobTitle ? ` — ${reminder.jobTitle}` : ""}`
     : reminder.jobTitle || reminder.message
 
   const targetDate =
-    dateType === "event" ? reminder.eventDate : reminder.registrationDeadline
+    dateType === "exact" ? reminder.dueAt : dateType === "event" ? reminder.eventDate : reminder.registrationDeadline
   if (!targetDate) return
 
   const timeLeft = getTimeLeft(targetDate)
-  const isUrgent = alertType === "5h"
-  const dateLabel = dateType === "event" ? "Event" : "Registration Deadline"
-  const emoji = dateType === "event" ? "📅" : "✍️"
+  const isUrgent = alertType === "5h" || alertType === "exact"
+  const dateLabel = dateType === "exact" ? "Reminder" : dateType === "event" ? "Event" : "Registration Deadline"
+  const emoji = dateType === "exact" ? "⏰" : dateType === "event" ? "📅" : "✍️"
 
   const body = `
     <p style="margin:0 0 16px;color:#1E293B;font-size:16px;font-weight:700;">
-      ${isUrgent ? "⚡ Happening Soon!" : "🔔 Coming Up Tomorrow"}
+      ${alertType === "exact" ? "🔔 Reminder Due Now!" : isUrgent ? "⚡ Happening Soon!" : "🔔 Coming Up Tomorrow"}
     </p>
     <p style="margin:0 0 12px;color:#334155;font-size:15px;">
       ${emoji} <strong>${dateLabel}:</strong> ${formatDate(targetDate)} at ${formatTime(targetDate)}
     </p>
-    <p style="margin:0 0 12px;color:#334155;font-size:14px;">
-      ⏱️ <strong>Time Remaining:</strong> <span style="color:${isUrgent ? "#EF4444" : "#F59E0B"};font-weight:700;">${timeLeft} left</span>
-    </p>
+    ${
+      alertType === "exact"
+        ? ""
+        : `<p style="margin:0 0 12px;color:#334155;font-size:14px;">
+             ⏱️ <strong>Time Remaining:</strong> <span style="color:${isUrgent ? "#EF4444" : "#F59E0B"};font-weight:700;">${timeLeft} left</span>
+           </p>`
+    }
     ${reminder.message ? `<p style="margin:0;color:#64748B;font-size:13px;padding-top:12px;border-top:1px solid #E2E8F0;">${reminder.message}</p>` : ""}
   `
 
-  const subject = isUrgent
-    ? `⚡ ${timeLeft} left — ${dateLabel}: ${title}`
-    : `🔔 Tomorrow: ${dateLabel} for ${title}`
+  const subject =
+    alertType === "exact"
+      ? `🔔 Reminder: ${title}`
+      : isUrgent
+      ? `⚡ ${timeLeft} left — ${dateLabel}: ${title}`
+      : `🔔 Tomorrow: ${dateLabel} for ${title}`
 
   const html = buildEmailHTML({
-    title: isUrgent ? `Only ${timeLeft} left!` : `${dateLabel} is Tomorrow`,
+    title: alertType === "exact" ? "Reminder Due" : isUrgent ? `Only ${timeLeft} left!` : `${dateLabel} is Tomorrow`,
     subtitle: title,
-    badgeLabel: isUrgent ? "⚡ Urgent" : `⏰ ${alertType === "24h" ? "24h" : "5h"} Alert`,
+    badgeLabel: alertType === "exact" ? "⏰ Now" : isUrgent ? "⚡ Urgent" : `⏰ ${alertType === "24h" ? "24h" : "5h"} Alert`,
     badgeColor: isUrgent ? "#EF4444" : "#F59E0B",
     body,
     urgency: isUrgent ? "high" : "medium",

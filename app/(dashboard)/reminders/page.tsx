@@ -6,7 +6,7 @@ import {
   Clock, ArrowRight, Calendar, Bell, Plus,
   ChevronLeft, ChevronRight, X, Check, AlarmClock,
   Trash2, RefreshCw, CalendarDays, AlertCircle,
-  ExternalLink, Mail, Info
+  ExternalLink, Mail, Info, Loader2, CheckCircle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ToastProvider, useToast } from "@/components/ui/toast"
@@ -18,7 +18,7 @@ interface Reminder {
   jobId: string | null
   jobTitle: string | null
   company: string | null
-  type: "DEADLINE" | "FOLLOWUP" | "INTERVIEW"
+  type: "DEADLINE" | "FOLLOWUP" | "INTERVIEW" | "EVENT" | "REGISTRATION"
   dueAt: string
   eventDate?: string | null
   registrationDeadline?: string | null
@@ -43,6 +43,8 @@ const TYPE_CONFIG = {
   DEADLINE:  { label: "Deadline",   color: "text-rose-400",   bg: "bg-rose-500/10",   border: "border-rose-500/20",   icon: Clock },
   FOLLOWUP:  { label: "Follow-up",  color: "text-blue-400",   bg: "bg-blue-500/10",   border: "border-blue-500/20",   icon: ArrowRight },
   INTERVIEW: { label: "Interview",  color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20", icon: Calendar },
+  EVENT:     { label: "Event",      color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20", icon: CalendarDays },
+  REGISTRATION: { label: "Registration", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", icon: Mail },
 }
 
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -338,16 +340,22 @@ function ReminderCard({ reminder, onToggle, onSnooze, onDelete, onSyncToCalendar
 function AddReminderModal({ isOpen, onClose, onAdd }: { isOpen: boolean; onClose: () => void; onAdd: (r: any) => void }) {
   const [form, setForm] = useState({
     company: "", jobTitle: "", type: "DEADLINE" as Reminder["type"],
-    dueAt: "", message: "", eventDate: "", registrationDeadline: ""
+    dueAt: "", message: "", eventDate: "", registrationDeadline: "", customAlerts: [] as string[]
   })
 
   if (!isOpen) return null
 
   const handleSubmit = () => {
     if (!form.dueAt || !form.type) return
-    onAdd(form)
+    onAdd({
+      ...form,
+      dueAt: new Date(form.dueAt).toISOString(),
+      eventDate: form.eventDate ? new Date(form.eventDate).toISOString() : "",
+      registrationDeadline: form.registrationDeadline ? new Date(form.registrationDeadline).toISOString() : "",
+      customAlerts: form.customAlerts.filter((a) => a.trim() !== ""),
+    })
     onClose()
-    setForm({ company: "", jobTitle: "", type: "DEADLINE", dueAt: "", message: "", eventDate: "", registrationDeadline: "" })
+    setForm({ company: "", jobTitle: "", type: "DEADLINE", dueAt: "", message: "", eventDate: "", registrationDeadline: "", customAlerts: [] })
   }
 
   return (
@@ -393,6 +401,8 @@ function AddReminderModal({ isOpen, onClose, onAdd }: { isOpen: boolean; onClose
                 <option value="DEADLINE">Deadline</option>
                 <option value="FOLLOWUP">Follow-up</option>
                 <option value="INTERVIEW">Interview</option>
+                <option value="EVENT">Event</option>
+                <option value="REGISTRATION">Registration</option>
               </select>
             </div>
             <div className="space-y-1">
@@ -445,6 +455,47 @@ function AddReminderModal({ isOpen, onClose, onAdd }: { isOpen: boolean; onClose
               />
             </div>
           </div>
+
+          {/* Custom exact-time alerts */}
+          <div className="space-y-2 pt-3 border-t border-border/50">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-1">
+                <Bell className="h-3 w-3" /> Custom Alerts
+              </label>
+              <button
+                type="button"
+                onClick={() => setForm(p => ({ ...p, customAlerts: [...p.customAlerts, ""] }))}
+                className="text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-colors"
+              >
+                + Add Alert Time
+              </button>
+            </div>
+            {form.customAlerts.map((alert, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input
+                  type="datetime-local"
+                  value={alert}
+                  onChange={(e) => {
+                    const next = [...form.customAlerts]
+                    next[i] = e.target.value
+                    setForm(p => ({ ...p, customAlerts: next }))
+                  }}
+                  className="flex-1 rounded-xl border border-indigo-200 bg-indigo-50/30 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = [...form.customAlerts]
+                    next.splice(i, 1)
+                    setForm(p => ({ ...p, customAlerts: next }))
+                  }}
+                  className="p-2 rounded-xl text-rose-400 hover:bg-rose-50 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="flex gap-3 pt-2">
@@ -473,12 +524,22 @@ function RemindersInner() {
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
   const router = useRouter()
-
+  const [filter, setFilter] = useState<"pending" | "all" | "done">("pending")
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list")
   const [addOpen, setAddOpen] = useState(false)
-  const [filter, setFilter] = useState<"all" | "pending" | "done">("pending")
-  const [calMonth, setCalMonth] = useState(new Date())
   const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set())
+  const [calMonth, setCalMonth] = useState(() => new Date())
+  const [isClearing, setIsClearing] = useState(false)
+
+  // Background poller to process emails (simulates cron locally)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetch("/api/cron/process-emails", {
+        headers: { "x-internal-cron": "true" }
+      }).catch(err => console.error("Cron ping failed", err))
+    }, 60000) // every minute
+    return () => clearInterval(interval)
+  }, [])
 
   // Handle Google Calendar OAuth return
   useEffect(() => {
@@ -614,6 +675,29 @@ function RemindersInner() {
     }
   }
 
+  const handleClearAll = async () => {
+    const pendingReminders = reminders.filter(r => !r.done)
+    if (pendingReminders.length === 0) return
+    setIsClearing(true)
+    try {
+      await Promise.all(
+        pendingReminders.map((r) =>
+          fetch(`/api/reminders/${r.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ done: true }),
+          })
+        )
+      )
+      await queryClient.invalidateQueries({ queryKey: ["reminders"] })
+      toast({ type: "success", title: "All pending reminders cleared!" })
+    } catch {
+      toast({ type: "error", title: "Failed to clear reminders" })
+    } finally {
+      setIsClearing(false)
+    }
+  }
+
   // ── Calendar helpers ────────────────────────────────────────────────────
   const firstDay = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1)
   const daysInMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0).getDate()
@@ -699,19 +783,32 @@ function RemindersInner() {
       <CalendarConnectBanner connected={calendarConnected} />
 
       {/* Filter tabs — scrollable on mobile */}
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-        {(["pending", "all", "done"] as const).map((f) => (
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+          {(["pending", "all", "done"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={cn(
+                "rounded-xl border px-4 py-2 text-xs font-semibold transition-all capitalize whitespace-nowrap flex-shrink-0",
+                filter === f ? "border-primary/50 bg-primary/10 text-primary" : "border-border bg-card/20 text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+        
+        {reminders.some(r => !r.done) && (
           <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={cn(
-              "rounded-xl border px-4 py-2 text-xs font-semibold transition-all capitalize whitespace-nowrap flex-shrink-0",
-              filter === f ? "border-primary/50 bg-primary/10 text-primary" : "border-border bg-card/20 text-muted-foreground hover:text-foreground"
-            )}
+            onClick={handleClearAll}
+            disabled={isClearing}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors disabled:opacity-50 border border-rose-100"
           >
-            {f}
+            {isClearing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
+            Clear all pending
           </button>
-        ))}
+        )}
       </div>
 
       {/* Main layout — sidebar on desktop */}

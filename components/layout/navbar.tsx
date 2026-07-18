@@ -6,7 +6,8 @@ import { Search, Bell, Sparkles, ChevronDown, Menu, Calendar, Clock, CheckCircle
 import { cn } from "@/lib/utils"
 import { useUser } from "@/hooks/useUser"
 import { useStore } from "@/hooks/useStore"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Loader2 } from "lucide-react"
 
 interface Reminder {
   id: string
@@ -51,6 +52,9 @@ const URGENCY_STYLE = {
 
 function NotificationDropdown({ onClose }: { onClose: () => void }) {
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default")
+  const [isClearing, setIsClearing] = useState(false)
+  const queryClient = useQueryClient()
+  
   const { data: reminders = [] } = useQuery<Reminder[]>({
     queryKey: ["reminders", "pending"],
     queryFn: async () => {
@@ -79,6 +83,25 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
     }
   }
 
+  const handleClearAll = async () => {
+    if (reminders.length === 0) return
+    setIsClearing(true)
+    try {
+      await Promise.all(
+        reminders.map((r) =>
+          fetch(`/api/reminders/${r.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ done: true }),
+          })
+        )
+      )
+      await queryClient.invalidateQueries({ queryKey: ["reminders"] })
+    } finally {
+      setIsClearing(false)
+    }
+  }
+
   const sorted = [...reminders]
     .sort((a, b) => {
       const aDate = a.eventDate || a.registrationDeadline || a.dueAt
@@ -100,9 +123,21 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
             </span>
           )}
         </div>
-        <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
-          <X className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          {reminders.length > 0 && (
+            <button
+              onClick={handleClearAll}
+              disabled={isClearing}
+              className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100/50 px-2 py-1 rounded-md transition-colors disabled:opacity-50 flex items-center gap-1"
+            >
+              {isClearing && <Loader2 className="h-3 w-3 animate-spin" />}
+              Clear all
+            </button>
+          )}
+          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* Notification permission banner */}

@@ -14,9 +14,14 @@ import { sendEventAlertEmail } from "@/lib/email"
 export async function GET(request: NextRequest) {
   // Optional: protect with a secret key
   const authHeader = request.headers.get("authorization")
+  const isInternalPing = request.headers.get("x-internal-cron") === "true"
   const cronSecret = process.env.CRON_SECRET
+
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    // Allow local development pings to bypass secret for easier testing
+    if (!(process.env.NODE_ENV === "development" && isInternalPing)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   }
 
   try {
@@ -26,6 +31,13 @@ export async function GET(request: NextRequest) {
     const remindersCol = db.collection("reminders")
 
     const now = new Date()
+
+    // Cleanup old processed jobs (> 7 days old)
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    await emailJobsCol.deleteMany({
+      status: { $in: ["sent", "cancelled", "failed"] },
+      processedAt: { $lt: sevenDaysAgo }
+    })
 
     // Find pending jobs that are due (sendAt <= now)
     const pendingJobs = await emailJobsCol

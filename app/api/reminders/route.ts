@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const {
       jobId, jobTitle, company, type, dueAt, message,
-      eventDate, registrationDeadline,
+      eventDate, registrationDeadline, customAlerts = []
     } = body
 
     if (!type || !dueAt) {
@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
       dueAt: new Date(dueAt),
       eventDate: parsedEventDate,
       registrationDeadline: parsedRegDeadline,
+      customAlerts: Array.isArray(customAlerts) ? customAlerts.map(a => new Date(a)) : [],
       message: message || "",
       done: false,
       googleCalendarEventId: null,
@@ -92,53 +93,89 @@ export async function POST(request: NextRequest) {
     // ── Schedule email jobs ──────────────────────────────────────────────
     // Email is included in the JWT session payload
     const userEmail = session.user.email
-    const emailJobs: Array<{
-      userId: string
-      reminderId: string
-      userEmail: string
-      sendAt: Date
-      alertType: "24h" | "5h"
-      dateType: "event" | "registration"
-      status: string
-      createdAt: Date
-    }> = []
+    if (userEmail) {
+      const emailJobs: Array<{
+        userId: string
+        reminderId: string
+        userEmail: string
+        sendAt: Date
+        alertType: "24h" | "5h" | "exact"
+        dateType: "event" | "registration" | "exact"
+        status: string
+        createdAt: Date
+      }> = []
 
-    // Helper: schedule 24h and 5h before a date
-    const scheduleAlerts = (targetDate: Date, dateType: "event" | "registration") => {
-      const h24 = new Date(targetDate.getTime() - 24 * 3600000)
-      const h5  = new Date(targetDate.getTime() - 5  * 3600000)
+      // Helper: schedule 24h and 5h before a date
+      const scheduleAlerts = (targetDate: Date, dateType: "event" | "registration") => {
+        const h24 = new Date(targetDate.getTime() - 24 * 3600000)
+        const h5  = new Date(targetDate.getTime() - 5  * 3600000)
 
-      if (h24 > now) {
+        if (h24 > now) {
+          emailJobs.push({
+            userId: session.user.id,
+            reminderId,
+            userEmail,
+            sendAt: h24,
+            alertType: "24h",
+            dateType,
+            status: "pending",
+            createdAt: now,
+          })
+        }
+        if (h5 > now) {
+          emailJobs.push({
+            userId: session.user.id,
+            reminderId,
+            userEmail,
+            sendAt: h5,
+            alertType: "5h",
+            dateType,
+            status: "pending",
+            createdAt: now,
+          })
+        }
+      }
+
+      if (parsedEventDate) scheduleAlerts(parsedEventDate, "event")
+      if (parsedRegDeadline) scheduleAlerts(parsedRegDeadline, "registration")
+
+      // Schedule exact time alert for 'dueAt' (Reminder On)
+      const parsedDueAt = new Date(dueAt)
+      if (parsedDueAt > now) {
         emailJobs.push({
           userId: session.user.id,
           reminderId,
           userEmail,
-          sendAt: h24,
-          alertType: "24h",
-          dateType,
+          sendAt: parsedDueAt,
+          alertType: "exact",
+          dateType: "exact",
           status: "pending",
           createdAt: now,
         })
       }
-      if (h5 > now) {
-        emailJobs.push({
-          userId: session.user.id,
-          reminderId,
-          userEmail,
-          sendAt: h5,
-          alertType: "5h",
-          dateType,
-          status: "pending",
-          createdAt: now,
-        })
+
+      // Schedule exact time alerts for any customAlerts
+      if (Array.isArray(customAlerts)) {
+        for (const alertDateStr of customAlerts) {
+          const d = new Date(alertDateStr)
+          if (d > now) {
+            emailJobs.push({
+              userId: session.user.id,
+              reminderId,
+              userEmail,
+              sendAt: d,
+              alertType: "exact",
+              dateType: "exact",
+              status: "pending",
+              createdAt: now,
+            })
+          }
+        }
       }
-    }
 
-    if (parsedEventDate) scheduleAlerts(parsedEventDate, "event")
-    if (parsedRegDeadline) scheduleAlerts(parsedRegDeadline, "registration")
-
-    if (emailJobs.length > 0) {
-      await emailJobsCol.insertMany(emailJobs)
+      if (emailJobs.length > 0) {
+        await emailJobsCol.insertMany(emailJobs)
+      }
     }
 
     // ── Send confirmation email immediately ──────────────────────────────
