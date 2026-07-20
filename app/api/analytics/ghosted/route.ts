@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
 import clientPromise from "@/lib/mongodb"
 
-// GET /api/analytics/ghosted — applications with no response in N days
+// GET /api/analytics/ghosted - applications with no response in N days
 export async function GET(request: NextRequest) {
   const session = await getSession(request)
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

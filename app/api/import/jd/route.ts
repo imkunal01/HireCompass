@@ -5,7 +5,7 @@ import Groq from "groq-sdk"
 
 const MODEL = "llama-3.3-70b-versatile"
 
-// POST /api/import/jd — parse a pasted job description and create an opportunity
+// POST /api/import/jd - parse a pasted job description and create an opportunity
 export async function POST(request: NextRequest) {
   const session = await getSession(request)
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -55,7 +55,7 @@ Today is ${today}. If the deadline is relative (e.g. "apply in 2 weeks"), calcul
     const match = raw.match(/\{[\s\S]*\}/)
     parsed = JSON.parse(match?.[0] ?? "{}")
   } catch {
-    return NextResponse.json({ error: "Failed to parse JD — try pasting more of the job description." }, { status: 422 })
+    return NextResponse.json({ error: "Failed to parse JD - try pasting more of the job description." }, { status: 422 })
   }
 
   if (!parsed.title || !parsed.company) {
