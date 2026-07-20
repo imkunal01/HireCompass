@@ -18,7 +18,7 @@ interface Reminder {
   jobId: string | null
   jobTitle: string | null
   company: string | null
-  type: "DEADLINE" | "FOLLOWUP" | "INTERVIEW" | "EVENT" | "REGISTRATION"
+  type: "DEADLINE" | "FOLLOWUP" | "INTERVIEW" | "EVENT" | "REGISTRATION" | "TASK" | "CUSTOM"
   dueAt: string
   eventDate?: string | null
   registrationDeadline?: string | null
@@ -39,12 +39,14 @@ interface CalendarEvent {
 }
 
 // ── Config ─────────────────────────────────────────────────────────────────
-const TYPE_CONFIG = {
-  DEADLINE:  { label: "Deadline",   color: "text-rose-400",   bg: "bg-rose-500/10",   border: "border-rose-500/20",   icon: Clock },
-  FOLLOWUP:  { label: "Follow-up",  color: "text-blue-400",   bg: "bg-blue-500/10",   border: "border-blue-500/20",   icon: ArrowRight },
-  INTERVIEW: { label: "Interview",  color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20", icon: Calendar },
-  EVENT:     { label: "Event",      color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20", icon: CalendarDays },
-  REGISTRATION: { label: "Registration", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", icon: Mail },
+const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; icon: React.ComponentType<{ className?: string }> }> = {
+  DEADLINE:     { label: "Deadline",     color: "text-rose-400",   bg: "bg-rose-500/10",   border: "border-rose-500/20",   icon: Clock },
+  FOLLOWUP:     { label: "Follow-up",   color: "text-blue-400",   bg: "bg-blue-500/10",   border: "border-blue-500/20",   icon: ArrowRight },
+  INTERVIEW:    { label: "Interview",   color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20", icon: Calendar },
+  EVENT:        { label: "Event",       color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20", icon: CalendarDays },
+  REGISTRATION: { label: "Registration",color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", icon: Mail },
+  TASK:         { label: "Task",        color: "text-emerald-400",bg: "bg-emerald-500/10",border: "border-emerald-500/20",icon: CheckCircle },
+  CUSTOM:       { label: "Custom",      color: "text-slate-400", bg: "bg-slate-500/10", border: "border-slate-500/20", icon: Bell },
 }
 
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -187,7 +189,7 @@ function ReminderCard({ reminder, onToggle, onSnooze, onDelete, onSyncToCalendar
   onSyncToCalendar: () => void
   calendarConnected: boolean
 }) {
-  const config = TYPE_CONFIG[reminder.type]
+  const config = TYPE_CONFIG[reminder.type] ?? TYPE_CONFIG["CUSTOM"]
   const Icon = config.icon
   const [showSnooze, setShowSnooze] = useState(false)
 

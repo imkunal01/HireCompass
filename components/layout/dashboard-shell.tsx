@@ -6,6 +6,7 @@ import Sidebar from "./sidebar"
 import Navbar from "./navbar"
 import { cn } from "@/lib/utils"
 import NotificationInitializer from "@/components/ui/notification-initializer"
+import AgentChat from "@/components/features/agent/agent-chat"
 
 interface DashboardShellProps {
   children: React.ReactNode
@@ -50,6 +51,9 @@ export default function DashboardShell({ children }: DashboardShellProps) {
 
       {/* Notification background checker */}
       <NotificationInitializer />
+
+      {/* AI Agent Chatbot — floats on every page */}
+      <AgentChat />
     </div>
   )
 }

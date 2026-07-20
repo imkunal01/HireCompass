@@ -20,6 +20,7 @@ import { AddJobModal } from "@/components/features/kanban/add-job-modal"
 import { JobDrawer } from "@/components/features/kanban/job-drawer"
 import { ToastProvider } from "@/components/ui/toast"
 import { SmartSuggestions } from "@/components/features/dashboard/smart-suggestions"
+import { GhostingRadar } from "@/components/features/dashboard/ghosting-radar"
 
 const EMPTY_STATS: DashboardStats = {
   totalSaved: 0, applicationsSent: 0,
@@ -303,9 +304,10 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Smart Suggestions */}
-        <div className="animate-slide-up delay-300">
+        {/* Smart Suggestions & Ghosting Radar */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-slide-up delay-300">
           <SmartSuggestions />
+          <GhostingRadar />
         </div>
 
         {/* ═══════════════════════════════════════════════
