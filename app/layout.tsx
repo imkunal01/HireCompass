@@ -22,6 +22,7 @@ export const metadata: Metadata = {
   },
   formatDetection: { telephone: false },
   icons: {
+    icon: "/logo.png",
     apple: [{ url: "/logo.png", sizes: "192x192" }],
   },
 };
