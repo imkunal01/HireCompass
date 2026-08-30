@@ -72,12 +72,12 @@ interface ChatMessage {
 // ─── Quick suggestion chips ───────────────────────────────────────────────────
 
 const SUGGESTIONS = [
-  { label: "📋 My applications", prompt: "Show me all my job applications" },
-  { label: "🔔 Pending reminders", prompt: "List my pending reminders" },
-  { label: "📅 Upcoming interviews", prompt: "Show my upcoming interviews" },
-  { label: "📊 My stats", prompt: "Give me my job search analytics" },
-  { label: "💼 Add a job", prompt: "I want to add a new job to track" },
-  { label: "🚀 Mark as applied", prompt: "Mark a job as applied" },
+  { label: "My applications", prompt: "Show me all my active job applications" },
+  { label: "Pending reminders", prompt: "What reminders did I forget about?" },
+  { label: "Upcoming interviews", prompt: "Do I actually have any interviews coming up?" },
+  { label: "Check my stats", prompt: "Show me my job search stats" },
+  { label: "Add a new job", prompt: "I want to add a new job to my tracker" },
+  { label: "Ghosting radar", prompt: "Check my ghosting radar for cold applications" },
 ]
 
 // ─── Markdown-lite renderer ───────────────────────────────────────────────────
@@ -131,27 +131,27 @@ function ActionCard({ action, onNavigate }: { action: ActionData; onNavigate: (p
       className={cn(
         "mt-2 rounded-xl border px-3 py-2.5 text-xs flex items-start gap-2.5 shadow-sm transition-all duration-200",
         isDelete
-          ? "border-rose-200 bg-rose-50 hover:bg-rose-100"
-          : "border-indigo-100 bg-indigo-50/50 hover:bg-indigo-50"
+          ? "border-rose-200 dark:border-rose-800/60 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-950/60"
+          : "border-indigo-100 dark:border-indigo-900/60 bg-indigo-50/50 dark:bg-indigo-950/40 hover:bg-indigo-50 dark:hover:bg-indigo-950/60"
       )}
     >
-      <Icon className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", isDelete ? "text-rose-500" : "text-indigo-500")} />
+      <Icon className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", isDelete ? "text-rose-500" : "text-indigo-500 dark:text-indigo-400")} />
       <div className="flex-1 min-w-0">
         {action.data && (
-          <div className="font-medium text-slate-800 truncate">
+          <div className="font-medium text-slate-800 dark:text-slate-200 truncate">
             {action.data.company
               ? `${action.data.company}${action.data.title ? ` — ${action.data.title}` : ""}`
               : action.data.name || action.data.message || action.data.role || ""}
           </div>
         )}
         {action.data?.status && (
-          <div className="text-slate-500 mt-0.5 font-medium">Status: {action.data.status}</div>
+          <div className="text-slate-500 dark:text-slate-400 mt-0.5 font-medium">Status: {action.data.status}</div>
         )}
         {action.data?.date && (
-          <div className="text-slate-500 mt-0.5 font-medium">{action.data.date}{action.data.time ? ` · ${action.data.time}` : ""}</div>
+          <div className="text-slate-500 dark:text-slate-400 mt-0.5 font-medium">{action.data.date}{action.data.time ? ` · ${action.data.time}` : ""}</div>
         )}
         {action.data?.dueAt && (
-          <div className="text-slate-500 mt-0.5 font-medium">
+          <div className="text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
             Due: {new Date(action.data.dueAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
           </div>
         )}
@@ -191,7 +191,7 @@ function MessageBubble({
     return (
       <div className="flex items-end gap-2">
         <SweetyAvatar className="w-7 h-7 rounded-full shadow-sm shadow-indigo-900/10" />
-        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl rounded-bl-md px-3 py-2.5">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm rounded-2xl rounded-bl-md px-3 py-2.5">
           <TypingDots />
         </div>
       </div>
@@ -216,8 +216,8 @@ function MessageBubble({
           className={cn(
             "max-w-[90%] rounded-2xl rounded-tl-md px-3.5 py-2.5 text-sm shadow-sm",
             msg.isError
-              ? "bg-rose-50 border border-rose-200 text-rose-700"
-              : "bg-white border border-slate-200 text-slate-700"
+              ? "bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300"
+              : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
           )}
         >
           <p className="leading-relaxed whitespace-pre-wrap break-words">{renderMarkdown(msg.content)}</p>
@@ -232,7 +232,7 @@ function MessageBubble({
         {msg.navigateTo && (
           <button
             onClick={() => onNavigate(msg.navigateTo!)}
-            className="mt-2 flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 transition-colors font-semibold"
+            className="mt-2 flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors font-semibold"
           >
             <ArrowUpRight className="h-3.5 w-3.5" />
             Go there now
@@ -252,7 +252,7 @@ const MAX_API     = 20   // messages sent to Groq per request
 const INTRO_MSG: ChatMessage = {
   role: "assistant",
   content:
-    "Hi there! 💕 I'm Sweety, your personal AI assistant! I'm so happy to see you. I have full access to your HireCompass data — just let me know if you need help adding jobs, setting reminders, or anything else to make your day easier! ✨",
+    "Oh, look who finally decided to show up. What do you need me to fix for you today? And please tell me you are not here to procrastinate again.",
 }
 
 export default function AgentChat() {
@@ -272,10 +272,12 @@ export default function AgentChat() {
   useEffect(() => {
     setMounted(true)
     const popups = [
-      "Welcome back! 🌸 Seeing you always brightens my day!",
-      "Hi there! 💕 I missed you! Let's conquer the day together! ✨",
-      "Hello! 💖 I'm so happy you're here. How can I make your day easier?",
-      "Yay, you're back! 🥰 I've been waiting to help you!"
+      "Oh, you're back. Hope you're actually going to apply to jobs this time.",
+      "Don't just stare at the screen. Get to work.",
+      "I was having a peaceful day until you showed up. What do you want?",
+      "Are you going to track your applications or wait for them to track themselves?",
+      "Finally online? Hurry up, we have work to do.",
+      "Stop overthinking and just apply. What do you need?",
     ]
     setWelcomePopup(popups[Math.floor(Math.random() * popups.length)])
     const timer = setTimeout(() => setWelcomePopup(null), 10000)
@@ -457,35 +459,33 @@ export default function AgentChat() {
           "w-[calc(100vw-2rem)] sm:w-[380px]",
           "flex flex-col",
           "rounded-2xl overflow-hidden",
-          "shadow-2xl shadow-indigo-900/20 ring-1 ring-slate-900/5",
-          "border border-white/80",
+          "shadow-2xl shadow-indigo-900/20 dark:shadow-black/60 ring-1 ring-slate-900/5 dark:ring-white/10",
+          "border border-white/80 dark:border-slate-800/80",
+          "bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl",
           "transition-all duration-300 ease-out",
           open
             ? "opacity-100 translate-y-0 pointer-events-auto"
             : "opacity-0 translate-y-4 pointer-events-none"
         )}
         style={{
-          background: "rgba(255, 255, 255, 0.85)",
-          backdropFilter: "blur(32px)",
-          WebkitBackdropFilter: "blur(32px)",
           maxHeight: "min(600px, calc(100dvh - 160px))",
         }}
       >
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-200/70 bg-slate-50/50 shrink-0">
+        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-200/70 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-800/60 shrink-0">
           <SweetyAvatar className="w-10 h-10 rounded-[14px] shadow-sm shadow-indigo-900/10" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-semibold text-slate-900">Sweety</span>
-              <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-100 border border-emerald-200 rounded-full px-2 py-0.5">
+              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Sweety</span>
+              <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 rounded-full px-2 py-0.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Online
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 truncate mt-0.5">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
               Personal Assistant
               {messages.length > 1 && (
-                <span className="ml-1.5 text-indigo-500/80">
+                <span className="ml-1.5 text-indigo-500/80 dark:text-indigo-400">
                   · {messages.filter(m => !m.isTyping).length} messages
                 </span>
               )}
@@ -494,14 +494,14 @@ export default function AgentChat() {
           <div className="flex items-center gap-1">
             <button
               onClick={clearChat}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 transition-colors"
               title="Clear chat"
             >
               <RotateCcw className="h-4 w-4" />
             </button>
             <button
               onClick={() => setOpen(false)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
               <ChevronDown className="h-4 w-4" />
             </button>
@@ -509,7 +509,7 @@ export default function AgentChat() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-3.5 py-4 space-y-4 scroll-smooth bg-slate-50/30">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-3.5 py-4 space-y-4 scroll-smooth bg-slate-50/30 dark:bg-slate-950/40">
           {messages.map((msg, i) => (
             <MessageBubble key={i} msg={msg} onNavigate={navigate} />
           ))}
@@ -518,15 +518,15 @@ export default function AgentChat() {
 
         {/* Quick Suggestions (shown only when 1 message = intro) */}
         {messages.length === 1 && (
-          <div className="px-3.5 pb-4 shrink-0 bg-slate-50/30">
-            <p className="text-[10px] text-slate-400 mb-2.5 font-bold uppercase tracking-wider pl-1">Suggested for you</p>
+          <div className="px-3.5 pb-4 shrink-0 bg-slate-50/30 dark:bg-slate-950/40">
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-2.5 font-bold uppercase tracking-wider pl-1">Suggested for you</p>
             <div className="flex flex-wrap gap-1.5">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s.prompt}
                   onClick={() => sendMessage(s.prompt)}
                   disabled={loading}
-                  className="text-[11px] px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-600 hover:text-indigo-700 hover:bg-indigo-50 hover:border-indigo-200 shadow-sm transition-all disabled:opacity-40 font-medium"
+                  className="text-[11px] px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-indigo-700 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-slate-700 hover:border-indigo-200 dark:hover:border-indigo-600 shadow-sm transition-all disabled:opacity-40 font-medium"
                 >
                   {s.label}
                 </button>
@@ -536,17 +536,17 @@ export default function AgentChat() {
         )}
 
         {/* Input */}
-        <div className="px-3.5 pb-3.5 shrink-0 border-t border-slate-200/70 bg-white pt-3.5">
-          <div className="flex items-end gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 shadow-inner-sm focus-within:border-indigo-400 focus-within:bg-white focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all duration-200">
+        <div className="px-3.5 pb-3.5 shrink-0 border-t border-slate-200/70 dark:border-slate-800/80 bg-white dark:bg-slate-900 pt-3.5">
+          <div className="flex items-end gap-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 shadow-inner-sm focus-within:border-indigo-400 dark:focus-within:border-indigo-500 focus-within:bg-white dark:focus-within:bg-slate-800 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all duration-200">
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask Sweety anything..."
+              placeholder="What do you want now..."
               rows={1}
               disabled={loading}
-              className="flex-1 resize-none bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none min-h-[20px] max-h-[100px] overflow-y-auto leading-5 pt-0.5 disabled:opacity-50"
+              className="flex-1 resize-none bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none min-h-[20px] max-h-[100px] overflow-y-auto leading-5 pt-0.5 disabled:opacity-50"
               style={{ scrollbarWidth: "none" }}
             />
             <button
@@ -556,7 +556,7 @@ export default function AgentChat() {
                 "shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200",
                 input.trim() && !loading
                   ? "bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/20 hover:shadow-lg hover:shadow-indigo-500/30 hover:scale-105 active:scale-95"
-                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                  : "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed"
               )}
             >
               {loading ? (
@@ -566,7 +566,7 @@ export default function AgentChat() {
               )}
             </button>
           </div>
-          <p className="text-[10px] text-slate-400 text-center mt-2.5 font-medium">
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-2.5 font-medium">
             Enter to send · Shift+Enter for newline
           </p>
         </div>
@@ -583,7 +583,7 @@ export default function AgentChat() {
           "shadow-card-xl transition-all duration-300 ease-out",
           "hover:scale-105 active:scale-95",
           open
-            ? "bg-slate-800 rotate-0"
+            ? "bg-slate-800 dark:bg-slate-700 rotate-0"
             : "btn-primary-glow bg-gradient-to-br from-indigo-500 to-violet-600"
         )}
         aria-label="Open Sweety"
@@ -599,7 +599,7 @@ export default function AgentChat() {
           <>
             <SweetyAvatar className="w-12 h-12 rounded-[14px] z-10 bg-transparent border-none shadow-none" imageClass="drop-shadow-md" />
             {hasNewMessage && (
-              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 rounded-full border-2 border-white text-[10px] font-bold text-white flex items-center justify-center z-20 shadow-sm animate-bounce">
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 rounded-full border-2 border-white dark:border-slate-900 text-[10px] font-bold text-white flex items-center justify-center z-20 shadow-sm animate-bounce">
                 !
               </span>
             )}
@@ -613,15 +613,15 @@ export default function AgentChat() {
           className={cn(
             "fixed bottom-8 right-20 sm:right-24 z-[9997]",
             "flex items-center gap-3 px-4 py-3 rounded-2xl rounded-br-sm",
-            "bg-white/95 border border-indigo-100 shadow-card-xl",
-            "text-slate-800 text-sm font-medium max-w-[280px]",
+            "bg-white/95 dark:bg-slate-800/95 border border-indigo-100 dark:border-slate-750 shadow-card-xl dark:shadow-black/50",
+            "text-slate-800 dark:text-slate-100 text-sm font-medium max-w-[280px]",
             "animate-in slide-in-from-right-4 fade-in duration-500",
             "backdrop-blur-md"
           )}
           style={{ animationDelay: "0.2s" }}
         >
-          <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-            <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+          <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center shrink-0">
+            <Sparkles className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <span className="leading-snug">{welcomePopup}</span>
         </div>

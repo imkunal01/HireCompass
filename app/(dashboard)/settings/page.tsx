@@ -5,11 +5,13 @@ import {
   Shield, Bell, User, Lock, Mail, Save,
   ChevronRight, CheckCircle2, Database,
   Palette, Sliders, Send, Plus, X, Github, Linkedin, Globe,
-  Sparkles, Loader2, AlertCircle
+  Sparkles, Loader2, AlertCircle, Key, Eye, EyeOff, Trash2,
+  ExternalLink, Zap, Bot, RefreshCw
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/hooks/useUser"
 import { useQueryClient } from "@tanstack/react-query"
+import { useTheme } from "next-themes"
 
 /* ── Toggle Switch ── */
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -21,7 +23,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       className={cn(
         "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent",
         "transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1",
-        checked ? "bg-indigo-600" : "bg-slate-200"
+        checked ? "bg-indigo-600 dark:bg-indigo-500" : "bg-slate-200 dark:bg-slate-700"
       )}
     >
       <span
@@ -50,12 +52,12 @@ function SectionCard({
   children: React.ReactNode
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100">
+    <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm overflow-hidden transition-colors duration-200">
+      <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 dark:border-slate-800/80">
         <div className={cn("flex h-8 w-8 items-center justify-center rounded-xl", iconBg)}>
           <Icon className={cn("h-4 w-4", iconColor)} />
         </div>
-        <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
+        <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">{title}</h3>
       </div>
       <div className="p-6">{children}</div>
     </div>
@@ -72,10 +74,10 @@ function InputField({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-xs font-semibold text-slate-600">{label}</label>
+      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400">{label}</label>
       <div className="relative">
         {Icon && (
-          <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+          <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
         )}
         <input
           type={type}
@@ -83,9 +85,9 @@ function InputField({
           onChange={(e) => onChange?.(e.target.value)}
           placeholder={placeholder}
           className={cn(
-            "w-full h-10 rounded-xl border border-slate-200 bg-slate-50/60 text-sm text-slate-900",
-            "placeholder:text-slate-400 transition-all duration-150",
-            "focus:outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100",
+            "w-full h-10 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 text-sm text-slate-900 dark:text-slate-100",
+            "placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all duration-150",
+            "focus:outline-none focus:border-indigo-400 dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-950",
             Icon ? "pl-10 pr-4" : "px-4"
           )}
         />
@@ -126,6 +128,89 @@ export default function SettingsPage() {
   const [pwSaving,    setPwSaving]    = useState(false)
   const [pwSaved,     setPwSaved]     = useState(false)
   const [pwError,     setPwError]     = useState("")
+
+  /* ── AI & Groq API (BYOK) State ── */
+  const [aiLoading,     setAiLoading]     = useState(true)
+  const [hasCustomKey,  setHasCustomKey]  = useState(false)
+  const [maskedKey,     setMaskedKey]     = useState<string | null>(null)
+  const [aiModel,       setAiModel]       = useState("openai/gpt-oss-120b")
+  const [aiUsage,       setAiUsage]       = useState({ count: 0, limit: 30, isLimitReached: false })
+  const [groqKeyInput,  setGroqKeyInput]  = useState("")
+  const [showGroqKey,   setShowGroqKey]   = useState(false)
+  const [keySaving,     setKeySaving]     = useState(false)
+  const [keySaved,      setKeySaved]      = useState(false)
+  const [keyError,      setKeyError]      = useState("")
+  const [keyRemoving,   setKeyRemoving]   = useState(false)
+
+  const fetchAiConfig = async () => {
+    try {
+      const res = await fetch("/api/settings/ai-key")
+      if (res.ok) {
+        const data = await res.json()
+        setHasCustomKey(data.hasCustomKey)
+        setMaskedKey(data.maskedKey)
+        if (data.model) setAiModel(data.model)
+        if (data.usage) setAiUsage(data.usage)
+      }
+    } catch (e) {
+      console.error("Failed to load AI config", e)
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchAiConfig()
+  }, [])
+
+  const handleSaveGroqKey = async () => {
+    setKeyError("")
+    if (!groqKeyInput.trim()) {
+      setKeyError("Please enter your Groq API key.")
+      return
+    }
+    if (!groqKeyInput.trim().startsWith("gsk_")) {
+      setKeyError("Groq API keys must start with 'gsk_'.")
+      return
+    }
+    setKeySaving(true)
+    try {
+      const res = await fetch("/api/settings/ai-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: groqKeyInput.trim(), model: aiModel }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to save key")
+      setHasCustomKey(true)
+      setMaskedKey(data.maskedKey)
+      setGroqKeyInput("")
+      setKeySaved(true)
+      fetchAiConfig()
+      setTimeout(() => setKeySaved(false), 3000)
+    } catch (err: any) {
+      setKeyError(err.message || "Failed to connect key")
+    } finally {
+      setKeySaving(false)
+    }
+  }
+
+  const handleRemoveGroqKey = async () => {
+    if (!confirm("Are you sure you want to remove your custom Groq API key? You will revert to the platform free tier quota.")) return
+    setKeyRemoving(true)
+    try {
+      const res = await fetch("/api/settings/ai-key", { method: "DELETE" })
+      if (res.ok) {
+        setHasCustomKey(false)
+        setMaskedKey(null)
+        fetchAiConfig()
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setKeyRemoving(false)
+    }
+  }
 
   /* Outreach Profile */
   const [profileLoaded, setProfileLoaded] = useState(false)
@@ -402,6 +487,178 @@ export default function SettingsPage() {
             </div>
           </SectionCard>
 
+          {/* AI & Groq API (BYOK) */}
+          <SectionCard icon={Sparkles} iconBg="bg-indigo-50" iconColor="text-indigo-600" title="AI & Groq API Configuration (BYOK)">
+            <div className="space-y-5">
+              
+              {/* Status & Quota Banner */}
+              {aiLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-indigo-500" />
+                </div>
+              ) : hasCustomKey ? (
+                <div className="rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-200/80 p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Custom Key Connected
+                        </span>
+                        <span className="text-xs font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200">
+                          {maskedKey}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Model: <strong className="text-slate-800">{aiModel}</strong> • Unlimited AI agent & chatbot requests.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={handleRemoveGroqKey}
+                      disabled={keyRemoving}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-xl transition-colors shrink-0"
+                    >
+                      {keyRemoving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                      Remove Key
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl bg-slate-50 border border-slate-200/80 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-amber-500 shrink-0" />
+                      <span className="text-xs font-bold text-slate-800">Platform Free Tier Quota</span>
+                    </div>
+                    <span className="text-xs font-semibold text-slate-600">
+                      {aiUsage.count} / {aiUsage.limit} requests
+                    </span>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all duration-300",
+                        aiUsage.isLimitReached
+                          ? "bg-rose-500"
+                          : aiUsage.count > aiUsage.limit * 0.8
+                          ? "bg-amber-500"
+                          : "bg-indigo-600"
+                      )}
+                      style={{ width: `${Math.min(100, (aiUsage.count / aiUsage.limit) * 100)}%` }}
+                    />
+                  </div>
+
+                  {aiUsage.isLimitReached ? (
+                    <p className="text-xs text-rose-600 font-medium">
+                      ⚠️ You've reached your free quota limit! Add your free Groq API key below to unlock unlimited requests.
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-slate-500">
+                      Add your own free Groq API key below to unlock unlimited token usage and fast agent actions.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Form to enter / update key */}
+              <div className="space-y-4 pt-1">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      {hasCustomKey ? "Update Groq API Key" : "Groq API Key"}
+                    </label>
+                    <a
+                      href="https://console.groq.com/keys"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                    >
+                      Get free key <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                  </div>
+                  <div className="relative">
+                    <Key className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                    <input
+                      type={showGroqKey ? "text" : "password"}
+                      value={groqKeyInput}
+                      onChange={(e) => setGroqKeyInput(e.target.value)}
+                      placeholder={hasCustomKey ? "Paste new key to replace..." : "gsk_..."}
+                      className={cn(
+                        "w-full h-10 rounded-xl border border-slate-200 bg-slate-50/60 text-sm font-mono text-slate-900",
+                        "placeholder:font-sans placeholder:text-slate-400 transition-all duration-150 pl-10 pr-10",
+                        "focus:outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowGroqKey(!showGroqKey)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showGroqKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Model Selection */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-700">Preferred AI Model</label>
+                  <select
+                    value={aiModel}
+                    onChange={(e) => setAiModel(e.target.value)}
+                    className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50/60 text-xs font-medium text-slate-900 px-3.5 focus:outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                  >
+                    <option value="openai/gpt-oss-120b">openai/gpt-oss-120b (Recommended — Fast & Intelligent)</option>
+                    <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (Meta Llama 3.3 70B)</option>
+                    <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (Meta Llama 3.1 8B — Ultra Fast)</option>
+                    <option value="mixtral-8x7b-32768">mixtral-8x7b-32768 (Mistral 8x7B MoE)</option>
+                  </select>
+                </div>
+
+                {keyError && (
+                  <p className="text-xs text-rose-500 flex items-center gap-1">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {keyError}
+                  </p>
+                )}
+
+                {keySaved && (
+                  <p className="text-xs text-emerald-600 flex items-center gap-1 font-semibold">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Groq API key verified and connected!
+                  </p>
+                )}
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                  <p className="text-[11px] text-slate-400">
+                    💡 <strong>Tip:</strong> You can also paste your <code className="bg-slate-100 px-1 py-0.5 rounded">gsk_...</code> key directly to Sweety in chat anytime!
+                  </p>
+                  <button
+                    onClick={handleSaveGroqKey}
+                    disabled={keySaving}
+                    className={cn(
+                      "flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all duration-200 shrink-0",
+                      keySaved
+                        ? "bg-emerald-500 text-white shadow-md"
+                        : "text-white shadow-md shadow-indigo-500/20"
+                    )}
+                    style={keySaved ? {} : {
+                      background: "linear-gradient(135deg, #6366F1 0%, #7C3AED 100%)",
+                    }}
+                  >
+                    {keySaving ? (
+                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Verifying Key...</>
+                    ) : keySaved ? (
+                      <><CheckCircle2 className="h-3.5 w-3.5" /> Key Active</>
+                    ) : (
+                      <><Key className="h-3.5 w-3.5" /> Test & Save Key</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+
           <SectionCard icon={Lock} iconBg="bg-violet-50" iconColor="text-violet-600" title="Update Password">
             <div className="space-y-4 max-w-sm">
               <InputField
@@ -661,50 +918,55 @@ export default function SettingsPage() {
           </SectionCard>
 
           {/* Appearance */}
-          <SectionCard icon={Palette} iconBg="bg-pink-50" iconColor="text-pink-500" title="Appearance">
-            <div className="space-y-3">
-              <p className="text-xs text-slate-500">Theme preference</p>
-              <div className="grid grid-cols-3 gap-2">
-                {(["Light", "Dark", "System"] as const).map((t) => {
-                  const stored = typeof window !== "undefined" ? localStorage.getItem("theme") || "System" : "System"
-                  const isActive = stored === t
-                  return (
-                    <button
-                      key={t}
-                      onClick={() => {
-                        localStorage.setItem("theme", t)
-                        const root = document.documentElement
-                        if (t === "Dark") {
-                          root.classList.add("dark")
-                        } else if (t === "Light") {
-                          root.classList.remove("dark")
-                        } else {
-                          // System
-                          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
-                          prefersDark ? root.classList.add("dark") : root.classList.remove("dark")
-                        }
-                        // Force re-render
-                        window.dispatchEvent(new Event("theme-change"))
-                      }}
-                      className={cn(
-                        "rounded-xl border py-2.5 text-xs font-semibold transition-all duration-150",
-                        isActive
-                          ? "border-indigo-300 bg-indigo-50 text-indigo-700 shadow-sm"
-                          : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
-                      )}
-                    >
-                      {t}
-                    </button>
-                  )
-                })}
-              </div>
-              <p className="text-[11px] text-slate-400">
-                Changes apply immediately. Dark mode requires theme support in CSS.
-              </p>
-            </div>
+          <SectionCard icon={Palette} iconBg="bg-pink-50 dark:bg-pink-950/60" iconColor="text-pink-500 dark:text-pink-400" title="Appearance">
+            <ThemeSelector />
           </SectionCard>
         </div>
       </div>
+    </div>
+  )
+}
+
+function ThemeSelector() {
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const options = [
+    { label: "Light", value: "light" },
+    { label: "Dark", value: "dark" },
+    { label: "System", value: "system" },
+  ] as const
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate-500 dark:text-slate-400">Theme preference</p>
+      <div className="grid grid-cols-3 gap-2">
+        {options.map((t) => {
+          const isActive = mounted && theme === t.value
+          return (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => setTheme(t.value)}
+              className={cn(
+                "rounded-xl border py-2.5 text-xs font-semibold transition-all duration-150",
+                isActive
+                  ? "border-indigo-400 dark:border-indigo-500 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 shadow-sm"
+                  : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-750"
+              )}
+            >
+              {t.label}
+            </button>
+          )
+        })}
+      </div>
+      <p className="text-[11px] text-slate-400 dark:text-slate-500">
+        Changes apply immediately across all application surfaces.
+      </p>
     </div>
   )
 }

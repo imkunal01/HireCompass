@@ -72,7 +72,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex bg-white overflow-hidden">
+    <div className="min-h-screen flex bg-white dark:bg-[#080C14] overflow-hidden">
 
       {/* ═══════════════════════════════════════════
           LEFT PANEL — Brand / Value Prop
@@ -158,7 +158,7 @@ export default function LoginPage() {
       {/* ═══════════════════════════════════════════
           RIGHT PANEL — Login Form
       ═══════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 bg-slate-50/50 relative">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 bg-slate-50/50 dark:bg-slate-950/60 relative">
         {/* Subtle background pattern */}
         <div className="absolute inset-0 opacity-[0.015]"
           style={{
@@ -172,21 +172,21 @@ export default function LoginPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg">
               <Briefcase className="h-4.5 w-4.5 text-white" strokeWidth={2.5} />
             </div>
-            <span className="font-bold text-lg text-slate-900">HireCompass</span>
+            <span className="font-bold text-lg text-slate-900 dark:text-slate-100">HireCompass</span>
           </div>
 
           {/* Form card */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-900/6 p-8">
+          <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-xl shadow-slate-900/6 dark:shadow-black/60 p-8">
             {/* Header */}
             <div className="mb-8 space-y-1">
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Welcome back</h2>
-              <p className="text-sm text-slate-500">Sign in to your HireCompass account</p>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Welcome back</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Sign in to your HireCompass account</p>
             </div>
 
             {/* Error */}
             {error && (
-              <div className="mb-5 flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600">
-                <div className="h-4 w-4 shrink-0 rounded-full border-2 border-rose-300 flex items-center justify-center">
+              <div className="mb-5 flex items-center gap-3 rounded-xl border border-rose-200 dark:border-rose-800/80 bg-rose-50 dark:bg-rose-950/40 px-4 py-3 text-sm text-rose-600 dark:text-rose-300">
+                <div className="h-4 w-4 shrink-0 rounded-full border-2 border-rose-300 dark:border-rose-700 flex items-center justify-center">
                   <span className="text-[8px] font-black">!</span>
                 </div>
                 {error}
@@ -197,11 +197,11 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Email */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700 pl-0.5">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 pl-0.5">
                   Email Address
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
                   <input
                     id="login-email"
                     type="email"
@@ -211,9 +211,9 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className={cn(
-                      "w-full h-11 rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm text-slate-900",
-                      "placeholder:text-slate-400 transition-all duration-150",
-                      "focus:outline-none focus:border-indigo-400 focus:bg-white focus:ring-3 focus:ring-indigo-100"
+                      "w-full h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-10 pr-4 text-sm text-slate-900 dark:text-slate-100",
+                      "placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all duration-150",
+                      "focus:outline-none focus:border-indigo-400 dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-3 focus:ring-indigo-100 dark:focus:ring-indigo-950"
                     )}
                   />
                 </div>
@@ -222,15 +222,15 @@ export default function LoginPage() {
               {/* Password */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between pl-0.5">
-                  <label className="block text-xs font-semibold text-slate-700">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                     Password
                   </label>
-                  <button type="button" className="text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
+                  <button type="button" className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium transition-colors">
                     Forgot password?
                   </button>
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
                   <input
                     id="login-password"
                     type={showPwd ? "text" : "password"}
@@ -240,15 +240,15 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className={cn(
-                      "w-full h-11 rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-11 text-sm text-slate-900",
-                      "placeholder:text-slate-400 transition-all duration-150",
-                      "focus:outline-none focus:border-indigo-400 focus:bg-white focus:ring-3 focus:ring-indigo-100"
+                      "w-full h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-10 pr-11 text-sm text-slate-900 dark:text-slate-100",
+                      "placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all duration-150",
+                      "focus:outline-none focus:border-indigo-400 dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-3 focus:ring-indigo-100 dark:focus:ring-indigo-950"
                     )}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPwd(!showPwd)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
                     tabIndex={-1}
                   >
                     {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -292,18 +292,18 @@ export default function LoginPage() {
             {/* Trust signals */}
             <div className="mt-6 flex items-center gap-2 justify-center">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-              <span className="text-[11px] text-slate-400 font-medium">
+              <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
                 Your data is encrypted and secure
               </span>
             </div>
           </div>
 
           {/* Sign up link */}
-          <p className="mt-5 text-center text-sm text-slate-500">
+          <p className="mt-5 text-center text-sm text-slate-500 dark:text-slate-400">
             Don&apos;t have an account?{" "}
             <Link
               href="/signup"
-              className="font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
+              className="font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
             >
               Create one free →
             </Link>

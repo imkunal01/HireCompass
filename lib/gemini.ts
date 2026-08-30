@@ -4,16 +4,16 @@
  * Groq free tier: 14,400 requests/day · 30 req/min · blazing fast inference
  * Get your free API key at: https://console.groq.com/keys
  *
- * Model: llama-3.3-70b-versatile
- *   - Best free model on Groq for reasoning + JSON tasks
+ * Model: openai/gpt-oss-120b
+ *   - Fast open-weight model with reasoning capability
  *   - 128k context window
- *   - 6,000 tokens/min on free tier
+ *   - Configurable via GROQ_MODEL environment variable
  */
 
 import Groq from "groq-sdk"
 
 const apiKey = process.env.GROQ_API_KEY
-const MODEL = "llama-3.3-70b-versatile"
+const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b"
 
 // Rate-limit guard: Groq free = 30 req/min
 // We simply wait before retrying rather than hammering the API
@@ -22,13 +22,14 @@ const RETRY_DELAY_MS = 5000
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-function getClient() {
-  if (!apiKey || apiKey === "your_groq_api_key_here") {
+function getClient(apiKeyOverride?: string) {
+  const key = apiKeyOverride || apiKey
+  if (!key || key === "your_groq_api_key_here") {
     throw new Error(
       "GROQ_API_KEY is not configured. Get your free key at https://console.groq.com/keys and add it to .env"
     )
   }
-  return new Groq({ apiKey })
+  return new Groq({ apiKey: key })
 }
 
 function parseRetryDelay(err: unknown): number | null {
@@ -56,14 +57,19 @@ function isRetryableError(err: unknown): boolean {
  * Extract structured JSON from a prompt.
  * Uses Groq chat completions with automatic retry on rate limit.
  */
-export async function extractJSON<T = unknown>(prompt: string): Promise<T> {
-  const client = getClient()
+export async function extractJSON<T = unknown>(
+  prompt: string,
+  apiKeyOverride?: string,
+  modelOverride?: string
+): Promise<T> {
+  const client = getClient(apiKeyOverride)
+  const targetModel = modelOverride || MODEL
   let lastError: unknown
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       const completion = await client.chat.completions.create({
-        model: MODEL,
+        model: targetModel,
         messages: [
           {
             role: "system",
@@ -72,12 +78,13 @@ export async function extractJSON<T = unknown>(prompt: string): Promise<T> {
           { role: "user", content: prompt },
         ],
         temperature: 0.1,
-        max_tokens: 2048,
+        max_completion_tokens: 2048,
         response_format: { type: "json_object" },
       })
 
       const raw = completion.choices[0]?.message?.content?.trim() ?? ""
-      return JSON.parse(raw) as T
+      const cleaned = raw.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/```$/, "").trim()
+      return JSON.parse(cleaned) as T
     } catch (err) {
       lastError = err
       if (isRetryableError(err) && attempt < MAX_RETRIES) {
@@ -102,8 +109,13 @@ export async function extractJSON<T = unknown>(prompt: string): Promise<T> {
  * Stream Groq response as a Web ReadableStream<Uint8Array>.
  * Compatible with Next.js App Router route handlers.
  */
-export function streamText(prompt: string): ReadableStream<Uint8Array> {
+export function streamText(
+  prompt: string,
+  apiKeyOverride?: string,
+  modelOverride?: string
+): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder()
+  const targetModel = modelOverride || MODEL
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -112,9 +124,9 @@ export function streamText(prompt: string): ReadableStream<Uint8Array> {
 
       while (attempt <= MAX_RETRIES) {
         try {
-          const client = getClient()
+          const client = getClient(apiKeyOverride)
           const stream = await client.chat.completions.create({
-            model: MODEL,
+            model: targetModel,
             messages: [
               {
                 role: "system",
@@ -123,7 +135,7 @@ export function streamText(prompt: string): ReadableStream<Uint8Array> {
               { role: "user", content: prompt },
             ],
             temperature: 0.7,
-            max_tokens: 4096,
+            max_completion_tokens: 4096,
             stream: true,
           })
 

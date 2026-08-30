@@ -1,13 +1,17 @@
-"use client"
-
-import React, { useEffect } from "react"
+import React, { useEffect, useState } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { X, Plus, Loader2, Building2 } from "lucide-react"
+import {
+  X, Plus, Loader2, Building2, Brain, AlertOctagon,
+  Sparkles, CheckCircle2, DollarSign, Calendar, Layers, ShieldAlert, FileQuestion
+} from "lucide-react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { cn } from "@/lib/utils"
-import { OpportunityStatus, Priority } from "@/types/opportunity"
+import {
+  OpportunityStatus, Priority, STATUS_CONFIG,
+  OA_PLATFORMS, REJECTION_STAGES, REJECTION_REASONS
+} from "@/types/opportunity"
 import { useToast } from "@/components/ui/toast"
 
 const schema = z.object({
@@ -25,6 +29,29 @@ const schema = z.object({
   priority: z.enum(["HIGH", "MEDIUM", "LOW"]),
   notes: z.string().optional(),
   status: z.string(),
+  // Lifecycle fields
+  oaPlatform: z.string().optional(),
+  oaTotalRounds: z.coerce.number().optional(),
+  oaCurrentRound: z.coerce.number().optional(),
+  oaStatus: z.enum(["PENDING", "CLEARED", "FAILED"]).optional(),
+  oaTopics: z.string().optional(),
+  interviewTotalRounds: z.coerce.number().optional(),
+  interviewCurrentRound: z.coerce.number().optional(),
+  isHrRound: z.boolean().optional(),
+  hrRecruiterName: z.string().optional(),
+  hrExpectedSalary: z.string().optional(),
+  hrCultureFitNotes: z.string().optional(),
+  offerAmount: z.string().optional(),
+  offerBaseSalary: z.string().optional(),
+  offerBonus: z.string().optional(),
+  offerStocks: z.string().optional(),
+  offerDeadline: z.string().optional(),
+  rejectionStage: z.string().optional(),
+  rejectionReasonCategory: z.string().optional(),
+  rejectionWhatWasAsked: z.string().optional(),
+  rejectionWhyRejected: z.string().optional(),
+  rejectionWhereFumbled: z.string().optional(),
+  rejectionLessonsLearned: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -47,10 +74,19 @@ const SOURCE_PLATFORMS = [
 
 const PRESET_TAGS = ["frontend", "backend", "remote", "urgent", "dream company", "startup", "big tech", "ai/ml"]
 
+const PIPELINE_STATUS_OPTIONS: { value: OpportunityStatus; label: string }[] = [
+  { value: "SAVED", label: "Saved" },
+  { value: "APPLIED", label: "Applied" },
+  { value: "ASSESSMENT", label: "OA / Assessment" },
+  { value: "INTERVIEW", label: "Interview" },
+  { value: "OFFER", label: "Offer 🎉" },
+  { value: "REJECTED", label: "Rejected ❌" },
+]
+
 export function AddJobModal({ isOpen, onClose, defaultStatus = "SAVED" }: AddJobModalProps) {
   const queryClient = useQueryClient()
   const { toast } = useToast()
-  const [skillInput, setSkillInput] = React.useState("")
+  const [skillInput, setSkillInput] = useState("")
 
   const { register, handleSubmit, control, watch, setValue, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema) as any,
@@ -69,27 +105,141 @@ export function AddJobModal({ isOpen, onClose, defaultStatus = "SAVED" }: AddJob
       priority: "MEDIUM" as const,
       notes: "",
       status: defaultStatus as string,
+      oaPlatform: "HackerRank",
+      oaTotalRounds: 1,
+      oaCurrentRound: 1,
+      oaStatus: "PENDING",
+      oaTopics: "",
+      interviewTotalRounds: 3,
+      interviewCurrentRound: 1,
+      isHrRound: false,
+      hrRecruiterName: "",
+      hrExpectedSalary: "",
+      hrCultureFitNotes: "",
+      offerAmount: "",
+      offerBaseSalary: "",
+      offerBonus: "",
+      offerStocks: "",
+      offerDeadline: "",
+      rejectionStage: "Resume Screen / No Shortlist",
+      rejectionReasonCategory: "Failed OA / Coding Challenge Testcases",
+      rejectionWhatWasAsked: "",
+      rejectionWhyRejected: "",
+      rejectionWhereFumbled: "",
+      rejectionLessonsLearned: "",
     },
   })
 
   const skills = watch("skills")
   const tags = watch("tags")
-  const isRemote = watch("isRemote")
   const priority = watch("priority")
+  const currentStatus = watch("status")
+  const isHrRound = watch("isHrRound")
 
   useEffect(() => {
     if (isOpen) {
-      reset({ status: defaultStatus, skills: [], tags: [], priority: "MEDIUM", isRemote: false, employmentType: "FULL_TIME" })
+      reset({
+        status: defaultStatus,
+        skills: [],
+        tags: [],
+        priority: "MEDIUM",
+        isRemote: false,
+        employmentType: "FULL_TIME",
+        oaPlatform: "HackerRank",
+        oaTotalRounds: 1,
+        oaCurrentRound: 1,
+        oaStatus: "PENDING",
+        interviewTotalRounds: 3,
+        interviewCurrentRound: 1,
+        isHrRound: false,
+        rejectionStage: defaultStatus === "REJECTED" ? "Technical Round 1 (DSA / Coding)" : "Resume Screen / No Shortlist",
+        rejectionReasonCategory: "DSA & Problem-Solving Speed Gaps",
+      })
       setSkillInput("")
     }
   }, [isOpen, defaultStatus, reset])
 
   const createMutation = useMutation({
     mutationFn: async (data: FormValues) => {
+      // Build structured payload
+      const payload: any = {
+        company: data.company,
+        title: data.title,
+        location: data.location || null,
+        isRemote: data.isRemote,
+        employmentType: data.employmentType,
+        salary: data.salary || null,
+        deadline: data.deadline || null,
+        url: data.url || null,
+        sourcePlatform: data.sourcePlatform || null,
+        skills: data.skills,
+        tags: data.tags,
+        priority: data.priority,
+        notes: data.notes || null,
+        status: data.status,
+      }
+
+      // Add OA details if OA or relevant
+      if (data.status === "ASSESSMENT" || data.oaTopics || data.oaPlatform) {
+        payload.oaDetails = {
+          platform: data.oaPlatform,
+          totalRounds: data.oaTotalRounds || 1,
+          currentRound: data.oaCurrentRound || 1,
+          status: data.oaStatus || "PENDING",
+          topics: data.oaTopics ? data.oaTopics.split(",").map(s => s.trim()) : [],
+        }
+      }
+
+      // Add Interview & HR details if INTERVIEW
+      if (data.status === "INTERVIEW" || data.isHrRound) {
+        payload.interviewRounds = [
+          {
+            id: "r1",
+            roundNumber: data.interviewCurrentRound || 1,
+            roundName: `Round ${data.interviewCurrentRound || 1} - Technical`,
+            roundType: "TECHNICAL",
+            status: "PENDING",
+          }
+        ]
+        payload.isHrRound = Boolean(data.isHrRound)
+        if (data.isHrRound || data.hrExpectedSalary) {
+          payload.hrRoundDetails = {
+            recruiterName: data.hrRecruiterName || null,
+            expectedSalary: data.hrExpectedSalary || null,
+            cultureFitNotes: data.hrCultureFitNotes || null,
+            status: "PENDING",
+          }
+        }
+      }
+
+      // Add Offer Details if OFFER
+      if (data.status === "OFFER" || data.offerAmount) {
+        payload.offerDetails = {
+          totalAmount: data.offerAmount || data.salary || null,
+          baseSalary: data.offerBaseSalary || null,
+          bonus: data.offerBonus || null,
+          stocks: data.offerStocks || null,
+          deadline: data.offerDeadline || null,
+        }
+      }
+
+      // Add Rejection Post-Mortem if REJECTED
+      if (data.status === "REJECTED" || data.rejectionWhatWasAsked || data.rejectionWhereFumbled) {
+        payload.rejectionDetails = {
+          stage: data.rejectionStage || "Resume Screen / No Shortlist",
+          reasonCategory: data.rejectionReasonCategory,
+          whatWasAsked: data.rejectionWhatWasAsked || null,
+          whyRejected: data.rejectionWhyRejected || null,
+          whereFumbled: data.rejectionWhereFumbled || null,
+          lessonsLearned: data.rejectionLessonsLearned || null,
+          rejectionDate: new Date().toISOString(),
+        }
+      }
+
       const res = await fetch("/api/opportunities", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       })
       if (!res.ok) {
         const err = await res.json()
@@ -99,7 +249,7 @@ export function AddJobModal({ isOpen, onClose, defaultStatus = "SAVED" }: AddJob
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["opportunities"] })
-      toast({ type: "success", title: "Job added!", message: "Your opportunity has been saved." })
+      toast({ type: "success", title: "Job added!", message: "Opportunity and details tracked successfully." })
       onClose()
     },
     onError: (err: Error) => {
@@ -137,14 +287,14 @@ export function AddJobModal({ isOpen, onClose, defaultStatus = "SAVED" }: AddJob
       {/* Modal */}
       <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card/95 backdrop-blur-xl shadow-2xl shadow-black/40 animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/60 bg-card/80 backdrop-blur-md px-6 py-4">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/60 bg-card/90 backdrop-blur-md px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <Building2 className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="font-bold text-foreground">Add New Job</h2>
-              <p className="text-xs text-muted-foreground">Save an opportunity to your pipeline</p>
+              <h2 className="font-bold text-foreground">Add New Job & Track Application</h2>
+              <p className="text-xs text-muted-foreground">Save opportunity with OA, interview rounds, offer, or rejection post-mortem</p>
             </div>
           </div>
           <button
@@ -156,6 +306,34 @@ export function AddJobModal({ isOpen, onClose, defaultStatus = "SAVED" }: AddJob
         </div>
 
         <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} className="p-6 space-y-5">
+          {/* Status Selector Bar */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Application Stage / Flow
+            </label>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+              {PIPELINE_STATUS_OPTIONS.map((opt) => {
+                const isSelected = currentStatus === opt.value
+                const cfg = STATUS_CONFIG[opt.value]
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setValue("status", opt.value)}
+                    className={cn(
+                      "py-2 px-2 rounded-xl text-xs font-bold transition-all text-center border truncate",
+                      isSelected
+                        ? cn(cfg.bgColor, cfg.textColor, "border-primary shadow-sm")
+                        : "border-border bg-secondary/10 text-muted-foreground hover:text-foreground hover:bg-secondary/30"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           {/* Company + Role */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -164,7 +342,7 @@ export function AddJobModal({ isOpen, onClose, defaultStatus = "SAVED" }: AddJob
               </label>
               <input
                 {...register("company")}
-                placeholder="e.g. Google"
+                placeholder="e.g. Google, Stripe, Zepto"
                 className={cn(
                   "w-full rounded-xl border bg-secondary/20 px-3.5 py-2.5 text-sm text-foreground placeholder-muted-foreground/50",
                   "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all",
@@ -179,7 +357,7 @@ export function AddJobModal({ isOpen, onClose, defaultStatus = "SAVED" }: AddJob
               </label>
               <input
                 {...register("title")}
-                placeholder="e.g. Software Engineer"
+                placeholder="e.g. SDE-1, Backend Engineer"
                 className={cn(
                   "w-full rounded-xl border bg-secondary/20 px-3.5 py-2.5 text-sm text-foreground placeholder-muted-foreground/50",
                   "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all",
@@ -196,7 +374,7 @@ export function AddJobModal({ isOpen, onClose, defaultStatus = "SAVED" }: AddJob
             <div className="flex gap-3">
               <input
                 {...register("location")}
-                placeholder="e.g. San Francisco, CA"
+                placeholder="e.g. Bangalore, SF, Remote"
                 className="flex-1 rounded-xl border border-border bg-secondary/20 px-3.5 py-2.5 text-sm text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
               />
               <Controller
@@ -219,6 +397,234 @@ export function AddJobModal({ isOpen, onClose, defaultStatus = "SAVED" }: AddJob
               />
             </div>
           </div>
+
+          {/* ══════════════════════════════════════════════════════════════════
+              OA / ASSESSMENT SECTION (Shown when ASSESSMENT or on demand)
+          ══════════════════════════════════════════════════════════════════ */}
+          {currentStatus === "ASSESSMENT" && (
+            <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-4 space-y-3 animate-in fade-in duration-200">
+              <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
+                <Brain className="h-4 w-4" /> Online Assessment (OA) Details
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground">OA Platform</label>
+                  <select
+                    {...register("oaPlatform")}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                  >
+                    {OA_PLATFORMS.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground">Total OA Rounds</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={5}
+                    {...register("oaTotalRounds")}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground">OA Status</label>
+                  <select
+                    {...register("oaStatus")}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                  >
+                    <option value="PENDING">Pending Assessment</option>
+                    <option value="CLEARED">Cleared / Shortlisted ✅</option>
+                    <option value="FAILED">Failed ❌</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground">Topics / Questions Covered (comma separated)</label>
+                <input
+                  {...register("oaTopics")}
+                  placeholder="e.g. DP on trees, Dijkstra, SQL Query, 20 MCQs"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════════
+              INTERVIEW & HR ROUNDS SECTION (Shown when INTERVIEW)
+          ══════════════════════════════════════════════════════════════════ */}
+          {currentStatus === "INTERVIEW" && (
+            <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-4 space-y-3 animate-in fade-in duration-200">
+              <div className="flex items-center gap-2 text-purple-400 font-bold text-xs uppercase tracking-wider">
+                <Layers className="h-4 w-4" /> Interview Rounds Setup
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground">Total Interview Rounds</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={8}
+                    {...register("interviewTotalRounds")}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-purple-400/30"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground">Current Round</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={8}
+                    {...register("interviewCurrentRound")}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-purple-400/30"
+                  />
+                </div>
+              </div>
+
+              {/* HR Round Toggle */}
+              <div className="pt-2 border-t border-purple-500/20 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-foreground">Include HR / Cultural Fit Details?</span>
+                  <button
+                    type="button"
+                    onClick={() => setValue("isHrRound", !isHrRound)}
+                    className={cn(
+                      "px-3 py-1 rounded-lg text-xs font-bold transition-all",
+                      isHrRound
+                        ? "bg-purple-500/20 text-purple-400 border border-purple-500/40"
+                        : "bg-secondary/40 text-muted-foreground border border-border"
+                    )}
+                  >
+                    {isHrRound ? "✓ HR Round Enabled" : "+ Add HR Info"}
+                  </button>
+                </div>
+                {isHrRound && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <input
+                      {...register("hrRecruiterName")}
+                      placeholder="Recruiter / HR Name"
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-purple-400/30"
+                    />
+                    <input
+                      {...register("hrExpectedSalary")}
+                      placeholder="Expected CTC Discussed"
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-purple-400/30"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════════
+              OFFER DETAILS SECTION (Shown when OFFER)
+          ═══════════════════════════════════════════════ */}
+          {currentStatus === "OFFER" && (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3 animate-in fade-in duration-200">
+              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
+                <DollarSign className="h-4 w-4" /> Offer Compensation & Details 🎉
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground">Total CTC / Compensation</label>
+                  <input
+                    {...register("offerAmount")}
+                    placeholder="e.g. ₹28 LPA or $160,000"
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground">Base Salary</label>
+                  <input
+                    {...register("offerBaseSalary")}
+                    placeholder="e.g. ₹22 LPA Base"
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground">Bonus & Joining Perks</label>
+                  <input
+                    {...register("offerBonus")}
+                    placeholder="e.g. ₹2L Joining Bonus"
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground">Offer Acceptance Deadline</label>
+                  <input
+                    type="date"
+                    {...register("offerDeadline")}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════════
+              REJECTION POST-MORTEM & REASON TRACKER (Shown when REJECTED)
+          ══════════════════════════════════════════════════════════════════ */}
+          {currentStatus === "REJECTED" && (
+            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4 space-y-3 animate-in fade-in duration-200">
+              <div className="flex items-center gap-2 text-rose-400 font-bold text-xs uppercase tracking-wider">
+                <AlertOctagon className="h-4 w-4" /> Rejection Post-Mortem & Reason Tracker ❌
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Log the exact questions, mistakes, and reasons so you can study your gaps and avoid repeating them.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground">Where Was It Rejected?</label>
+                  <select
+                    {...register("rejectionStage")}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-rose-400/30"
+                  >
+                    {REJECTION_STAGES.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground">Primary Reason Category</label>
+                  <select
+                    {...register("rejectionReasonCategory")}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-rose-400/30"
+                  >
+                    {REJECTION_REASONS.map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground">📝 What Was Asked? (Problems / Concepts / Architecture)</label>
+                <textarea
+                  {...register("rejectionWhatWasAsked")}
+                  rows={2}
+                  placeholder="e.g. LRU cache implementation with O(1), Kafka partition rebalancing, behavioral conflict question"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-rose-400/30 resize-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-rose-400">🔍 Where Did I Fumble / Make Mistakes?</label>
+                <textarea
+                  {...register("rejectionWhereFumbled")}
+                  rows={2}
+                  placeholder="e.g. Got stuck handling edge case for doubly linked list pointers, took too long to analyze time complexity"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-rose-400/30 resize-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground">💡 Lessons Learned & Next Steps</label>
+                <input
+                  {...register("rejectionLessonsLearned")}
+                  placeholder="e.g. Practice 15 more linked-list/hashmap medium problems on LeetCode before next round"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-rose-400/30"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Employment Type + Salary */}
           <div className="grid grid-cols-2 gap-4">
@@ -388,7 +794,7 @@ export function AddJobModal({ isOpen, onClose, defaultStatus = "SAVED" }: AddJob
               {createMutation.isPending ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</>
               ) : (
-                <><Plus className="h-4 w-4" /> Add Job</>
+                <><Plus className="h-4 w-4" /> Save Opportunity</>
               )}
             </button>
           </div>

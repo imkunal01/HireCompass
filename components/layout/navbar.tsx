@@ -2,12 +2,13 @@
 
 import React, { useState, useRef, useEffect } from "react"
 import { usePathname } from "next/navigation"
-import { Search, Bell, Sparkles, ChevronDown, Menu, Calendar, Clock, CheckCircle, X, BellOff, BellRing } from "lucide-react"
+import { Search, Bell, Sparkles, ChevronDown, Menu, Calendar, Clock, CheckCircle, X, BellOff, BellRing, Sun, Moon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/hooks/useUser"
 import { useStore } from "@/hooks/useStore"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
+import { useTheme } from "next-themes"
 
 interface Reminder {
   id: string
@@ -44,10 +45,42 @@ function getTimeLabel(dateStr: string): string {
 }
 
 const URGENCY_STYLE = {
-  critical: { dot: "bg-rose-500 animate-pulse", text: "text-rose-600", badge: "bg-rose-100 text-rose-700 border-rose-200" },
-  high:     { dot: "bg-orange-500",              text: "text-orange-600", badge: "bg-orange-100 text-orange-700 border-orange-200" },
-  medium:   { dot: "bg-yellow-500",              text: "text-yellow-600", badge: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-  low:      { dot: "bg-blue-400",                text: "text-blue-500",   badge: "bg-blue-50 text-blue-600 border-blue-200" },
+  critical: { dot: "bg-rose-500 animate-pulse", text: "text-rose-600 dark:text-rose-400", badge: "bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800" },
+  high:     { dot: "bg-orange-500",              text: "text-orange-600 dark:text-orange-400", badge: "bg-orange-100 dark:bg-orange-950/80 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800" },
+  medium:   { dot: "bg-yellow-500",              text: "text-yellow-600 dark:text-yellow-400", badge: "bg-yellow-100 dark:bg-yellow-950/80 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800" },
+  low:      { dot: "bg-blue-400",                text: "text-blue-500 dark:text-blue-400",   badge: "bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-300 border-blue-200 dark:border-blue-800" },
+}
+
+function ThemeToggle() {
+  const { theme, setTheme, resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <div className="h-9 w-9 rounded-full bg-slate-100/50 dark:bg-slate-800/50 animate-pulse" />
+    )
+  }
+
+  const isDark = (theme === "dark" || resolvedTheme === "dark")
+
+  return (
+    <button
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 dark:border-slate-700/80 bg-slate-100/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:bg-white dark:hover:bg-slate-700 transition-all duration-200 shadow-sm"
+      aria-label="Toggle theme"
+      title={isDark ? "Switch to Light theme" : "Switch to Dark theme"}
+    >
+      {isDark ? (
+        <Sun className="h-4 w-4 text-amber-400 transition-transform duration-200 rotate-0 hover:rotate-45" />
+      ) : (
+        <Moon className="h-4 w-4 text-indigo-600 transition-transform duration-200 rotate-0 hover:-rotate-12" />
+      )}
+    </button>
+  )
 }
 
 function NotificationDropdown({ onClose }: { onClose: () => void }) {
@@ -111,12 +144,12 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
     .slice(0, 6)
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-[340px] sm:w-96 rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+    <div className="absolute right-0 top-full mt-2 w-[340px] sm:w-96 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl shadow-slate-900/10 dark:shadow-black/60 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-violet-50">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-indigo-50 dark:from-indigo-950/60 to-violet-50 dark:to-violet-950/40">
         <div className="flex items-center gap-2">
-          <Bell className="h-4 w-4 text-indigo-600" />
-          <span className="font-semibold text-slate-800 text-sm">Notifications</span>
+          <Bell className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+          <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm">Notifications</span>
           {reminders.length > 0 && (
             <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
               {reminders.length > 9 ? "9+" : reminders.length}
@@ -128,13 +161,13 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
             <button
               onClick={handleClearAll}
               disabled={isClearing}
-              className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100/50 px-2 py-1 rounded-md transition-colors disabled:opacity-50 flex items-center gap-1"
+              className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:bg-indigo-100/50 dark:hover:bg-indigo-950/80 px-2 py-1 rounded-md transition-colors disabled:opacity-50 flex items-center gap-1"
             >
               {isClearing && <Loader2 className="h-3 w-3 animate-spin" />}
               Clear all
             </button>
           )}
-          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
+          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -142,39 +175,39 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
 
       {/* Notification permission banner */}
       {notifPermission === "default" && (
-        <div className="px-4 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between gap-3">
+        <div className="px-4 py-3 bg-indigo-50 dark:bg-indigo-950/50 border-b border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <BellRing className="h-4 w-4 text-indigo-500 flex-shrink-0" />
-            <p className="text-xs text-indigo-700 font-medium">Enable push alerts for deadlines</p>
+            <BellRing className="h-4 w-4 text-indigo-500 dark:text-indigo-400 flex-shrink-0" />
+            <p className="text-xs text-indigo-700 dark:text-indigo-300 font-medium">Enable push alerts for deadlines</p>
           </div>
           <button
             onClick={requestPermission}
-            className="text-xs font-bold text-white bg-indigo-600 px-2.5 py-1 rounded-lg hover:bg-indigo-700 transition-colors flex-shrink-0"
+            className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1 rounded-lg transition-colors flex-shrink-0"
           >
             Enable
           </button>
         </div>
       )}
       {notifPermission === "granted" && (
-        <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-2">
-          <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
-          <p className="text-xs text-emerald-700 font-medium">Push notifications active</p>
+        <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-950/50 border-b border-emerald-100 dark:border-emerald-900/60 flex items-center gap-2">
+          <CheckCircle className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
+          <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Push notifications active</p>
         </div>
       )}
       {notifPermission === "denied" && (
-        <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
+        <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
           <BellOff className="h-3.5 w-3.5 text-slate-400" />
-          <p className="text-xs text-slate-500">Notifications blocked in browser settings</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Notifications blocked in browser settings</p>
         </div>
       )}
 
       {/* Reminders list */}
-      <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
+      <div className="max-h-80 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/60">
         {sorted.length === 0 ? (
           <div className="py-10 text-center">
             <CheckCircle className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
-            <p className="text-sm font-semibold text-slate-700">All caught up!</p>
-            <p className="text-xs text-slate-400 mt-1">No pending reminders</p>
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">All caught up!</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">No pending reminders</p>
           </div>
         ) : (
           sorted.map((r) => {
@@ -187,16 +220,16 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
                 key={r.id}
                 href="/reminders"
                 onClick={onClose}
-                className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors group"
+                className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors group"
               >
                 {/* Urgency dot */}
                 <div className={cn("mt-1.5 h-2 w-2 rounded-full flex-shrink-0", style.dot)} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                     {r.company ? `${r.company}` : r.message}
                   </p>
                   {r.company && (r.jobTitle || r.message) && (
-                    <p className="text-xs text-slate-500 truncate">{r.jobTitle || r.message}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{r.jobTitle || r.message}</p>
                   )}
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-[10px] text-slate-400">{label}:</span>
@@ -213,11 +246,11 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-slate-100 bg-slate-50">
+      <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
         <a
           href="/reminders"
           onClick={onClose}
-          className="flex items-center justify-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+          className="flex items-center justify-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
         >
           <Calendar className="h-3.5 w-3.5" />
           View all reminders
@@ -289,7 +322,7 @@ export default function Navbar() {
   return (
     <header
       className={cn(
-        "fixed top-4 right-4 z-30 flex h-14 md:h-16 items-center gap-x-3 rounded-2xl md:rounded-3xl border border-white/40 bg-white/70 px-3 md:px-6 shadow-lg shadow-slate-200/50 backdrop-blur-xl transition-all duration-300 ease-in-out",
+        "fixed top-4 right-4 z-30 flex h-14 md:h-16 items-center gap-x-3 rounded-2xl md:rounded-3xl border border-white/40 dark:border-slate-800/60 bg-white/70 dark:bg-slate-900/80 px-3 md:px-6 shadow-lg shadow-slate-200/50 dark:shadow-black/50 backdrop-blur-xl transition-all duration-300 ease-in-out",
         "left-4",
         sidebarOpen ? "md:left-[280px]" : "md:left-[104px]"
       )}
@@ -299,7 +332,7 @@ export default function Navbar() {
         {/* Mobile menu button */}
         <button
           onClick={toggleSidebar}
-          className="md:hidden flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all duration-150 flex-shrink-0"
+          className="md:hidden flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all duration-150 flex-shrink-0"
           aria-label="Open menu"
         >
           <Menu className="h-4.5 w-4.5" />
@@ -308,7 +341,7 @@ export default function Navbar() {
         {/* Page Title */}
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="text-lg md:text-xl leading-none">{meta.emoji}</span>
-          <h1 className="text-base md:text-lg font-bold text-slate-900 tracking-tight truncate">{meta.title}</h1>
+          <h1 className="text-base md:text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate">{meta.title}</h1>
         </div>
 
         <div className="flex-1" />
@@ -317,29 +350,32 @@ export default function Navbar() {
           {/* Global Search — hidden on small mobile */}
           <div className="relative hidden md:block w-56 lg:w-80 transition-all duration-300 focus-within:w-64 lg:focus-within:w-96">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <Search className="h-4 w-4 text-slate-400" />
+              <Search className="h-4 w-4 text-slate-400 dark:text-slate-500" />
             </div>
             <input
               type="text"
               placeholder="Search anything (⌘K)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full rounded-full border-0 py-2 pl-10 pr-3 text-sm text-slate-900 bg-slate-100/80 shadow-inner ring-1 ring-inset ring-slate-200/60 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-indigo-500 transition-all sm:text-sm sm:leading-6"
+              className="block w-full rounded-full border-0 py-2 pl-10 pr-3 text-sm text-slate-900 dark:text-slate-100 bg-slate-100/80 dark:bg-slate-800/80 shadow-inner ring-1 ring-inset ring-slate-200/60 dark:ring-slate-700/60 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-slate-850 focus:ring-2 focus:ring-inset focus:ring-indigo-500 transition-all sm:text-sm sm:leading-6"
             />
           </div>
 
-          <div className="hidden sm:block h-6 w-px bg-slate-200" />
+          <div className="hidden sm:block h-6 w-px bg-slate-200 dark:bg-slate-800" />
+
+          {/* Theme Toggle Button */}
+          <ThemeToggle />
 
           {/* Notifications Bell */}
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => setNotifOpen((v) => !v)}
-              className="relative rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all"
+              className="relative rounded-full p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-200 transition-all"
               aria-label="Notifications"
             >
               <Bell className="h-5 w-5" />
               {pendingCount > 0 && (
-                <span className="absolute top-1 right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white shadow-sm ring-2 ring-white animate-in zoom-in">
+                <span className="absolute top-1 right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-slate-900 animate-in zoom-in">
                   {pendingCount > 9 ? "9+" : pendingCount}
                 </span>
               )}
@@ -350,18 +386,18 @@ export default function Navbar() {
             )}
           </div>
 
-          <div className="hidden sm:block h-6 w-px bg-slate-200" />
+          <div className="hidden sm:block h-6 w-px bg-slate-200 dark:bg-slate-800" />
 
           {/* User Profile */}
           <div className="flex items-center gap-x-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 font-bold text-white shadow-sm ring-2 ring-white text-xs flex-shrink-0">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 font-bold text-white shadow-sm ring-2 ring-white dark:ring-slate-800 text-xs flex-shrink-0">
               {user?.name?.[0]?.toUpperCase() || "U"}
             </div>
             <div className="hidden lg:flex lg:flex-col lg:items-start lg:justify-center">
-              <span className="text-sm font-bold leading-none text-slate-900">
+              <span className="text-sm font-bold leading-none text-slate-900 dark:text-slate-100">
                 {user?.name || "Guest"}
               </span>
-              <span className="mt-1 flex items-center gap-1 text-[10px] font-medium leading-none text-slate-500">
+              <span className="mt-1 flex items-center gap-1 text-[10px] font-medium leading-none text-slate-500 dark:text-slate-400">
                 <Sparkles className="h-3 w-3 text-amber-500" /> Pro Plan
               </span>
             </div>

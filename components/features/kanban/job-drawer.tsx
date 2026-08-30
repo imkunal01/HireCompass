@@ -1,20 +1,21 @@
-"use client"
-
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   X, ExternalLink, Edit2, Send, Calendar, Clock, MapPin, Tag,
   FileText, CheckSquare, Mail, Activity, ChevronRight, Loader2,
   ClipboardList, Copy, Check, Sparkles, FolderGit2, Zap, RefreshCw,
-  Trash2
+  Trash2, Brain, Layers, AlertOctagon, DollarSign, CheckCircle2, XCircle, Plus, Save
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Opportunity, STATUS_CONFIG, PRIORITY_CONFIG, normalizeStatus } from "@/types/opportunity"
+import {
+  Opportunity, STATUS_CONFIG, PRIORITY_CONFIG, normalizeStatus,
+  OA_PLATFORMS, REJECTION_STAGES, REJECTION_REASONS, InterviewRoundItem
+} from "@/types/opportunity"
 import { FormKitItem, ProjectSnippet, SnippetLength, SNIPPET_LENGTH_CONFIG } from "@/types/project"
 import { CompanyAvatar, StatusBadge, PriorityBadge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/toast"
 
-type Tab = "overview" | "notes" | "timeline" | "checklist" | "emails" | "formkit"
+type Tab = "overview" | "rounds" | "offer" | "rejection" | "notes" | "timeline" | "checklist" | "emails" | "formkit"
 
 interface JobDrawerProps {
   opportunityId: string | null
@@ -24,6 +25,9 @@ interface JobDrawerProps {
 
 const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "overview",  label: "Overview",  icon: FileText },
+  { id: "rounds",    label: "OA & Rounds", icon: Layers },
+  { id: "offer",     label: "Offer 🎉",  icon: DollarSign },
+  { id: "rejection", label: "Rejection ❌", icon: AlertOctagon },
   { id: "notes",     label: "Notes",     icon: FileText },
   { id: "timeline",  label: "Timeline",  icon: Activity },
   { id: "checklist", label: "Checklist", icon: CheckSquare },
@@ -47,6 +51,60 @@ export function JobDrawer({ opportunityId, onClose, initialData }: JobDrawerProp
   )
   const [editingNotes, setEditingNotes] = useState(false)
   const [notesValue, setNotesValue] = useState(initialData?.notes || "")
+
+  // Rejection Post-Mortem Local Edit State
+  const [rejectionForm, setRejectionForm] = useState<{
+    stage: string
+    reasonCategory: string
+    whatWasAsked: string
+    whyRejected: string
+    whereFumbled: string
+    lessonsLearned: string
+  }>({
+    stage: "Technical Round 1 (DSA / Coding)",
+    reasonCategory: "DSA & Problem-Solving Speed Gaps",
+    whatWasAsked: "",
+    whyRejected: "",
+    whereFumbled: "",
+    lessonsLearned: "",
+  })
+
+  // OA & Rounds Local Edit State
+  const [oaForm, setOaForm] = useState<{
+    platform: string
+    totalRounds: number
+    currentRound: number
+    status: "PENDING" | "CLEARED" | "FAILED"
+    score: string
+    topics: string
+    notes: string
+  }>({
+    platform: "HackerRank",
+    totalRounds: 1,
+    currentRound: 1,
+    status: "PENDING",
+    score: "",
+    topics: "",
+    notes: "",
+  })
+
+  // Offer Local Edit State
+  const [offerForm, setOfferForm] = useState<{
+    totalAmount: string
+    baseSalary: string
+    bonus: string
+    stocks: string
+    deadline: string
+    notes: string
+  }>({
+    totalAmount: "",
+    baseSalary: "",
+    bonus: "",
+    stocks: "",
+    deadline: "",
+    notes: "",
+  })
+
   const queryClient = useQueryClient()
   const { toast } = useToast()
 
@@ -60,6 +118,43 @@ export function JobDrawer({ opportunityId, onClose, initialData }: JobDrawerProp
     enabled: !!opportunityId,
     initialData: initialData,
   })
+
+  // Sync loaded opportunity state to local form states
+  useEffect(() => {
+    if (opportunity) {
+      if (opportunity.rejectionDetails) {
+        setRejectionForm({
+          stage: opportunity.rejectionDetails.stage || "Technical Round 1 (DSA / Coding)",
+          reasonCategory: opportunity.rejectionDetails.reasonCategory || "DSA & Problem-Solving Speed Gaps",
+          whatWasAsked: opportunity.rejectionDetails.whatWasAsked || "",
+          whyRejected: opportunity.rejectionDetails.whyRejected || "",
+          whereFumbled: opportunity.rejectionDetails.whereFumbled || "",
+          lessonsLearned: opportunity.rejectionDetails.lessonsLearned || "",
+        })
+      }
+      if (opportunity.oaDetails) {
+        setOaForm({
+          platform: opportunity.oaDetails.platform || "HackerRank",
+          totalRounds: opportunity.oaDetails.totalRounds || 1,
+          currentRound: opportunity.oaDetails.currentRound || 1,
+          status: opportunity.oaDetails.status || "PENDING",
+          score: opportunity.oaDetails.score || "",
+          topics: opportunity.oaDetails.topics?.join(", ") || "",
+          notes: opportunity.oaDetails.notes || "",
+        })
+      }
+      if (opportunity.offerDetails) {
+        setOfferForm({
+          totalAmount: opportunity.offerDetails.totalAmount || "",
+          baseSalary: opportunity.offerDetails.baseSalary || "",
+          bonus: opportunity.offerDetails.bonus || "",
+          stocks: opportunity.offerDetails.stocks || "",
+          deadline: opportunity.offerDetails.deadline ? new Date(opportunity.offerDetails.deadline).toISOString().split("T")[0] : "",
+          notes: opportunity.offerDetails.notes || "",
+        })
+      }
+    }
+  }, [opportunity])
 
   const updateMutation = useMutation({
     mutationFn: async (updates: Partial<Opportunity>) => {
@@ -100,6 +195,74 @@ export function JobDrawer({ opportunityId, onClose, initialData }: JobDrawerProp
   const saveNotes = () => {
     updateMutation.mutate({ notes: notesValue } as any)
     setEditingNotes(false)
+  }
+
+  const saveRejectionPostMortem = () => {
+    updateMutation.mutate({
+      status: "REJECTED",
+      rejectionDetails: {
+        stage: rejectionForm.stage,
+        reasonCategory: rejectionForm.reasonCategory,
+        whatWasAsked: rejectionForm.whatWasAsked || null,
+        whyRejected: rejectionForm.whyRejected || null,
+        whereFumbled: rejectionForm.whereFumbled || null,
+        lessonsLearned: rejectionForm.lessonsLearned || null,
+        rejectionDate: new Date().toISOString(),
+      }
+    } as any)
+  }
+
+  const saveOADetails = () => {
+    updateMutation.mutate({
+      status: opportunity?.status === "SAVED" || opportunity?.status === "APPLIED" ? "ASSESSMENT" : opportunity?.status,
+      oaDetails: {
+        platform: oaForm.platform,
+        totalRounds: oaForm.totalRounds,
+        currentRound: oaForm.currentRound,
+        status: oaForm.status,
+        score: oaForm.score || null,
+        topics: oaForm.topics ? oaForm.topics.split(",").map(t => t.trim()) : [],
+        notes: oaForm.notes || null,
+      }
+    } as any)
+  }
+
+  const saveOfferDetails = () => {
+    updateMutation.mutate({
+      status: "OFFER",
+      offerDetails: {
+        totalAmount: offerForm.totalAmount || null,
+        baseSalary: offerForm.baseSalary || null,
+        bonus: offerForm.bonus || null,
+        stocks: offerForm.stocks || null,
+        deadline: offerForm.deadline || null,
+        notes: offerForm.notes || null,
+      }
+    } as any)
+  }
+
+  const addInterviewRound = () => {
+    const existing = opportunity?.interviewRounds || []
+    const nextNum = existing.length + 1
+    const newRound: InterviewRoundItem = {
+      id: `r-${Date.now()}`,
+      roundNumber: nextNum,
+      roundName: `Round ${nextNum} - Technical`,
+      roundType: nextNum === 1 ? "TECHNICAL" : nextNum === 2 ? "SYSTEM_DESIGN" : "MANAGERIAL",
+      status: "SCHEDULED",
+      topicsCovered: "",
+      notes: "",
+    }
+    updateMutation.mutate({
+      status: "INTERVIEW",
+      interviewRounds: [...existing, newRound],
+    } as any)
+  }
+
+  const updateRoundStatus = (roundId: string, status: "PASSED" | "FAILED" | "PENDING" | "SCHEDULED") => {
+    const existing = opportunity?.interviewRounds || []
+    const updated = existing.map(r => r.id === roundId ? { ...r, status } : r)
+    updateMutation.mutate({ interviewRounds: updated } as any)
   }
 
   if (!opportunityId) return null
@@ -152,20 +315,49 @@ export function JobDrawer({ opportunityId, onClose, initialData }: JobDrawerProp
           </button>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions Bar */}
         {opportunity && (
-          <div className="flex gap-2 p-4 border-b border-border/40 bg-secondary/10 overflow-x-auto">
+          <div className="flex gap-2 p-3 border-b border-border/40 bg-secondary/10 overflow-x-auto">
             <button
               onClick={() => updateMutation.mutate({ status: "APPLIED" } as any)}
-              className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 py-2 text-xs font-semibold transition-all"
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all"
             >
-              <Send className="h-3.5 w-3.5" /> Mark Applied
+              <Send className="h-3 w-3" /> Applied
             </button>
             <button
-              onClick={() => updateMutation.mutate({ status: "INTERVIEW" } as any)}
-              className="flex-1 min-w-[140px] flex items-center justify-center gap-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-500/20 py-2 text-xs font-semibold transition-all"
+              onClick={() => {
+                updateMutation.mutate({ status: "ASSESSMENT" } as any)
+                setActiveTab("rounds")
+              }}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all"
             >
-              <Calendar className="h-3.5 w-3.5" /> Schedule Interview
+              <Brain className="h-3 w-3" /> OA / Assessment
+            </button>
+            <button
+              onClick={() => {
+                updateMutation.mutate({ status: "INTERVIEW" } as any)
+                setActiveTab("rounds")
+              }}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-500/20 px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all"
+            >
+              <Calendar className="h-3 w-3" /> Interview
+            </button>
+            <button
+              onClick={() => {
+                updateMutation.mutate({ status: "OFFER" } as any)
+                setActiveTab("offer")
+              }}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all"
+            >
+              <DollarSign className="h-3 w-3" /> Offer 🎉
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("rejection")
+              }}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all"
+            >
+              <AlertOctagon className="h-3 w-3" /> Log Rejection ❌
             </button>
             <button
               onClick={() => {
@@ -173,21 +365,11 @@ export function JobDrawer({ opportunityId, onClose, initialData }: JobDrawerProp
                   deleteMutation.mutate()
                 }
               }}
-              className="flex items-center justify-center gap-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 px-3 py-2 text-xs font-semibold transition-all shrink-0"
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-secondary/30 border border-border text-muted-foreground hover:text-rose-400 px-2.5 py-1.5 text-xs font-semibold transition-all shrink-0 ml-auto"
               title="Delete Job"
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-3 w-3" />
             </button>
-            {opportunity.url && (
-              <a
-                href={opportunity.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-1.5 rounded-xl bg-secondary/30 border border-border px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all shrink-0"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            )}
           </div>
         )}
 
@@ -297,6 +479,360 @@ export function JobDrawer({ opportunityId, onClose, initialData }: JobDrawerProp
                       </a>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* OA & Rounds Tab */}
+              {activeTab === "rounds" && (
+                <div className="space-y-5">
+                  {/* OA Section Card */}
+                  <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
+                        <Brain className="h-4 w-4" /> Online Assessment (OA)
+                      </div>
+                      <span className={cn(
+                        "text-[10px] font-bold px-2 py-0.5 rounded-full border",
+                        oaForm.status === "CLEARED" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                        oaForm.status === "FAILED" ? "bg-rose-500/10 text-rose-400 border-rose-500/20" :
+                        "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+                      )}>
+                        {oaForm.status === "CLEARED" ? "Cleared ✅" : oaForm.status === "FAILED" ? "Failed ❌" : "Pending ⏳"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-muted-foreground">Platform</label>
+                        <select
+                          value={oaForm.platform}
+                          onChange={(e) => setOaForm({ ...oaForm, platform: e.target.value })}
+                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                        >
+                          {OA_PLATFORMS.map((p) => (
+                            <option key={p} value={p}>{p}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-muted-foreground">Total Rounds</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={5}
+                          value={oaForm.totalRounds}
+                          onChange={(e) => setOaForm({ ...oaForm, totalRounds: parseInt(e.target.value) || 1 })}
+                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-muted-foreground">OA Status</label>
+                        <select
+                          value={oaForm.status}
+                          onChange={(e) => setOaForm({ ...oaForm, status: e.target.value as any })}
+                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                        >
+                          <option value="PENDING">Pending</option>
+                          <option value="CLEARED">Cleared / Shortlisted ✅</option>
+                          <option value="FAILED">Failed ❌</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-muted-foreground">Topics / Questions Asked</label>
+                      <input
+                        value={oaForm.topics}
+                        onChange={(e) => setOaForm({ ...oaForm, topics: e.target.value })}
+                        placeholder="e.g. DP on trees, Dijkstra, SQL queries, MCQs"
+                        className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                      />
+                    </div>
+
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={saveOADetails}
+                        className="flex items-center gap-1.5 rounded-xl bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-cyan-500 transition-all"
+                      >
+                        <Save className="h-3.5 w-3.5" /> Save OA Details
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Interview Rounds List */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Interview Rounds Pipeline</h4>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Track each round outcome, questions asked, and feedback</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={addInterviewRound}
+                        className="flex items-center gap-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-500/20 px-3 py-1.5 text-xs font-semibold transition-all"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Add Next Round
+                      </button>
+                    </div>
+
+                    {opportunity.interviewRounds && opportunity.interviewRounds.length > 0 ? (
+                      <div className="space-y-2.5">
+                        {opportunity.interviewRounds.map((round) => (
+                          <div key={round.id} className="rounded-xl border border-border/80 bg-secondary/15 p-3.5 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-bold">
+                                  {round.roundNumber}
+                                </span>
+                                <span className="text-xs font-bold text-foreground">{round.roundName}</span>
+                                <span className="rounded bg-secondary/40 border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground uppercase font-mono">
+                                  {round.roundType}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => updateRoundStatus(round.id, "PASSED")}
+                                  className={cn(
+                                    "px-2 py-1 rounded-lg text-[10px] font-bold border transition-all",
+                                    round.status === "PASSED"
+                                      ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
+                                      : "border-border bg-secondary/20 text-muted-foreground hover:text-emerald-400"
+                                  )}
+                                >
+                                  Passed ✅
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateRoundStatus(round.id, "FAILED")}
+                                  className={cn(
+                                    "px-2 py-1 rounded-lg text-[10px] font-bold border transition-all",
+                                    round.status === "FAILED"
+                                      ? "bg-rose-500/20 text-rose-400 border-rose-500/40"
+                                      : "border-border bg-secondary/20 text-muted-foreground hover:text-rose-400"
+                                  )}
+                                >
+                                  Failed ❌
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateRoundStatus(round.id, "SCHEDULED")}
+                                  className={cn(
+                                    "px-2 py-1 rounded-lg text-[10px] font-bold border transition-all",
+                                    round.status === "SCHEDULED"
+                                      ? "bg-purple-500/20 text-purple-400 border-purple-500/40"
+                                      : "border-border bg-secondary/20 text-muted-foreground hover:text-purple-400"
+                                  )}
+                                >
+                                  Scheduled ⏳
+                                </button>
+                              </div>
+                            </div>
+                            {round.topicsCovered && (
+                              <p className="text-xs text-muted-foreground bg-background/60 rounded-lg p-2 border border-border/40">
+                                💡 <span className="font-medium text-foreground">Topics Asked:</span> {round.topicsCovered}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-border/60 bg-secondary/10 p-6 text-center space-y-2">
+                        <Layers className="h-8 w-8 text-muted-foreground/60 mx-auto" />
+                        <p className="text-xs text-muted-foreground">No interview rounds added yet.</p>
+                        <button
+                          type="button"
+                          onClick={addInterviewRound}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 px-3 py-1.5 text-xs font-semibold hover:bg-purple-500/20 transition-all"
+                        >
+                          <Plus className="h-3 w-3" /> Add Round 1 (Technical)
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Offer Tab */}
+              {activeTab === "offer" && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
+                      <DollarSign className="h-4 w-4" /> Offer Breakdown & Compensation 🎉
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-muted-foreground">Total CTC / Compensation</label>
+                        <input
+                          value={offerForm.totalAmount}
+                          onChange={(e) => setOfferForm({ ...offerForm, totalAmount: e.target.value })}
+                          placeholder="e.g. ₹28 LPA or $160,000"
+                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-muted-foreground">Base Salary</label>
+                        <input
+                          value={offerForm.baseSalary}
+                          onChange={(e) => setOfferForm({ ...offerForm, baseSalary: e.target.value })}
+                          placeholder="e.g. ₹22 LPA Base"
+                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-muted-foreground">Bonus & Joining Perks</label>
+                        <input
+                          value={offerForm.bonus}
+                          onChange={(e) => setOfferForm({ ...offerForm, bonus: e.target.value })}
+                          placeholder="e.g. ₹2L Joining Bonus"
+                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-muted-foreground">Stock Options (RSUs / ESOPs)</label>
+                        <input
+                          value={offerForm.stocks}
+                          onChange={(e) => setOfferForm({ ...offerForm, stocks: e.target.value })}
+                          placeholder="e.g. $40,000 RSUs over 4 yrs"
+                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                        />
+                      </div>
+                      <div className="space-y-1 sm:col-span-2">
+                        <label className="text-[11px] font-semibold text-muted-foreground">Offer Acceptance Deadline</label>
+                        <input
+                          type="date"
+                          value={offerForm.deadline}
+                          onChange={(e) => setOfferForm({ ...offerForm, deadline: e.target.value })}
+                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="button"
+                        onClick={saveOfferDetails}
+                        className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500 transition-all"
+                      >
+                        <Save className="h-3.5 w-3.5" /> Save Offer Details
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Rejection Post-Mortem Tab */}
+              {activeTab === "rejection" && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-rose-400 font-bold text-xs uppercase tracking-wider">
+                        <AlertOctagon className="h-4 w-4" /> Rejection Post-Mortem & Fumble Tracker ❌
+                      </div>
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                        {rejectionForm.stage}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Analyze why this application didn&apos;t convert and pinpoint exact questions, gaps, and areas to study.
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-muted-foreground">Where Was It Rejected?</label>
+                        <select
+                          value={rejectionForm.stage}
+                          onChange={(e) => setRejectionForm({ ...rejectionForm, stage: e.target.value })}
+                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-rose-400/30"
+                        >
+                          {REJECTION_STAGES.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-muted-foreground">Primary Reason Category</label>
+                        <select
+                          value={rejectionForm.reasonCategory}
+                          onChange={(e) => setRejectionForm({ ...rejectionForm, reasonCategory: e.target.value })}
+                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-rose-400/30"
+                        >
+                          {REJECTION_REASONS.map((r) => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-muted-foreground">
+                        📝 What Was Asked? (Problems / Concepts / Architecture Topics)
+                      </label>
+                      <textarea
+                        value={rejectionForm.whatWasAsked}
+                        onChange={(e) => setRejectionForm({ ...rejectionForm, whatWasAsked: e.target.value })}
+                        rows={3}
+                        placeholder="e.g. Implement an LRU Cache in O(1), Kafka partition rebalancing logic, behavioral leadership principle questions..."
+                        className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-rose-400/30 resize-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-rose-400">
+                        🔍 Where Did I Fumble / Make Mistakes? (Self-Reflection)
+                      </label>
+                      <textarea
+                        value={rejectionForm.whereFumbled}
+                        onChange={(e) => setRejectionForm({ ...rejectionForm, whereFumbled: e.target.value })}
+                        rows={3}
+                        placeholder="e.g. Blanked out on pointer manipulation in doubly-linked list, struggled to calculate time complexity under pressure..."
+                        className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-rose-400/30 resize-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-muted-foreground">
+                        ❌ Official Recruiter / Company Feedback (if provided)
+                      </label>
+                      <input
+                        value={rejectionForm.whyRejected}
+                        onChange={(e) => setRejectionForm({ ...rejectionForm, whyRejected: e.target.value })}
+                        placeholder="e.g. Candidate lacked concurrency experience, better candidate selected"
+                        className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-rose-400/30"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-emerald-400">
+                        💡 Lessons Learned & Action Plan for Next Time
+                      </label>
+                      <input
+                        value={rejectionForm.lessonsLearned}
+                        onChange={(e) => setRejectionForm({ ...rejectionForm, lessonsLearned: e.target.value })}
+                        placeholder="e.g. Solve 10 more Medium-Hard linked list problems on LeetCode; revise OS concurrency primitives"
+                        className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-rose-500/20">
+                      <a
+                        href={`/assistant?q=${encodeURIComponent(`I was rejected at ${opportunity.company} for ${opportunity.title} at stage: ${rejectionForm.stage}. Here is what was asked: "${rejectionForm.whatWasAsked}" and where I fumbled: "${rejectionForm.whereFumbled}". Give me a step-by-step study plan to fix these gaps.`)}`}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                      >
+                        <Sparkles className="h-3.5 w-3.5" /> Ask AI to create study plan for this rejection
+                      </a>
+                      <button
+                        type="button"
+                        onClick={saveRejectionPostMortem}
+                        className="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-rose-500 transition-all"
+                      >
+                        <Save className="h-3.5 w-3.5" /> Save Post-Mortem
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 

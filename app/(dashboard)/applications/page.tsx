@@ -53,7 +53,23 @@ const MOCK_OPPORTUNITIES: Opportunity[] = [
     status: "ASSESSMENT", priority: "MEDIUM",
     skills: ["C++", "WebAssembly"], tags: ["design-tech"],
     deadline: new Date(Date.now() + 4 * 86400000).toISOString(),
+    oaDetails: { platform: "HackerRank", totalRounds: 1, currentRound: 1, status: "PENDING", topics: ["Algorithms", "Data Structures"] },
     createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
+  },
+  {
+    id: "m7", userId: "", company: "Amazon", title: "SDE-1 (Backend)",
+    status: "REJECTED", priority: "HIGH",
+    skills: ["Java", "Distributed Systems", "AWS"], tags: ["big tech"],
+    rejectionDetails: {
+      stage: "Technical Round 1 (DSA / Coding)",
+      reasonCategory: "DSA & Problem-Solving Speed Gaps",
+      whatWasAsked: "LRU Cache in O(1) time + Subarray sum equals K",
+      whyRejected: "Struggled with doubly linked list edge cases under time pressure",
+      whereFumbled: "Forgot null check on head/tail deletion in the LRU eviction method",
+      lessonsLearned: "Practice 15 more linked list & sliding window questions with 20min timers",
+      rejectionDate: new Date(Date.now() - 10 * 86400000).toISOString(),
+    },
+    createdAt: new Date(Date.now() - 12 * 86400000).toISOString(),
   },
 ]
 
@@ -87,12 +103,12 @@ export default function ApplicationsPage() {
         <div className="animate-slide-up flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50">
-                <Columns className="h-4 w-4 text-indigo-600" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/80">
+                <Columns className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
               </div>
-              <h2 className="text-xl font-black text-slate-900 tracking-tight">Application Pipeline</h2>
+              <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Application Pipeline</h2>
             </div>
-            <p className="text-sm text-slate-500 mt-1.5 ml-10.5">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5 ml-10.5">
               Drag cards between columns to update your application status
             </p>
           </div>
@@ -100,7 +116,7 @@ export default function ApplicationsPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => refetch()}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 shadow-sm transition-all duration-150"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-700 hover:border-indigo-200 dark:hover:border-indigo-500/40 shadow-sm transition-all duration-150"
               title="Refresh"
             >
               <RefreshCw className="h-4 w-4" />
@@ -119,7 +135,7 @@ export default function ApplicationsPage() {
         {isLoading && (
           <div className="flex gap-4 overflow-x-auto pb-4">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="min-w-[240px] h-64 rounded-2xl bg-slate-100 border border-slate-200 skeleton" />
+              <div key={i} className="min-w-[240px] h-64 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 skeleton" />
             ))}
           </div>
         )}

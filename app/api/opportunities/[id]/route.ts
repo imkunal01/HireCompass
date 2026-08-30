@@ -63,9 +63,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (status) {
       updateFields.status = status
+      let desc = `Status updated to ${status}`
+      if (status === "REJECTED" && rest.rejectionDetails?.stage) {
+        desc = `Rejected at: ${rest.rejectionDetails.stage}${rest.rejectionDetails.whereFumbled ? ` (Note: ${rest.rejectionDetails.whereFumbled.slice(0, 50)}...)` : ""}`
+      } else if (status === "OFFER" && rest.offerDetails?.totalAmount) {
+        desc = `Received offer: ${rest.offerDetails.totalAmount}`
+      }
       pushOps.timeline = {
-        event: "Status changed",
-        description: `Status updated to ${status}`,
+        event: status === "REJECTED" ? "Application Rejected" : status === "OFFER" ? "Offer Received 🎉" : "Status changed",
+        description: desc,
         timestamp: now,
       }
     }

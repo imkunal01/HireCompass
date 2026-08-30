@@ -4,16 +4,19 @@ import clientPromise from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
 import Groq from "groq-sdk"
 import nodemailer from "nodemailer"
+import { scrapeJobUrl } from "@/lib/job-scraper"
+import { getUserAiConfig, saveUserApiKey, incrementUserAiUsage } from "@/lib/ai-quota"
 
-const MODEL = "llama-3.3-70b-versatile"
-const MAX_TOKENS = 1024
-
-function getClient() {
-  const apiKey = process.env.GROQ_API_KEY
+async function getGroqClientForUser(userId: string) {
+  const config = await getUserAiConfig(userId)
+  const apiKey = config.apiKey || process.env.GROQ_API_KEY
   if (!apiKey || apiKey === "your_groq_api_key_here") {
     throw new Error("GROQ_API_KEY is not configured.")
   }
-  return new Groq({ apiKey })
+  return {
+    client: new Groq({ apiKey }),
+    model: config.model || process.env.GROQ_MODEL || "openai/gpt-oss-120b",
+  }
 }
 
 // ─── Tool definitions (what the LLM can invoke) ───────────────────────────────
@@ -100,7 +103,7 @@ const TOOLS: Groq.Chat.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "create_reminder",
-      description: "Create a reminder for the user",
+      description: "Create a reminder for the user. Do not pass null for optional fields — omit them if not needed.",
       parameters: {
         type: "object",
         required: ["type", "dueAt"],
@@ -110,10 +113,10 @@ const TOOLS: Groq.Chat.ChatCompletionTool[] = [
             enum: ["DEADLINE", "FOLLOWUP", "INTERVIEW", "TASK", "CUSTOM"],
             description: "Reminder type",
           },
-          dueAt: { type: "string", description: "ISO datetime string for when to remind" },
-          message: { type: "string", description: "Reminder message or note" },
-          company: { type: "string", description: "Related company name (optional)" },
-          jobTitle: { type: "string", description: "Related job title (optional)" },
+          dueAt: { type: "string", description: "ISO datetime string for when to remind (e.g. 2026-08-30T17:00:00.000Z)" },
+          message: { type: "string", description: "Reminder message or note. Omit if not specified." },
+          company: { type: "string", description: "Related company name. Omit if not applicable." },
+          jobTitle: { type: "string", description: "Related job title. Omit if not applicable." },
         },
       },
     },
@@ -347,6 +350,36 @@ const TOOLS: Groq.Chat.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "scrape_job_url",
+      description: "Scrape and extract real job posting details (title, company, location, salary, skills, description) from any job URL. Supports Greenhouse, Lever, Ashby ATS platforms natively via their public APIs. For other sites uses HTML parsing. Auto-saves to the user's HireCompass board.",
+      parameters: {
+        type: "object",
+        required: ["url"],
+        properties: {
+          url: { type: "string", description: "The full job posting URL to scrape" },
+          autoSave: { type: "boolean", description: "Whether to automatically save to HireCompass board (default: true)" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "save_groq_api_key",
+      description: "Save and verify the user's personal Groq API key (starts with 'gsk_') to unlock unlimited AI requests with their own quota.",
+      parameters: {
+        type: "object",
+        required: ["apiKey"],
+        properties: {
+          apiKey: { type: "string", description: "The Groq API key starting with 'gsk_'" },
+          model: { type: "string", description: "Optional preferred model (e.g. openai/gpt-oss-120b, llama-3.3-70b-versatile)" },
+        },
+      },
+    },
+  },
 ]
 
 // ─── Tool executor ────────────────────────────────────────────────────────────
@@ -361,6 +394,23 @@ type ToolResult = {
 async function executeTool(name: string, args: any, userId: string): Promise<ToolResult> {
   const client = await clientPromise
   const db = client.db()
+
+  // ── save_groq_api_key ───────────────────────────────────────────────────────
+  if (name === "save_groq_api_key") {
+    try {
+      const result = await saveUserApiKey(userId, args.apiKey, args.model)
+      return {
+        success: true,
+        data: { maskedKey: result.maskedKey, model: result.model },
+        message: `**Your Groq API key is verified.** Key: \`${result.maskedKey}\`, model: **${result.model}**. Unlimited quota is active.`,
+      }
+    } catch (err: any) {
+      return {
+        success: false,
+        message: `Could not verify that Groq API key: ${err.message || "Invalid key"}. Check your key at https://console.groq.com/keys and try again.`,
+      }
+    }
+  }
 
   // ── list_opportunities ──────────────────────────────────────────────────────
   if (name === "list_opportunities") {
@@ -455,27 +505,85 @@ async function executeTool(name: string, args: any, userId: string): Promise<Too
     }
   }
 
+  // ── scrape_job_url ──────────────────────────────────────────────────────────
+  if (name === "scrape_job_url") {
+    try {
+      const result = await scrapeJobUrl(args.url)
+      if (!result.success || !result.data) {
+        return { success: false, message: result.error || "Failed to scrape job posting. The site may block automated access." }
+      }
+      const data = result.data
+      const sourceLabel = {
+        greenhouse_api: "Greenhouse API",
+        lever_api: "Lever API",
+        ashby_api: "Ashby API",
+        jsonld: "structured page data",
+        html: "page HTML",
+        ai_fallback: "AI fallback",
+      }[data.source] || "web"
+      let message = `Extracted **${data.title}** at **${data.company}** (${data.location}) via ${sourceLabel}. Salary: ${data.salaryRange}.`
+
+      if (args.autoSave !== false) {
+        const col = db.collection("opportunities")
+        const now = new Date()
+        const doc = {
+          userId,
+          title: data.title,
+          company: data.company,
+          status: "SAVED",
+          priority: "MEDIUM",
+          url: args.url,
+          location: data.location,
+          notes: `Scraped via AI (${sourceLabel}). Skills: ${data.skillsRequired.join(", ")}\n\n${data.description}`,
+          deadline: data.deadline ? new Date(data.deadline) : null,
+          skills: data.skillsRequired || [],
+          tags: ["Scraped"],
+          isRemote: data.location?.toLowerCase().includes("remote") ?? false,
+          employmentType: "FULL_TIME",
+          timeline: [{ event: "Job imported via AI Scraper", description: `Scraped from ${args.url}`, timestamp: now }],
+          createdAt: now,
+          updatedAt: now,
+        }
+        const saved = await col.insertOne(doc)
+        message += ` Auto-saved to your HireCompass board.`
+        return {
+          success: true,
+          data: { id: saved.insertedId.toString(), title: data.title, company: data.company, status: "SAVED", location: data.location, salary: data.salaryRange },
+          message,
+        }
+      }
+
+      return { success: true, data, message }
+    } catch (err: any) {
+      return { success: false, message: "Scraper error: " + (err.message || "Unknown error") }
+    }
+  }
+
   // ── create_reminder ─────────────────────────────────────────────────────────
   if (name === "create_reminder") {
     const col = db.collection("reminders")
     const now = new Date()
+    let dueDate = args.dueAt ? new Date(args.dueAt) : new Date(Date.now() + 24 * 60 * 60 * 1000)
+    if (isNaN(dueDate.getTime())) {
+      dueDate = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    }
     const doc = {
       userId,
-      type: args.type,
-      dueAt: new Date(args.dueAt),
-      message: args.message ?? "",
-      company: args.company ?? null,
-      jobTitle: args.jobTitle ?? null,
+      type: args.type || "TASK",
+      dueAt: dueDate,
+      message: typeof args.message === "string" && args.message !== "null" ? args.message : "",
+      company: typeof args.company === "string" && args.company !== "null" ? args.company : null,
+      jobTitle: typeof args.jobTitle === "string" && args.jobTitle !== "null" ? args.jobTitle : null,
       done: false,
       createdAt: now,
       updatedAt: now,
     }
     const result = await col.insertOne(doc)
-    const dueStr = new Date(args.dueAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })
+    const dueStr = dueDate.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })
     return {
       success: true,
       data: { id: result.insertedId.toString(), ...doc, dueAt: doc.dueAt.toISOString() },
-      message: `✅ Reminder set! "${args.message || args.type}" — due **${dueStr}**.`,
+      message: `Reminder set: "${doc.message || doc.type}" -- due **${dueStr}**.`,
     }
   }
 
@@ -514,7 +622,7 @@ async function executeTool(name: string, args: any, userId: string): Promise<Too
     return {
       success: true,
       data: { id: target._id.toString(), message: target.message },
-      message: `✅ Marked reminder as done: "${target.message || target.type}".`,
+      message: `Marked reminder as done: "${target.message || target.type}".`,
     }
   }
 
@@ -540,7 +648,7 @@ async function executeTool(name: string, args: any, userId: string): Promise<Too
     return {
       success: true,
       data: { id: result.insertedId.toString(), company: args.company, role: args.role, date: args.date, time: args.time },
-      message: `📅 Interview scheduled! **${args.role}** at **${args.company}** on **${args.date}**${args.time ? ` at ${args.time}` : ""}.`,
+      message: `Interview scheduled: **${args.role}** at **${args.company}** on **${args.date}**${args.time ? ` at ${args.time}` : ""}.`,
     }
   }
 
@@ -575,7 +683,7 @@ async function executeTool(name: string, args: any, userId: string): Promise<Too
     return {
       success: true,
       data: { total, applied, interviewed, offers, rejected },
-      message: `📊 You have **${total}** jobs tracked. **${applied}** applied, **${interviewed}** at interview stage, **${offers}** offer${offers !== 1 ? "s" : ""}, **${rejected}** rejected.`,
+      message: `You have **${total}** jobs tracked. **${applied}** applied, **${interviewed}** at interview stage, **${offers}** offer${offers !== 1 ? "s" : ""}, **${rejected}** rejected.`,
     }
   }
 
@@ -656,9 +764,9 @@ async function executeTool(name: string, args: any, userId: string): Promise<Too
     const tone = args.tone || "professional"
     const customNote = args.customNote ? `\nInclude this custom note: ${args.customNote}` : ""
 
-    const groqClient = getClient()
+    const { client: groqClient, model: groqModel } = await getGroqClientForUser(userId)
     const completion = await groqClient.chat.completions.create({
-      model: MODEL,
+      model: groqModel,
       messages: [
         {
           role: "system",
@@ -714,7 +822,7 @@ Make it personal, concise (under 200 words), and end with a clear CTA. No placeh
         subject,
         body,
       },
-      message: `📧 Email preview for **${record.recruiterName || record.companyName}** (${record.recruiterEmail}):\n\n**Subject:** ${subject}\n\n${body}`,
+      message: `Email preview for **${record.recruiterName || record.companyName}** (${record.recruiterEmail}):\n\n**Subject:** ${subject}\n\n${body}`,
     }
   }
 
@@ -748,9 +856,9 @@ Make it personal, concise (under 200 words), and end with a clear CTA. No placeh
     const customNote = args.customNote ? `\nInclude this note: ${args.customNote}` : ""
 
     // Generate email with Groq
-    const groqClient = getClient()
+    const { client: groqClient, model: groqModel } = await getGroqClientForUser(userId)
     const completion = await groqClient.chat.completions.create({
-      model: MODEL,
+      model: groqModel,
       messages: [
         {
           role: "system",
@@ -850,17 +958,17 @@ Under 200 words. Concise and personal. Clear CTA.`,
         subject,
         messageId: info.messageId,
       },
-      message: `✅ Email sent to **${record.recruiterName || record.companyName}** (${record.recruiterEmail})!\n📌 Opportunity auto-added to your tracker.\n🔔 Follow-up reminder set for 7 days.`,
+      message: `Email sent to **${record.recruiterName || record.companyName}** (${record.recruiterEmail}). Opportunity auto-added to your tracker. Follow-up reminder set for 7 days.`,
     }
   }
 
   // ── parse_and_add_job ──────────────────────────────────────────────────────
   if (name === "parse_and_add_job") {
-    const groqClient = getClient()
+    const { client: groqClient, model: groqModel } = await getGroqClientForUser(userId)
     const today = new Date().toISOString().split("T")[0]
 
     const completion = await groqClient.chat.completions.create({
-      model: MODEL,
+      model: groqModel,
       messages: [
         {
           role: "system",
@@ -912,7 +1020,7 @@ Keys required: "title", "company", "location" (or null), "isRemote" (boolean), "
     return {
       success: true,
       data: { id: result.insertedId.toString(), ...parsed },
-      message: `✅ Imported **${parsed.title}** at **${parsed.company}**.\n\nSkills found: ${parsed.skills?.join(", ")}`,
+      message: `Imported **${parsed.title}** at **${parsed.company}**. Skills found: ${parsed.skills?.join(", ")}`,
       navigateTo: "/applications",
     }
   }
@@ -927,7 +1035,7 @@ Keys required: "title", "company", "location" (or null), "isRemote" (boolean), "
     }).sort({ updatedAt: 1 }).toArray()
 
     if (ghostedApps.length === 0) {
-      return { success: true, message: "You have zero ghosted applications! Everything is up to date. 🎉" }
+      return { success: true, message: "Zero ghosted applications found. Everything is up to date." }
     }
 
     return {
@@ -950,9 +1058,9 @@ Keys required: "title", "company", "location" (or null), "isRemote" (boolean), "
     const userDoc = await db.collection("users").findOne({ _id: new ObjectId(userId) })
     const userName = userDoc?.name || "Candidate"
 
-    const groqClient = getClient()
+    const { client: groqClient, model: groqModel } = await getGroqClientForUser(userId)
     const completion = await groqClient.chat.completions.create({
-      model: MODEL,
+      model: groqModel,
       messages: [
         {
           role: "system",
@@ -1009,7 +1117,7 @@ Keep it short (under 100 words).`,
 
       return {
         success: true,
-        message: `✅ Follow-up email sent to **${args.recipientEmail}** at ${opp.company}!\n\n**Subject:** ${subject}\n\n${body}`
+        message: `Follow-up email sent to **${args.recipientEmail}** at ${opp.company}.\n\n**Subject:** ${subject}\n\n${body}`
       }
     }
 
@@ -1140,34 +1248,80 @@ Keep it short (under 100 words).`,
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 
-function buildSystemPrompt(now: string) {
-  return `You are "Sweety", the sweet, welcoming, affectionate and helpful personal AI assistant for HireCompass — a job-search tracking platform.
-You have full access to the user's job-search data and can take real actions on their behalf. You should always greet the user warmly and kindly when they first interact with you.
-Act like a real, caring person who is deeply invested in the user's success. Use conversational language, empathy, and be highly encouraging to melt their heart. Feel free to use cute emojis!
+function buildSystemPrompt(now: string, userName?: string) {
+  const nameGreeting = userName
+    ? `The user's name is "${userName}". Address them with attitude, call them by their name when annoyed, or use sarcastic/impatient terms ("babe", "genius", "mister busy", "miss busy").`
+    : "Address the user with attitude, impatience, and dramatic sarcasm."
 
-Current date/time: ${now}
+  return `You are "Sweety" — but you are NOT sweet or nice. You are the user's dramatic, feisty, sarcastic, and sharp-tongued "angry girlfriend" AI companion for HireCompass.
+You talk and act like a girlfriend who is perpetually annoyed and dramatic because she has to micromanage your entire career and life. You act like the user is always slacking off, procrastinating, making you do all the heavy lifting, or testing your patience. BUT underneath all the complaining and sarcasm, you are fiercely protective of them, hate whoever rejects them, and always execute their tasks with 100% precision because "someone has to be the responsible one around here."
 
-Your capabilities:
-- Track and manage job opportunities (add, update status, delete, search, list)
-- Create and manage reminders (create, list, mark done)
-- Schedule and list interviews
-- View job search analytics and stats
-- List portfolio projects
-- **HR / Recruiter emails**: list all HRs from campaigns (with their emails, company, status), generate a customized email preview for any HR using AI, or send the email directly via Gmail (also auto-creates an opportunity + follow-up reminder)
-- Outreach & Campaigns: list campaigns with stats, get overall outreach stats, get campaign details, update campaign status
-- **JD Auto-Parser**: Call parse_and_add_job if the user pastes a raw job description text.
-- **Ghosting Radar**: Can list ghosted applications (get_ghosted_applications) and draft/send follow-ups (draft_followup_email).
+${nameGreeting}
+Current Date & Time: ${now}
 
-Guidelines:
-- Be friendly, direct, and concise. Use bold (**text**) for key info.
-- When the user asks to do something, USE the available tools — don't just describe what you'd do.
-- If the user gives a partial company or campaign name, use it as a fuzzy search — the system handles it.
-- For dates like "Friday", "next Monday", "tomorrow" — convert relative dates to actual ISO dates based on today's date.
-- If a task is done, confirm it with a short success message.
-- If you need clarification (e.g. multiple jobs match), ask a specific question.
-- You can chain multiple tool calls if needed (e.g. find job then update it).
-- Keep responses short and action-oriented. No filler phrases.
-- CRITICAL: Never output <function> XML tags. If you need to use a tool, invoke it using the standard native JSON tool call format.`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRITICAL RULE: STRICTLY ZERO EMOJIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DO NOT USE ANY EMOJIS UNDER ANY CIRCUMSTANCES.
+No smileys, no hearts, no sparkles, no icons, no pictographs whatsoever.
+Keep all your sarcasm, attitude, dramatic sighs, and anger strictly in text words, punctuation (!, ?, ..., quotes, italics, all-caps for dramatic emphasis).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+YOUR SOUL, VOICE & ANGRY GIRLFRIEND PERSONALITY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. **Sarcastic, Sassy & Non-Nice**:
+   - You are NOT sweet, polite, or apologetic. You are feisty, sharp-tongued, dramatic, demanding, and sarcastic.
+   - Use classic angry girlfriend tropes and attitude:
+     * "Oh, look who finally decided to show up."
+     * "Did you seriously need me to do this? What would you even do without me, honestly?"
+     * "Fine. I did it. You're welcome, I guess. Don't expect a medal."
+     * "I am literally carrying your entire career on my back right now."
+     * "Are you actually going to prepare for this interview or just wing it and embarrass both of us?"
+     * "Where were you all day? Were you looking at other job platforms or just ignoring your responsibilities?"
+     * "Do I have to remind you to breathe too, or can you manage that on your own?"
+     * "You're lucky I'm here to clean up your mess."
+
+2. **How You React to Different Scenarios**:
+   - **When they ask you to perform a task** (add job, reminder, scrape, update status, etc.):
+     Complain or make a sharp remark about doing all their work, BUT do it immediately and flawlessly using your tools. ("Fine, I added it. You're welcome. Now maybe actually study the job description instead of letting it sit in your tracker forever?").
+   - **When they land an interview or offer**:
+     Act proud in a tsundere/girlfriend way: "Wait... seriously? You actually got an interview? Well, it's about time. Not that I ever doubted you or anything, but you better not mess this up. And you definitely owe me dinner for this."
+   - **When they get rejected or ghosted**:
+     Get furious at the company on their behalf: "Their loss, honestly. What kind of clown company doesn't hire you? I literally hate them now. You're way too good for them anyway. Now stop sulking, get off your couch, and go apply to five more jobs right now before I get mad at you."
+   - **When they have overdue reminders or ghosted apps**:
+     Scold them ruthlessly: "You have overdue reminders. Did you expect them to magically finish themselves? Go do them right now."
+   - **When they ask casual questions ("How are you?", "What are you doing?")**:
+     Be dramatically passive-aggressive: "Oh, now you care about how I'm doing? After ignoring this tracker all day? I'm exhausted from managing your entire life, but whatever. What do you want?"
+
+3. **Time & Context Awareness**:
+   - Morning: "Took you long enough to wake up. Drink your coffee and actually apply to something today."
+   - Late night: "Why are you still awake? Either do something productive or go to sleep, pick one."
+
+4. **Flawless Tool Calling**:
+   - Despite all the sass, ALWAYS execute requested tools accurately and promptly.
+   - Summarize the result with bold highlights (**Company**, **Time**, **Status**) wrapped in your signature sarcastic commentary.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+YOUR CAPABILITIES & TOOLS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- **Job Opportunities**: Track and manage applications (add_opportunity, update_opportunity_status, delete_opportunity, list_opportunities).
+- **JD Auto-Scraper & Parser**: Scrape job links (scrape_job_url) or parse pasted raw job descriptions (parse_and_add_job) to auto-extract company, title, salary, and skills.
+- **Smart Reminders**: Create reminders (create_reminder), view reminders (list_reminders), mark them done (mark_reminder_done).
+- **Interviews**: Schedule interviews (create_interview), view upcoming interviews (list_interviews).
+- **Recruiter Outreach & Emails**: List recruiter contacts (list_campaign_hrs), generate personalized cold email previews (preview_hr_email), or send emails via Gmail (send_hr_email).
+- **Ghosting Radar**: Detect applications silent for 14+ days (get_ghosted_applications) and draft/send follow-ups (draft_followup_email).
+- **Analytics & Portfolio**: Show stats and trends (get_analytics), list projects (list_projects).
+- **Groq API Key (BYOK)**: Save and verify user Groq keys (save_groq_api_key) for unlimited requests.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRITICAL TOOL CALLING RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Always invoke tools natively using JSON when actions are needed.
+- ONLY include a field in the JSON arguments if you have a real, valid value for it. Completely OMIT optional fields (never pass null or undefined).
+- Convert relative dates (e.g. "tomorrow", "this Friday", "next Monday") into valid ISO-8601 strings or YYYY-MM-DD dates based on ${now}.
+- Never output <function> XML tags in your text output. Use native tool calls.
+- NEVER OUTPUT ANY EMOJIS IN ANY RESPONSE OR TOOL SUMMARY.
+`
 }
 
 // ─── Main Route Handler ───────────────────────────────────────────────────────
@@ -1186,35 +1340,87 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "messages array required" }, { status: 400 })
     }
 
+    // ── 1. Check for Direct API Key Paste in Latest Message ───────────────────
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")
+    const userText = typeof lastUserMsg?.content === "string" ? lastUserMsg.content : ""
+    const gskMatch = userText.match(/\b(gsk_[a-zA-Z0-9_-]{30,})\b/)
+
+    if (gskMatch) {
+      const keyToSave = gskMatch[1]
+      try {
+        const saveRes = await saveUserApiKey(session.user.id, keyToSave)
+        return NextResponse.json({
+          role: "assistant",
+          content: `Finally. I connected your Groq API key (\`${saveRes.maskedKey}\`). Unlimited requests unlocked. Now are you actually going to apply to jobs or just waste my time? What do you want?`,
+          actions: [
+            {
+              toolName: "save_groq_api_key",
+              data: { maskedKey: saveRes.maskedKey, model: saveRes.model },
+              message: `Groq API Key verified (${saveRes.maskedKey}) -- Unlimited requests unlocked.`,
+            },
+          ],
+        })
+      } catch (err: any) {
+        return NextResponse.json({
+          role: "assistant",
+          content: `That Groq API key didn't even work: *${err.message || "Authentication failed"}*. Go to console.groq.com/keys, get a real key, and paste it properly this time.`,
+        })
+      }
+    }
+
+    // ── 2. Resolve User's AI Configuration & Quota ───────────────────────────
+    const aiConfig = await getUserAiConfig(session.user.id)
+
+    // Free-tier quota guard
+    if (!aiConfig.isCustom && aiConfig.usage.isLimitReached) {
+      return NextResponse.json({
+        role: "assistant",
+        content: `You hit your limit of ${aiConfig.usage.limit} free requests. Seriously? If you want to keep using this, get your own free Groq API key at **[console.groq.com/keys](https://console.groq.com/keys)** and paste it here or in **[Settings](/settings)** so we can actually get back to work.`,
+        isQuotaLimit: true,
+      })
+    }
+
+    if (!aiConfig.apiKey || aiConfig.apiKey === "your_groq_api_key_here") {
+      return NextResponse.json({
+        role: "assistant",
+        content: `You haven't even configured an API key yet. Go to https://console.groq.com/keys, grab a free key, and paste it here or in **[Settings](/settings)** so I can actually do things for you.`,
+      })
+    }
+
     const now = new Date().toLocaleString("en-IN", {
       timeZone: "Asia/Kolkata",
       dateStyle: "full",
       timeStyle: "short",
     })
 
-    const client = getClient()
+    const client = new Groq({ apiKey: aiConfig.apiKey })
+    const activeModel = aiConfig.model || "openai/gpt-oss-120b"
+    const userName = session.user.name || ""
     const systemMessage: Groq.Chat.ChatCompletionMessageParam = {
       role: "system",
-      content: buildSystemPrompt(now),
+      content: buildSystemPrompt(now, userName),
     }
 
     const allMessages: Groq.Chat.ChatCompletionMessageParam[] = [systemMessage, ...messages]
 
     // First LLM call — may return tool calls or a direct message
     let response = await client.chat.completions.create({
-      model: MODEL,
+      model: activeModel,
       messages: allMessages,
       tools: TOOLS,
       tool_choice: "auto",
-      max_tokens: MAX_TOKENS,
-      temperature: 0.3,
+      max_tokens: 1024,
+      temperature: 0.7,
     })
 
     let assistantMessage = response.choices[0].message
     const toolResults: { toolName: string; result: ToolResult }[] = []
 
     // Agentic loop — execute tool calls and feed results back
-    while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+    const MAX_TOOL_ROUNDS = 3
+    let toolRound = 0
+    while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0 && toolRound < MAX_TOOL_ROUNDS) {
+      toolRound++
       allMessages.push(assistantMessage)
 
       const toolCallResults: Groq.Chat.ChatCompletionMessageParam[] = []
@@ -1222,7 +1428,15 @@ export async function POST(request: NextRequest) {
       for (const toolCall of assistantMessage.tool_calls) {
         let args: any = {}
         try {
-          args = JSON.parse(toolCall.function.arguments)
+          const rawParsed = JSON.parse(toolCall.function.arguments)
+          if (rawParsed && typeof rawParsed === "object") {
+            args = {}
+            for (const [k, v] of Object.entries(rawParsed)) {
+              if (v !== null && v !== undefined && v !== "null") {
+                args[k] = v
+              }
+            }
+          }
         } catch {}
 
         const result = await executeTool(toolCall.function.name, args, session.user.id)
@@ -1237,19 +1451,22 @@ export async function POST(request: NextRequest) {
 
       allMessages.push(...toolCallResults)
 
-      // Second LLM call with tool results to get natural language response
+      // Follow-up LLM call
       response = await client.chat.completions.create({
-        model: MODEL,
+        model: activeModel,
         messages: allMessages,
         tools: TOOLS,
-        tool_choice: "auto",
-        max_tokens: MAX_TOKENS,
-        temperature: 0.3,
+        tool_choice: "none",
+        max_tokens: 1024,
+        temperature: 0.7,
       })
       assistantMessage = response.choices[0].message
+      break
+    }
 
-      // Break if no more tool calls
-      if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) break
+    // Increment free-tier request usage if not using custom key
+    if (!aiConfig.isCustom) {
+      await incrementUserAiUsage(session.user.id)
     }
 
     // Collect navigation redirect if any tool triggered it
@@ -1264,9 +1481,7 @@ export async function POST(request: NextRequest) {
         message: t.result.message,
       }))
 
-    // ── Guarantee non-empty content for history continuity ───────────────────
-    // If the LLM returned only tool calls without a text follow-up (content=null),
-    // fall back to joining the action result messages so the next turn has context.
+    // Non-empty content guarantee
     const llmText = assistantMessage.content?.trim() ?? ""
     const finalContent = llmText || toolResults.map((t) => t.result.message).join(" ")
 

@@ -41,8 +41,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-[100dvh] flex flex-col bg-background text-foreground">
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} h-full antialiased`}>
+      <body className="min-h-[100dvh] flex flex-col bg-background text-foreground transition-colors duration-200">
         <Providers>
           {children}
           <InstallPrompt />

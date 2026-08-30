@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 /* ───────────────────────────────────────────────────────────
-   HIRECOMPASS — DESIGN SYSTEM v2
-   Semi-light premium SaaS — Indigo/Violet accent palette
+   HIRECOMPASS — DESIGN SYSTEM v3 (Light & Dark Mode)
+   Semi-light premium SaaS / Obsidian Violet Dark Palette
 ─────────────────────────────────────────────────────────── */
 
 @layer base {
@@ -22,7 +22,7 @@
     --popover-foreground: 222 47% 11%;
 
     /* ── Primary (Indigo → Violet) ── */
-    --primary:         243 85% 65%;   /* more vibrant indigo */
+    --primary:         243 85% 65%;   /* vibrant indigo */
     --primary-foreground: 0 0% 100%;
 
     /* ── Secondary / Muted surfaces ── */
@@ -52,6 +52,48 @@
     --sidebar-bg:      0 0% 100%;
     --sidebar-border:  220 13% 91%;
   }
+
+  .dark {
+    /* ── Core surfaces (Dark) ── */
+    --background:      224 71% 4%;    /* #080C14 — obsidian slate canvas */
+    --foreground:      210 40% 98%;   /* #F8FAFC — bright text */
+
+    /* ── Card / Panel ── */
+    --card:            222 47% 8%;    /* #0F172A — sleek midnight cards */
+    --card-foreground: 210 40% 98%;
+
+    /* ── Popover ── */
+    --popover:         222 47% 8%;
+    --popover-foreground: 210 40% 98%;
+
+    /* ── Primary (Indigo → Violet) ── */
+    --primary:         243 85% 68%;   /* #818CF8 — luminous indigo */
+    --primary-foreground: 0 0% 100%;
+
+    /* ── Secondary / Muted surfaces ── */
+    --secondary:       217 33% 13%;   /* #141D2D */
+    --secondary-foreground: 210 40% 96%;
+
+    --muted:           217 33% 13%;
+    --muted-foreground: 215 20% 65%;  /* #94A3B8 — clear secondary text */
+
+    /* ── Accent ── */
+    --accent:          243 50% 20%;   
+    --accent-foreground: 243 85% 75%;
+
+    /* ── Destructive ── */
+    --destructive:     0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* ── Borders & Inputs ── */
+    --border:          217 33% 18%;   /* #1E293B — subtle dark border */
+    --input:           217 33% 18%;
+    --ring:            243 85% 68%;
+
+    /* ── Sidebar special ── */
+    --sidebar-bg:      224 71% 5%;
+    --sidebar-border:  217 33% 15%;
+  }
 }
 
 /* ── Apply base styles ── */
@@ -68,7 +110,6 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     overscroll-behavior: none;
-    /* Safe area for notched phones */
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   h1, h2, h3, h4, h5, h6 {
@@ -80,7 +121,6 @@
     max-width: 100vw;
   }
 }
-
 
 /* ══════════════════════════════════════════════════════════
    SCROLLBARS — subtle & refined
@@ -100,6 +140,13 @@
   background: hsl(243 75% 59% / 0.4);
 }
 
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(217 33% 25%);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: hsl(243 75% 68% / 0.5);
+}
+
 /* Scrollbar hide utility — for horizontal scroll on mobile */
 .scrollbar-hide {
   -ms-overflow-style: none;
@@ -115,17 +162,16 @@
   min-width: 44px;
 }
 
-
 /* ══════════════════════════════════════════════════════════
    UTILITY CLASSES — signature design tokens
 ══════════════════════════════════════════════════════════ */
 
-/* Card surface — white with hover lift */
+/* Card surface — adaptive with hover lift */
 .card-surface {
-  @apply bg-white rounded-2xl border border-slate-200/80 shadow-sm transition-all duration-200;
+  @apply bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all duration-200;
 }
 .card-surface:hover {
-  @apply shadow-md border-slate-300/60;
+  @apply shadow-md dark:shadow-slate-950/80 border-slate-300/60 dark:border-slate-700/60;
 }
 
 /* Sidebar nav item active indicator */
@@ -134,8 +180,13 @@
   color: #4F46E5;
   border-left: 3px solid #6366F1;
 }
+.dark .nav-active {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%);
+  color: #818CF8;
+  border-left: 3px solid #818CF8;
+}
 
-/* Glass — light variant */
+/* Glass variants */
 .glass-light {
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(24px);
@@ -143,10 +194,23 @@
   border: 1px solid rgba(255, 255, 255, 0.4);
   box-shadow: 0 8px 32px rgba(31, 38, 135, 0.05);
 }
+.dark .glass-light {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
 
 /* Gradient text */
 .gradient-text {
   background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #A78BFA 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.dark .gradient-text {
+  background: linear-gradient(135deg, #818CF8 0%, #A78BFA 50%, #C4B5FD 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -159,6 +223,12 @@
 .btn-primary-glow:hover {
   box-shadow: 0 6px 25px rgba(99, 102, 241, 0.45), 0 2px 6px rgba(99, 102, 241, 0.25);
   transform: translateY(-1px);
+}
+.dark .btn-primary-glow {
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.45), 0 1px 3px rgba(99, 102, 241, 0.3);
+}
+.dark .btn-primary-glow:hover {
+  box-shadow: 0 6px 28px rgba(99, 102, 241, 0.6), 0 2px 8px rgba(99, 102, 241, 0.35);
 }
 
 /* Stat card gradient backgrounds */
@@ -229,6 +299,11 @@
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
+.dark .skeleton {
+  background: linear-gradient(90deg, #1E293B 25%, #334155 50%, #1E293B 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
 
 /* ══════════════════════════════════════════════════════════
    FOCUS RING — accessible & premium
@@ -240,11 +315,11 @@
 
 /* Input base style */
 .input-base {
-  @apply w-full h-10 rounded-xl border border-slate-200 bg-slate-50/60 px-4 text-sm text-slate-900 
-         placeholder:text-slate-400 transition-all duration-150;
+  @apply w-full h-10 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/60 px-4 text-sm text-slate-900 dark:text-slate-100 
+         placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all duration-150;
 }
 .input-base:focus {
-  @apply outline-none border-indigo-400 bg-white;
+  @apply outline-none border-indigo-400 dark:border-indigo-500 bg-white dark:bg-slate-800;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
 }
 
@@ -253,10 +328,10 @@
 ══════════════════════════════════════════════════════════ */
 .sidebar-item {
   @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium 
-         text-slate-600 transition-all duration-150 relative;
+         text-slate-600 dark:text-slate-400 transition-all duration-150 relative;
 }
 .sidebar-item:hover {
-  @apply bg-slate-100 text-slate-900;
+  @apply bg-slate-100 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100;
 }
 .sidebar-item.active {
   color: #4F46E5;
@@ -264,14 +339,20 @@
   border-left: 3px solid #6366F1;
   padding-left: calc(0.75rem - 3px);
 }
+.dark .sidebar-item.active {
+  color: #818CF8;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%);
+  border-left: 3px solid #818CF8;
+  padding-left: calc(0.75rem - 3px);
+}
 
 /* ══════════════════════════════════════════════════════════
-   KANBAN CARDS — light mode
+   KANBAN CARDS
 ══════════════════════════════════════════════════════════ */
 .kanban-col {
-  @apply bg-slate-50/80 border border-slate-200/80 rounded-2xl;
+  @apply bg-slate-50/80 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl;
 }
 .kanban-card {
-  @apply bg-white border border-slate-200/70 rounded-xl shadow-sm
-         hover:shadow-md hover:border-indigo-200 transition-all duration-200 cursor-pointer;
+  @apply bg-white dark:bg-slate-800/90 border border-slate-200/70 dark:border-slate-700/60 rounded-xl shadow-sm
+         hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-500/40 transition-all duration-200 cursor-pointer;
 }

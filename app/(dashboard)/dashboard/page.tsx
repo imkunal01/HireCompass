@@ -29,11 +29,11 @@ const EMPTY_STATS: DashboardStats = {
 
 const EMPTY_PIPELINE = [
   { status: "SAVED",       count: 0,  label: "Saved"      },
-  { status: "INTERESTED",  count: 0,  label: "Interested"  },
   { status: "APPLIED",     count: 0,  label: "Applied"     },
-  { status: "ASSESSMENT",  count: 0,  label: "Assessment"  },
+  { status: "ASSESSMENT",  count: 0,  label: "OA / Assessment"  },
   { status: "INTERVIEW",   count: 0,  label: "Interview"   },
-  { status: "OFFER",       count: 0,  label: "Offer"       },
+  { status: "OFFER",       count: 0,  label: "Offer 🎉"   },
+  { status: "REJECTED",    count: 0,  label: "Rejected ❌" },
 ]
 
 const STAT_CARDS = [
@@ -95,18 +95,18 @@ const STAT_CARDS = [
 ]
 
 const ACTIVITY_CONFIG: Record<string, { icon: React.ComponentType<{className?:string}>; bg: string; text: string }> = {
-  JOB_ADDED:           { icon: Briefcase,  bg: "bg-indigo-100",  text: "text-indigo-600"  },
-  STATUS_CHANGED:      { icon: Activity,   bg: "bg-emerald-100", text: "text-emerald-600" },
-  EMAIL_SENT:          { icon: Mail,       bg: "bg-sky-100",     text: "text-sky-600"     },
-  INTERVIEW_SCHEDULED: { icon: Calendar,   bg: "bg-violet-100",  text: "text-violet-600"  },
-  NOTE_ADDED:          { icon: CheckSquare,bg: "bg-slate-100",   text: "text-slate-600"   },
+  JOB_ADDED:           { icon: Briefcase,  bg: "bg-indigo-100 dark:bg-indigo-950/80",  text: "text-indigo-600 dark:text-indigo-400"  },
+  STATUS_CHANGED:      { icon: Activity,   bg: "bg-emerald-100 dark:bg-emerald-950/80", text: "text-emerald-600 dark:text-emerald-400" },
+  EMAIL_SENT:          { icon: Mail,       bg: "bg-sky-100 dark:bg-sky-950/80",     text: "text-sky-600 dark:text-sky-400"     },
+  INTERVIEW_SCHEDULED: { icon: Calendar,   bg: "bg-violet-100 dark:bg-violet-950/80",  text: "text-violet-600 dark:text-violet-400"  },
+  NOTE_ADDED:          { icon: CheckSquare,bg: "bg-slate-100 dark:bg-slate-800",   text: "text-slate-600 dark:text-slate-400"   },
 }
 
 const URGENCY_STYLES: Record<string, string> = {
-  high:   "bg-rose-50 text-rose-600 border border-rose-200",
-  medium: "bg-amber-50 text-amber-600 border border-amber-200",
-  low:    "bg-slate-100 text-slate-500 border border-slate-200",
-  done:   "bg-slate-50 text-slate-400 border border-slate-200",
+  high:   "bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800",
+  medium: "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800",
+  low:    "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700",
+  done:   "bg-slate-50 dark:bg-slate-850 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-800",
 }
 
 function formatRelativeTime(ts: string | Date) {
@@ -205,14 +205,17 @@ export default function DashboardPage() {
         {/* ═══════════════════════════════════════════════
             WELCOME BANNER
         ═══════════════════════════════════════════════ */}
-        <div className="animate-slide-up relative overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm">
+        {/* ═══════════════════════════════════════════════
+            WELCOME BANNER
+        ═══════════════════════════════════════════════ */}
+        <div className="animate-slide-up relative overflow-hidden rounded-2xl border border-indigo-100 dark:border-indigo-950/60 bg-white dark:bg-slate-900/80 shadow-sm">
           {/* Accent strip */}
           <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl bg-gradient-to-b from-indigo-500 to-violet-600" />
 
           {/* Background decoration */}
           <div className="absolute right-0 top-0 h-full w-1/2 pointer-events-none overflow-hidden">
-            <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-indigo-50 opacity-60 blur-3xl" />
-            <div className="absolute -right-8 bottom-0 h-32 w-32 rounded-full bg-violet-50 opacity-40 blur-2xl" />
+            <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-indigo-50 dark:bg-indigo-950/40 opacity-60 blur-3xl" />
+            <div className="absolute -right-8 bottom-0 h-32 w-32 rounded-full bg-violet-50 dark:bg-violet-950/30 opacity-40 blur-2xl" />
           </div>
 
           <div className="relative pl-8 pr-6 py-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -223,14 +226,14 @@ export default function DashboardPage() {
                   Active Search
                 </span>
               </div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+              <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
                 Welcome back! 👋
               </h1>
-              <p className="text-sm text-slate-500 max-w-md leading-relaxed">
+              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md leading-relaxed">
                 You have{" "}
-                <span className="font-bold text-rose-500">{displayStats.followUpsDue} follow-ups</span>{" "}
+                <span className="font-bold text-rose-500 dark:text-rose-400">{displayStats.followUpsDue} follow-ups</span>{" "}
                 due today and{" "}
-                <span className="font-bold text-indigo-600">{displayStats.interviewsScheduled} interviews</span>{" "}
+                <span className="font-bold text-indigo-600 dark:text-indigo-400">{displayStats.interviewsScheduled} interviews</span>{" "}
                 coming up. Keep pushing!
               </p>
             </div>
@@ -264,8 +267,8 @@ export default function DashboardPage() {
             <div
               key={card.key}
               className={cn(
-                "animate-slide-up group relative overflow-hidden rounded-2xl bg-white border border-slate-200/80 p-5",
-                "hover:shadow-card-hover hover:border-slate-300/60 transition-all duration-200 cursor-default"
+                "animate-slide-up group relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800/80 p-5",
+                "hover:shadow-card-hover hover:border-slate-300/60 dark:hover:border-slate-700 transition-all duration-200 cursor-default"
               )}
               style={{ animationDelay: `${idx * 60}ms` }}
             >
@@ -284,15 +287,15 @@ export default function DashboardPage() {
               </div>
 
               {/* Number */}
-              <div className={cn("text-3xl font-black text-slate-900 tabular-nums leading-none animate-count-up")}
+              <div className={cn("text-3xl font-black text-slate-900 dark:text-slate-100 tabular-nums leading-none animate-count-up")}
                 style={{ animationDelay: `${idx * 80 + 200}ms` }}>
                 {displayStats[card.key]}{card.suffix}
               </div>
 
               {/* Label + sub */}
               <div className="mt-1.5 space-y-0.5">
-                <p className="text-xs font-semibold text-slate-600">{card.label}</p>
-                <p className="text-[10px] text-slate-400">{card.sub}</p>
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">{card.label}</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500">{card.sub}</p>
               </div>
 
               {/* Bottom accent bar */}
@@ -319,38 +322,38 @@ export default function DashboardPage() {
           <div className="lg:col-span-2 space-y-6">
 
             {/* Pipeline Kanban Preview */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm overflow-hidden">
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800/80">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50">
-                    <Target className="h-3.5 w-3.5 text-indigo-600" />
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/80">
+                    <Target className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
                   </div>
-                  <h2 className="font-bold text-slate-900 text-sm">Application Pipeline</h2>
+                  <h2 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Application Pipeline</h2>
                 </div>
                 <Link
                   href="/applications"
-                  className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-all duration-150"
+                  className="flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 px-2.5 py-1.5 rounded-lg transition-all duration-150"
                 >
                   Manage Board <ChevronRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
 
               {/* Status pills */}
-              <div className="flex gap-2 px-5 py-3 overflow-x-auto border-b border-slate-50 bg-slate-50/50">
+              <div className="flex gap-2 px-5 py-3 overflow-x-auto border-b border-slate-50 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-950/40">
                 {pipelineCounts.map((col) => {
                   const config = STATUS_CONFIG[col.status]
                   return (
                     <div
                       key={col.status}
-                      className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shrink-0 shadow-inner-sm"
+                      className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 px-3 py-1.5 shrink-0 shadow-inner-sm"
                     >
                       <span
                         className="h-1.5 w-1.5 rounded-full"
                         style={{ backgroundColor: config?.color ?? "#94A3B8" }}
                       />
-                      <span className="text-xs font-semibold text-slate-600">{col.label}</span>
-                      <span className="text-xs font-black text-slate-900 tabular-nums">{col.count}</span>
+                      <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">{col.label}</span>
+                      <span className="text-xs font-black text-slate-900 dark:text-slate-100 tabular-nums">{col.count}</span>
                     </div>
                   )
                 })}
@@ -369,15 +372,15 @@ export default function DashboardPage() {
                       key={opp.id}
                       onClick={() => setSelectedOpp(opp)}
                       className={cn(
-                        "flex flex-col gap-3 min-w-[170px] max-w-[170px] rounded-xl border border-slate-200/80 bg-white p-3.5",
-                        "hover:border-indigo-200 hover:shadow-card-hover transition-all duration-200 text-left group"
+                        "flex flex-col gap-3 min-w-[170px] max-w-[170px] rounded-xl border border-slate-200/80 dark:border-slate-750 bg-white dark:bg-slate-800/90 p-3.5",
+                        "hover:border-indigo-200 dark:hover:border-indigo-500/40 hover:shadow-card-hover transition-all duration-200 text-left group"
                       )}
                     >
                       <div className="flex items-center gap-2">
                         <CompanyAvatar company={opp.company} size="sm" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-slate-900 truncate">{opp.company}</p>
-                          <p className="text-[10px] text-slate-500 truncate mt-0.5">{opp.title}</p>
+                          <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{opp.company}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{opp.title}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -387,7 +390,7 @@ export default function DashboardPage() {
                       {opp.deadline && (
                         <div className={cn(
                           "flex items-center gap-1 text-[10px] font-semibold",
-                          isUrgent ? "text-rose-500" : "text-slate-400"
+                          isUrgent ? "text-rose-500 dark:text-rose-400" : "text-slate-400 dark:text-slate-500"
                         )}>
                           <Clock className="h-2.5 w-2.5" />
                           {new Date(opp.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -402,8 +405,8 @@ export default function DashboardPage() {
                   href="/applications"
                   className={cn(
                     "flex flex-col items-center justify-center min-w-[130px] rounded-xl",
-                    "border-2 border-dashed border-slate-200 text-slate-400",
-                    "hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all duration-150 gap-2"
+                    "border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500",
+                    "hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 transition-all duration-150 gap-2"
                   )}
                 >
                   <ArrowRight className="h-4.5 w-4.5" />
@@ -413,45 +416,45 @@ export default function DashboardPage() {
             </div>
 
             {/* Upcoming Tasks */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm overflow-hidden">
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800/80">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50">
-                    <Zap className="h-3.5 w-3.5 text-amber-500" />
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/80">
+                    <Zap className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
                   </div>
-                  <h2 className="font-bold text-slate-900 text-sm">Upcoming Tasks</h2>
+                  <h2 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Upcoming Tasks</h2>
                 </div>
                 <div className="flex items-center gap-3">
                   {/* Progress */}
                   <div className="flex items-center gap-2">
-                    <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="w-20 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-500"
                         style={{ width: `${progressPct}%` }}
                       />
                     </div>
-                    <span className="text-[10px] font-bold text-slate-500">{progressPct}%</span>
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{progressPct}%</span>
                   </div>
-                  <span className="text-xs text-slate-400 font-medium">
+                  <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">
                     {tasks.filter((t) => !t.done).length} left
                   </span>
                 </div>
               </div>
 
               {/* Task list */}
-              <div className="divide-y divide-slate-50">
+              <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
                 {tasks.length === 0 ? (
                   <div className="px-5 py-8 text-center space-y-2">
-                    <p className="text-xs font-semibold text-slate-500">All caught up! 🎉</p>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">All caught up! 🎉</p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500">
                       No pending tasks. Reminders due soon and follow-ups will appear here.
                     </p>
                   </div>
                 ) : tasks.map((task) => (
                   <div
                     key={task.id}
-                    className="flex items-center gap-3.5 px-5 py-3.5 hover:bg-slate-50/60 transition-colors duration-100"
+                    className="flex items-center gap-3.5 px-5 py-3.5 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors duration-100"
                   >
                     {/* Checkbox */}
                     <button
@@ -460,7 +463,7 @@ export default function DashboardPage() {
                         "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200",
                         task.done
                           ? "border-emerald-500 bg-emerald-500"
-                          : "border-slate-300 hover:border-indigo-400"
+                          : "border-slate-300 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-400"
                       )}
                     >
                       {task.done && (
@@ -473,7 +476,7 @@ export default function DashboardPage() {
                     {/* Label */}
                     <p className={cn(
                       "flex-1 text-sm leading-snug transition-all duration-200",
-                      task.done ? "line-through text-slate-400" : "text-slate-700"
+                      task.done ? "line-through text-slate-400 dark:text-slate-500" : "text-slate-700 dark:text-slate-200"
                     )}>
                       {task.label}
                     </p>
@@ -492,27 +495,27 @@ export default function DashboardPage() {
           </div>
 
           {/* Right 1/3 — Activity Feed */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800/80">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-50">
-                  <Activity className="h-3.5 w-3.5 text-violet-600" />
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-50 dark:bg-violet-950/80">
+                  <Activity className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
                 </div>
-                <h2 className="font-bold text-slate-900 text-sm">Recent Activity</h2>
+                <h2 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Recent Activity</h2>
               </div>
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse-dot" />
             </div>
 
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-50/80">
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-50/80 dark:divide-slate-800/60">
               {displayActivity.map((item, i) => {
                 const cfg    = ACTIVITY_CONFIG[item.type] || ACTIVITY_CONFIG.NOTE_ADDED
                 const Icon   = cfg.icon
                 const isLast = i === displayActivity.length - 1
 
                 return (
-                  <div key={item.id} className="flex gap-3.5 px-5 py-4 relative hover:bg-slate-50/40 transition-colors">
+                  <div key={item.id} className="flex gap-3.5 px-5 py-4 relative hover:bg-slate-50/40 dark:hover:bg-slate-800/40 transition-colors">
                     {!isLast && (
-                      <div className="absolute left-[36px] top-12 bottom-0 w-px bg-slate-100" />
+                      <div className="absolute left-[36px] top-12 bottom-0 w-px bg-slate-100 dark:bg-slate-800" />
                     )}
                     <div className={cn(
                       "flex h-7 w-7 shrink-0 items-center justify-center rounded-xl z-10 mt-0.5",
@@ -521,9 +524,9 @@ export default function DashboardPage() {
                       <Icon className="h-3.5 w-3.5" />
                     </div>
                     <div className="flex-1 min-w-0 pt-0.5">
-                      <p className="text-xs font-bold text-slate-800">{item.title}</p>
-                      <p className="text-[11px] text-slate-500 mt-0.5 truncate">{item.description}</p>
-                      <p className="text-[10px] text-slate-400 mt-1 font-medium">
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{item.title}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">{item.description}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 font-medium">
                         {formatRelativeTime(item.timestamp)}
                       </p>
                     </div>
@@ -533,10 +536,10 @@ export default function DashboardPage() {
             </div>
 
             {/* Footer CTA */}
-            <div className="border-t border-slate-100 p-4">
+            <div className="border-t border-slate-100 dark:border-slate-800 p-4">
               <Link
                 href="/analytics"
-                className="flex items-center justify-center gap-2 w-full rounded-xl bg-slate-50 border border-slate-200 py-2.5 text-xs font-semibold text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all duration-150"
+                className="flex items-center justify-center gap-2 w-full rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-500/40 transition-all duration-150"
               >
                 <Star className="h-3.5 w-3.5" />
                 View Full Analytics
@@ -549,17 +552,17 @@ export default function DashboardPage() {
             PROJECTS PREVIEW
         ═══════════════════════════════════════════════ */}
         {projects && projects.length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden animate-slide-up delay-300">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm overflow-hidden animate-slide-up delay-300">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800/80">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50">
-                  <Star className="h-3.5 w-3.5 text-emerald-500" />
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/80">
+                  <Star className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
                 </div>
-                <h2 className="font-bold text-slate-900 text-sm">My Projects</h2>
+                <h2 className="font-bold text-slate-900 dark:text-slate-100 text-sm">My Projects</h2>
               </div>
               <Link
                 href="/projects"
-                className="flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 px-2.5 py-1.5 rounded-lg transition-all duration-150"
+                className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 px-2.5 py-1.5 rounded-lg transition-all duration-150"
               >
                 Manage Projects <ChevronRight className="h-3.5 w-3.5" />
               </Link>
@@ -570,28 +573,28 @@ export default function DashboardPage() {
                 <Link
                   key={proj.id}
                   href="/projects"
-                  className="flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white p-4 hover:border-emerald-200 hover:shadow-card-hover transition-all duration-200 text-left group block"
+                  className="flex flex-col gap-3 rounded-xl border border-slate-200/80 dark:border-slate-750 bg-white dark:bg-slate-800/90 p-4 hover:border-emerald-200 dark:hover:border-emerald-500/40 hover:shadow-card-hover transition-all duration-200 text-left group block"
                 >
                   <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-slate-900 truncate">{proj.name}</h3>
+                    <h3 className="font-bold text-slate-900 dark:text-slate-100 truncate">{proj.name}</h3>
                     {proj.snippets?.length > 0 && (
-                      <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
                         {proj.snippets.length} summaries
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
                     {proj.description || "No description provided."}
                   </p>
                   {proj.techStack && proj.techStack.length > 0 && (
                     <div className="flex gap-1.5 flex-wrap mt-auto pt-2">
                       {proj.techStack.slice(0, 3).map((tech) => (
-                        <span key={tech} className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                        <span key={tech} className="text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">
                           {tech}
                         </span>
                       ))}
                       {proj.techStack.length > 3 && (
-                        <span className="text-[10px] font-medium text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-750 px-1.5 py-0.5 rounded">
                           +{proj.techStack.length - 3}
                         </span>
                       )}

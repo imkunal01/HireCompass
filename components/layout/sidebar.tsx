@@ -22,6 +22,7 @@ import {
   Bell,
   Download,
   Send,
+  AlertOctagon,
 } from "lucide-react"
 import { useUser } from "@/hooks/useUser"
 import { useRouter } from "next/navigation"
@@ -37,18 +38,19 @@ interface SidebarItem {
 }
 
 const sidebarItems: SidebarItem[] = [
-  { name: "Dashboard",     href: "/dashboard",     icon: LayoutDashboard },
-  { name: "Opportunities", href: "/opportunities",  icon: Briefcase },
-  { name: "Applications",  href: "/applications",   icon: FolderOpen },
-  { name: "Interviews",    href: "/interviews",      icon: Calendar },
-  { name: "Analytics",     href: "/analytics",      icon: BarChart3 },
-  { name: "Reminders",     href: "/reminders",      icon: Bell,       dividerBefore: true },
-  { name: "Import Job",    href: "/import",          icon: Download },
-  { name: "Outreach",      href: "/outreach",        icon: Send,       badge: "NEW", badgeVariant: "new" },
-  { name: "AI Assistant",  href: "/assistant",       icon: Brain,      badge: "AI",  badgeVariant: "ai" },
-  { name: "Projects",      href: "/projects",        icon: FolderGit2, dividerBefore: true },
-  { name: "Resumes",       href: "/resumes",         icon: FileText },
-  { name: "Settings",      href: "/settings",        icon: Settings },
+  { name: "Dashboard",         href: "/dashboard",     icon: LayoutDashboard },
+  { name: "Opportunities",     href: "/opportunities",  icon: Briefcase },
+  { name: "Applications",      href: "/applications",   icon: FolderOpen },
+  { name: "Interviews",        href: "/interviews",      icon: Calendar },
+  { name: "Rejection Tracker", href: "/rejected",        icon: AlertOctagon },
+  { name: "Analytics",         href: "/analytics",      icon: BarChart3 },
+  { name: "Reminders",         href: "/reminders",      icon: Bell,       dividerBefore: true },
+  { name: "Import Job",        href: "/import",          icon: Download },
+  { name: "Outreach",          href: "/outreach",        icon: Send,       badge: "NEW", badgeVariant: "new" },
+  { name: "AI Assistant",      href: "/assistant",       icon: Brain,      badge: "AI",  badgeVariant: "ai" },
+  { name: "Projects",          href: "/projects",        icon: FolderGit2, dividerBefore: true },
+  { name: "Resumes",           href: "/resumes",         icon: FileText },
+  { name: "Settings",          href: "/settings",        icon: Settings },
 ]
 
 export default function Sidebar() {
@@ -75,10 +77,10 @@ export default function Sidebar() {
   return (
     <aside
       className={cn(
-        "fixed z-40 flex flex-col bg-white/95 backdrop-blur-xl border border-white/40",
+        "fixed z-40 flex flex-col bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-white/40 dark:border-slate-800/60",
         "transition-all duration-300 ease-in-out",
         // Desktop floating layout
-        "md:top-4 md:bottom-4 md:left-4 md:rounded-3xl md:shadow-xl md:shadow-slate-200/50",
+        "md:top-4 md:bottom-4 md:left-4 md:rounded-3xl md:shadow-xl md:shadow-slate-200/50 dark:md:shadow-2xl dark:md:shadow-black/50",
         // Mobile drawer layout
         "top-0 bottom-0 left-0 rounded-r-3xl md:rounded-3xl",
         !sidebarOpen ? "-translate-x-full md:translate-x-0 md:w-[72px]" : "translate-x-0 w-72 md:w-64"
@@ -86,11 +88,11 @@ export default function Sidebar() {
     >
       {/* ── Brand Header ── */}
       <div className={cn(
-        "relative flex h-16 shrink-0 items-center justify-between border-b border-slate-100 px-4",
+        "relative flex h-16 shrink-0 items-center justify-between border-b border-slate-100 dark:border-slate-800/70 px-4",
         "overflow-hidden"
       )}>
         {/* Subtle gradient accent behind logo */}
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-50/60 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-indigo-50/60 dark:from-indigo-950/40 to-transparent pointer-events-none" />
 
         <Link href="/dashboard" className="relative flex items-center gap-3 min-w-0">
           {/* Logo icon */}
@@ -100,10 +102,10 @@ export default function Sidebar() {
 
           {sidebarOpen && (
             <div className="flex flex-col min-w-0 animate-fade-in">
-              <span className="font-bold text-base tracking-tight text-slate-900 leading-tight">
+              <span className="font-bold text-base tracking-tight text-slate-900 dark:text-slate-100 leading-tight">
                 HireCompass
               </span>
-              <span className="text-[10px] font-medium text-indigo-500 leading-tight">
+              <span className="text-[10px] font-medium text-indigo-500 dark:text-indigo-400 leading-tight">
                 Job Tracker Pro
               </span>
             </div>
@@ -115,8 +117,8 @@ export default function Sidebar() {
           onClick={toggleSidebar}
           className={cn(
             "relative hidden md:flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
-            "border border-slate-200 bg-white text-slate-400",
-            "hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50",
+            "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-300",
+            "hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-500/40 hover:bg-indigo-50 dark:hover:bg-slate-700",
             "transition-all duration-150 shadow-sm"
           )}
         >
@@ -139,7 +141,7 @@ export default function Sidebar() {
               {item.dividerBefore && (
                 <div className={cn(
                   "my-3",
-                  sidebarOpen && "mx-1 border-t border-slate-100"
+                  sidebarOpen && "mx-1 border-t border-slate-100 dark:border-slate-800/80"
                 )} />
               )}
 
@@ -149,8 +151,8 @@ export default function Sidebar() {
                 className={cn(
                   "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 min-h-[44px]",
                   isActive
-                    ? "text-indigo-600 bg-gradient-to-r from-indigo-50 to-violet-50/50 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
+                    ? "text-indigo-600 dark:text-indigo-400 bg-gradient-to-r from-indigo-50 dark:from-indigo-950/60 to-violet-50/50 dark:to-violet-950/30 shadow-sm"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/60",
                   !sidebarOpen && "justify-center px-2"
                 )}
                 style={isActive ? {
@@ -162,8 +164,8 @@ export default function Sidebar() {
                 <item.icon className={cn(
                   "h-4.5 w-4.5 shrink-0 transition-all duration-150",
                   isActive
-                    ? "text-indigo-600"
-                    : "text-slate-400 group-hover:text-slate-600"
+                    ? "text-indigo-600 dark:text-indigo-400"
+                    : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"
                 )} />
 
                 {/* Label */}
@@ -180,8 +182,8 @@ export default function Sidebar() {
                     "rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide transition-opacity",
                     !sidebarOpen && "md:opacity-0 md:hidden",
                     item.badgeVariant === "ai"
-                      ? "bg-violet-100 text-violet-600"
-                      : "bg-emerald-100 text-emerald-600"
+                      ? "bg-violet-100 dark:bg-violet-950/80 text-violet-600 dark:text-violet-300"
+                      : "bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-300"
                   )}>
                     {item.badge}
                   </span>
@@ -189,8 +191,8 @@ export default function Sidebar() {
 
                 {/* Collapsed tooltip */}
                 <div className={cn(
-                  "absolute left-16 z-50 rounded-xl border border-slate-200 bg-white px-3 py-2 hidden md:block",
-                  "shadow-lg shadow-slate-900/10 text-xs font-semibold text-slate-700 whitespace-nowrap",
+                  "absolute left-16 z-50 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 hidden md:block",
+                  "shadow-lg shadow-slate-900/10 dark:shadow-black/50 text-xs font-semibold text-slate-700 dark:text-slate-200 whitespace-nowrap",
                   "pointer-events-none opacity-0 scale-95 transition-all duration-150",
                   !sidebarOpen && "group-hover:opacity-100 group-hover:scale-100"
                 )}>
@@ -198,7 +200,7 @@ export default function Sidebar() {
                   {item.badge && (
                     <span className={cn(
                       "ml-1.5 rounded-full px-1 py-0.5 text-[9px] font-bold",
-                      item.badgeVariant === "ai" ? "bg-violet-100 text-violet-600" : "bg-emerald-100 text-emerald-600"
+                      item.badgeVariant === "ai" ? "bg-violet-100 dark:bg-violet-950 text-violet-600 dark:text-violet-300" : "bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300"
                     )}>
                       {item.badge}
                     </span>
@@ -211,11 +213,11 @@ export default function Sidebar() {
       </nav>
 
       {/* ── User Footer ── */}
-      <div className="shrink-0 p-3 border-t border-slate-100 space-y-1">
+      <div className="shrink-0 p-3 border-t border-slate-100 dark:border-slate-800/80 space-y-1">
         {/* User info card */}
         {user && (
           <div className={cn(
-            "flex items-center gap-3 px-3 py-2.5 mb-1 rounded-xl bg-slate-50 border border-slate-100 transition-all",
+            "flex items-center gap-3 px-3 py-2.5 mb-1 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/60 transition-all",
             !sidebarOpen && "md:hidden"
           )}>
             {/* Avatar */}
@@ -223,8 +225,8 @@ export default function Sidebar() {
               {user.name?.[0]?.toUpperCase() || "U"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-slate-900 truncate">{user.name}</p>
-              <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
+              <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">{user.name}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
             </div>
             {/* Online indicator */}
             <div className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
@@ -245,7 +247,7 @@ export default function Sidebar() {
           onClick={handleSignOut}
           className={cn(
             "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium",
-            "text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-all duration-150",
+            "text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all duration-150",
             !sidebarOpen && "md:justify-center md:px-2"
           )}
         >

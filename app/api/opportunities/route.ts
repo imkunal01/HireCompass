@@ -75,6 +75,11 @@ export async function GET(request: NextRequest) {
         { notes: regex },
         { tags: regex },
         { skills: regex },
+        { "rejectionDetails.whatWasAsked": regex },
+        { "rejectionDetails.whyRejected": regex },
+        { "rejectionDetails.whereFumbled": regex },
+        { "rejectionDetails.stage": regex },
+        { "oaDetails.platform": regex },
       ]
     }
 
@@ -84,6 +89,7 @@ export async function GET(request: NextRequest) {
       priority: "priority",
       company: "company",
       salary: "salary",
+      rejectionDate: "rejectionDetails.rejectionDate",
     }
 
     const opportunities = await col
@@ -115,8 +121,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, company, location, isRemote, employmentType, salary, url,
-            sourcePlatform, status, priority, deadline, skills, tags, notes } = body
+    const {
+      title, company, location, isRemote, employmentType, salary, url,
+      sourcePlatform, status, priority, deadline, skills, tags, notes,
+      oaDetails, interviewRounds, isHrRound, hrRoundDetails, offerDetails, rejectionDetails
+    } = body
 
     if (!title || !company) {
       return NextResponse.json({ error: "Title and company are required" }, { status: 400 })
@@ -144,6 +153,13 @@ export async function POST(request: NextRequest) {
       tags: tags || [],
       notes: notes || null,
       timeline: [{ event: "Job added", description: `Added ${company} – ${title}`, timestamp: now }],
+      // New lifecycle fields
+      oaDetails: oaDetails || undefined,
+      interviewRounds: interviewRounds || [],
+      isHrRound: Boolean(isHrRound),
+      hrRoundDetails: hrRoundDetails || undefined,
+      offerDetails: offerDetails || undefined,
+      rejectionDetails: rejectionDetails || undefined,
       createdAt: now,
       updatedAt: now,
     }

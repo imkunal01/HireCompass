@@ -3,7 +3,7 @@ import { getSession } from "@/lib/session"
 import clientPromise from "@/lib/mongodb"
 import Groq from "groq-sdk"
 
-const MODEL = "llama-3.3-70b-versatile"
+const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b"
 
 // POST /api/import/jd - parse a pasted job description and create an opportunity
 export async function POST(request: NextRequest) {
