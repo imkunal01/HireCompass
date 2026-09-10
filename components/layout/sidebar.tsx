@@ -17,37 +17,39 @@ import {
   ChevronRight,
   LogOut,
   FolderOpen,
+  CalendarCheck,
   FolderGit2,
-  Brain,
   Bell,
   Download,
   Send,
   AlertOctagon,
+  ShieldCheck,
+  type LucideIcon,
 } from "lucide-react"
 import { useUser } from "@/hooks/useUser"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 
-interface SidebarItem {
+interface NavItem {
   name: string
   href: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: LucideIcon
   badge?: string
   badgeVariant?: "ai" | "new"
   dividerBefore?: boolean
 }
 
-const sidebarItems: SidebarItem[] = [
-  { name: "Dashboard",         href: "/dashboard",     icon: LayoutDashboard },
-  { name: "Opportunities",     href: "/opportunities",  icon: Briefcase },
-  { name: "Applications",      href: "/applications",   icon: FolderOpen },
+const sidebarItems: NavItem[] = [
+  { name: "Dashboard",         href: "/dashboard",        icon: LayoutDashboard },
+  { name: "Opportunities",     href: "/opportunities",    icon: Briefcase },
+  { name: "Applications",      href: "/applications",     icon: FolderOpen },
   { name: "Interviews",        href: "/interviews",      icon: Calendar },
   { name: "Rejection Tracker", href: "/rejected",        icon: AlertOctagon },
   { name: "Analytics",         href: "/analytics",      icon: BarChart3 },
   { name: "Reminders",         href: "/reminders",      icon: Bell,       dividerBefore: true },
+  { name: "Day Planner",       href: "/planner",         icon: CalendarCheck, badge: "AI", badgeVariant: "ai" },
   { name: "Import Job",        href: "/import",          icon: Download },
   { name: "Outreach",          href: "/outreach",        icon: Send,       badge: "NEW", badgeVariant: "new" },
-  { name: "AI Assistant",      href: "/assistant",       icon: Brain,      badge: "AI",  badgeVariant: "ai" },
   { name: "Projects",          href: "/projects",        icon: FolderGit2, dividerBefore: true },
   { name: "Resumes",           href: "/resumes",         icon: FileText },
   { name: "Settings",          href: "/settings",        icon: Settings },
@@ -131,7 +133,21 @@ export default function Sidebar() {
 
       {/* ── Navigation ── */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-        {sidebarItems.map((item, idx) => {
+        {[
+          ...sidebarItems,
+          ...(user?.role === "admin"
+            ? [
+                {
+                  name: "Admin Panel",
+                  href: "/admin",
+                  icon: ShieldCheck,
+                  badge: "ADMIN",
+                  badgeVariant: "ai" as const,
+                  dividerBefore: true,
+                },
+              ]
+            : []),
+        ].map((item, idx) => {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/")
 

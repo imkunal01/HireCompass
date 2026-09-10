@@ -131,6 +131,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Title and company are required" }, { status: 400 })
     }
 
+    const parseSafeDate = (d: any): Date | null => {
+      if (!d) return null
+      const date = new Date(d)
+      return isNaN(date.getTime()) ? null : date
+    }
+
+    const safeDeadline = parseSafeDate(deadline)
+
     const client = await clientPromise
     const db = client.db()
     const col = db.collection("opportunities")
@@ -148,7 +156,7 @@ export async function POST(request: NextRequest) {
       sourcePlatform: sourcePlatform || null,
       status: status || "SAVED",
       priority: priority || "MEDIUM",
-      deadline: deadline ? new Date(deadline) : null,
+      deadline: safeDeadline,
       skills: skills || [],
       tags: tags || [],
       notes: notes || null,
@@ -166,14 +174,14 @@ export async function POST(request: NextRequest) {
 
     const result = await col.insertOne(doc)
 
-    if (deadline) {
+    if (safeDeadline) {
       await db.collection("reminders").insertOne({
         userId: session.user.id,
         jobId: result.insertedId.toString(),
         jobTitle: title,
         company: company,
         type: "DEADLINE",
-        dueAt: new Date(deadline),
+        dueAt: safeDeadline,
         message: "Application deadline",
         done: false,
         createdAt: now,
@@ -187,7 +195,7 @@ export async function POST(request: NextRequest) {
       _id: result.insertedId.toString(),
       createdAt: doc.createdAt.toISOString(),
       updatedAt: doc.updatedAt.toISOString(),
-      deadline: doc.deadline?.toISOString() ?? null,
+      deadline: doc.deadline ? doc.deadline.toISOString() : null,
     }, { status: 201 })
   } catch (error) {
     console.error("[POST /api/opportunities]", error)

@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
       name: name.trim(),
       email: normalizedEmail,
       passwordHash,
+      role: "user",
       createdAt: now,
       updatedAt: now,
     })
@@ -72,10 +73,11 @@ export async function POST(request: NextRequest) {
     const userId = result.insertedId.toString()
 
     // ── Issue JWT cookie ──────────────────────────────────────────────────
-    const token = await signToken({ id: userId, name: name.trim(), email: normalizedEmail })
+    const sessionUser = { id: userId, name: name.trim(), email: normalizedEmail, role: "user" }
+    const token = await signToken(sessionUser)
 
     const response = NextResponse.json(
-      { user: { id: userId, name: name.trim(), email: normalizedEmail } },
+      { user: sessionUser },
       { status: 201 }
     )
 

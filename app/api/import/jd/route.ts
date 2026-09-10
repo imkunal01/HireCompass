@@ -78,7 +78,7 @@ Today is ${today}. If the deadline is relative (e.g. "apply in 2 weeks"), calcul
       sourcePlatform: "OTHER",
       status: "SAVED",
       priority: "MEDIUM",
-      deadline: parsed.deadline ? new Date(parsed.deadline) : null,
+      deadline: parsed.deadline && !isNaN(new Date(parsed.deadline).getTime()) ? new Date(parsed.deadline) : null,
       skills: parsed.skills ?? [],
       tags: ["jd-import"],
       notes: parsed.notes ?? "",

@@ -60,7 +60,40 @@ export async function getUserAiConfig(userId: string): Promise<UserAiConfig> {
   const user = await db.collection("users").findOne({ _id: new ObjectId(userId) })
 
   const usageCount = user?.aiUsage?.count ?? 0
-  const isLimitReached = usageCount >= FREE_AI_REQUEST_LIMIT
+  const isAdmin = user?.role === "admin"
+  const aiAccess = user?.aiAccess || "DEFAULT" // "DEFAULT" | "UNRESTRICTED" | "DISABLED"
+  const userLimit = typeof user?.aiLimit === "number" ? user.aiLimit : FREE_AI_REQUEST_LIMIT
+
+  // 1. Check if AI access was explicitly disabled by admin
+  if (aiAccess === "DISABLED" && !isAdmin) {
+    return {
+      apiKey: "",
+      isCustom: false,
+      model: DEFAULT_GROQ_MODEL,
+      usage: {
+        count: usageCount,
+        limit: userLimit,
+        isLimitReached: true, // Blocked
+      },
+    }
+  }
+
+  // 2. Admin or explicitly UNRESTRICTED user -> no quota restriction
+  if (isAdmin || aiAccess === "UNRESTRICTED") {
+    const systemKey = process.env.GROQ_API_KEY || ""
+    return {
+      apiKey: systemKey,
+      isCustom: false,
+      model: user?.groqModel || DEFAULT_GROQ_MODEL,
+      usage: {
+        count: usageCount,
+        limit: 999999, // Unrestricted
+        isLimitReached: false,
+      },
+    }
+  }
+
+  const isLimitReached = usageCount >= userLimit
 
   // Check for custom key
   if (user?.groqKey?.ciphertext && user?.groqKey?.iv && user?.groqKey?.tag) {
@@ -74,7 +107,7 @@ export async function getUserAiConfig(userId: string): Promise<UserAiConfig> {
           model: user.groqModel || DEFAULT_GROQ_MODEL,
           usage: {
             count: usageCount,
-            limit: FREE_AI_REQUEST_LIMIT,
+            limit: userLimit,
             isLimitReached: false, // Custom key users bypass the platform quota
           },
         }
@@ -89,10 +122,10 @@ export async function getUserAiConfig(userId: string): Promise<UserAiConfig> {
   return {
     apiKey: systemKey,
     isCustom: false,
-    model: DEFAULT_GROQ_MODEL,
+    model: user?.groqModel || DEFAULT_GROQ_MODEL,
     usage: {
       count: usageCount,
-      limit: FREE_AI_REQUEST_LIMIT,
+      limit: userLimit,
       isLimitReached,
     },
   }

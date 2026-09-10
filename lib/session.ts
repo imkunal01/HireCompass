@@ -19,7 +19,7 @@
 
 import { SignJWT, jwtVerify } from "jose"
 import { cookies } from "next/headers"
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 
 const COOKIE_NAME = "auth-token"
 const TOKEN_EXPIRY = "30d"
@@ -38,6 +38,7 @@ export interface SessionUser {
   id: string
   name: string
   email: string
+  role?: string
 }
 
 export interface Session {
@@ -47,7 +48,7 @@ export interface Session {
 // ─── Token Operations ──────────────────────────────────────────────────────
 
 export async function signToken(user: SessionUser): Promise<string> {
-  return new SignJWT({ name: user.name, email: user.email })
+  return new SignJWT({ name: user.name, email: user.email, role: user.role || "user" })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(user.id)
     .setIssuedAt()
@@ -63,11 +64,37 @@ export async function verifyToken(token: string): Promise<SessionUser | null> {
       id: payload.sub,
       name: (payload.name as string) || "",
       email: payload.email as string,
+      role: (payload.role as string) || "user",
     }
   } catch {
     // Token expired, invalid signature, malformed — all treated as unauthenticated
     return null
   }
+}
+
+/**
+ * Guard for Admin API routes.
+ * Returns { session } or { errorResponse }
+ */
+export async function requireAdmin(request: NextRequest): Promise<
+  { session: Session; errorResponse: null } | { session: null; errorResponse: NextResponse }
+> {
+  const session = await getSession(request)
+  if (!session?.user?.id) {
+    return {
+      session: null,
+      errorResponse: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    }
+  }
+
+  if (session.user.role !== "admin") {
+    return {
+      session: null,
+      errorResponse: NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 }),
+    }
+  }
+
+  return { session, errorResponse: null }
 }
 
 // ─── Cookie Helpers ────────────────────────────────────────────────────────

@@ -77,7 +77,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     if ('deadline' in rest) {
-      updateFields.deadline = rest.deadline ? new Date(rest.deadline) : null
+      if (!rest.deadline) {
+        updateFields.deadline = null
+      } else {
+        const d = new Date(rest.deadline)
+        updateFields.deadline = isNaN(d.getTime()) ? null : d
+      }
     }
 
     const updateDoc: Record<string, any> = { $set: updateFields }
@@ -126,13 +131,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     }
 
+    const formatSafeIso = (d: any) => {
+      if (!d) return null
+      const date = d instanceof Date ? d : new Date(d)
+      return isNaN(date.getTime()) ? null : date.toISOString()
+    }
+
     return NextResponse.json({
       ...result,
       id: result._id.toString(),
       _id: result._id.toString(),
-      createdAt: result.createdAt?.toISOString?.() ?? result.createdAt,
-      updatedAt: result.updatedAt?.toISOString?.() ?? result.updatedAt,
-      deadline: result.deadline?.toISOString?.() ?? result.deadline,
+      createdAt: formatSafeIso(result.createdAt),
+      updatedAt: formatSafeIso(result.updatedAt),
+      deadline: formatSafeIso(result.deadline),
     })
   } catch (error) {
     console.error("[PATCH /api/opportunities/:id]", error)

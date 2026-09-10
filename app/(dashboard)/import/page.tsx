@@ -156,6 +156,25 @@ function ImportPageInner() {
         }
       }
 
+      // Final pass on stream completion to ensure all fields are captured
+      if (aiBuffer.includes("{") && aiBuffer.includes("}")) {
+        try {
+          const cleaned = aiBuffer
+            .replace(/^```(?:json)?\s*/i, "")
+            .replace(/\s*```$/i, "")
+            .trim()
+          const firstBrace = cleaned.indexOf("{")
+          const lastBrace = cleaned.lastIndexOf("}")
+          if (firstBrace !== -1 && lastBrace !== -1) {
+            const parsed = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1)) as ExtractedJob
+            if (parsed.company || parsed.role) {
+              setExtracted(parsed)
+              setEditedJob(parsed)
+            }
+          }
+        } catch {}
+      }
+
       setStage("done")
       const newCredits = Math.max(0, credits - 1)
       setCredits(newCredits)

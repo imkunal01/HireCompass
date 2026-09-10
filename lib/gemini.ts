@@ -60,10 +60,12 @@ function isRetryableError(err: unknown): boolean {
 export async function extractJSON<T = unknown>(
   prompt: string,
   apiKeyOverride?: string,
-  modelOverride?: string
+  modelOverride?: string,
+  maxTokensOverride?: number
 ): Promise<T> {
   const client = getClient(apiKeyOverride)
   const targetModel = modelOverride || MODEL
+  const maxTokens = maxTokensOverride || 4096
   let lastError: unknown
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -78,7 +80,7 @@ export async function extractJSON<T = unknown>(
           { role: "user", content: prompt },
         ],
         temperature: 0.1,
-        max_completion_tokens: 2048,
+        max_completion_tokens: maxTokens,
         response_format: { type: "json_object" },
       })
 

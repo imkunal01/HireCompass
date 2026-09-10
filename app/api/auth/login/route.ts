@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
       id: user._id.toString(),
       name: user.name as string,
       email: user.email as string,
+      role: (user.role as string) || "user",
     }
     const token = await signToken(sessionUser)
 
