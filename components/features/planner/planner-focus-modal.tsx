@@ -21,13 +21,43 @@ interface Props {
   onSaveNotes: (taskId: string, notes: string) => void
 }
 
+function parseTimeToToday(timeStr?: string): Date | null {
+  if (!timeStr) return null
+  const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i)
+  if (!match) return null
+  let hours = parseInt(match[1], 10)
+  const minutes = parseInt(match[2], 10)
+  const ampm = match[3].toUpperCase()
+  if (ampm === "PM" && hours < 12) hours += 12
+  if (ampm === "AM" && hours === 12) hours = 0
+  const d = new Date()
+  d.setHours(hours, minutes, 0, 0)
+  return d
+}
+
 export default function PlannerFocusModal({
   task,
   onClose,
   onCompleteTask,
   onSaveNotes,
 }: Props) {
-  const initialSeconds = (task.durationMinutes || 25) * 60
+  // Check if task has a scheduled time window that is active right now
+  const calculateInitialSeconds = () => {
+    if (task.startTime && task.endTime) {
+      const start = parseTimeToToday(task.startTime)
+      const end = parseTimeToToday(task.endTime)
+      if (start && end) {
+        const now = Date.now()
+        if (now >= start.getTime() && now <= end.getTime()) {
+          const remainingInWindow = Math.max(60, Math.floor((end.getTime() - now) / 1000))
+          return remainingInWindow
+        }
+      }
+    }
+    return (task.durationMinutes || 25) * 60
+  }
+
+  const [initialSeconds, setInitialSeconds] = useState(calculateInitialSeconds)
   const [secondsLeft, setSecondsLeft] = useState(initialSeconds)
   const [isRunning, setIsRunning] = useState(false)
   const [notes, setNotes] = useState(task.notes || "")
@@ -41,7 +71,7 @@ export default function PlannerFocusModal({
         setSecondsLeft((prev) => {
           if (prev <= 1) {
             clearInterval(timerRef.current!)
-            audioSynthesizer?.playCelebrationChime()
+            audioSynthesizer?.playWindowAlert()
             return 0
           }
           minutesSpentRef.current += 1 / 60
@@ -110,9 +140,16 @@ export default function PlannerFocusModal({
 
         {/* Task Header */}
         <div className="flex flex-col gap-1 items-center">
-          <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
-            Deep Focus Mode
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+              Deep Focus Mode
+            </span>
+            {task.startTime && task.endTime && (
+              <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
+                {task.startTime} – {task.endTime}
+              </span>
+            )}
+          </div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 max-w-md">
             {task.title}
           </h2>
@@ -136,32 +173,59 @@ export default function PlannerFocusModal({
           </div>
         </div>
 
-        {/* Controls */}
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setIsRunning(!isRunning)}
-            className="px-6 py-2.5 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-sm font-semibold shadow-md shadow-indigo-500/20 flex items-center gap-2 transition-all"
-          >
-            {isRunning ? (
-              <>
-                <Pause size={16} /> Pause Focus
-              </>
-            ) : (
-              <>
-                <Play size={16} /> {secondsLeft === 0 ? "Restart" : "Start Focus"}
-              </>
-            )}
-          </button>
+        {/* Controls & Quick Extenders */}
+        <div className="flex flex-col items-center gap-2.5">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsRunning(!isRunning)}
+              className="px-6 py-2.5 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-sm font-semibold shadow-md shadow-indigo-500/20 flex items-center gap-2 transition-all"
+            >
+              {isRunning ? (
+                <>
+                  <Pause size={16} /> Pause Focus
+                </>
+              ) : (
+                <>
+                  <Play size={16} /> {secondsLeft === 0 ? "Restart" : "Start Focus"}
+                </>
+              )}
+            </button>
 
-          <button
-            type="button"
-            onClick={handleReset}
-            className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center transition-colors"
-            title="Reset timer"
-          >
-            <RotateCcw size={15} />
-          </button>
+            <button
+              type="button"
+              onClick={handleReset}
+              className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center transition-colors"
+              title="Reset timer"
+            >
+              <RotateCcw size={15} />
+            </button>
+          </div>
+
+          {/* Quick Extenders */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Extend Window:</span>
+            <button
+              type="button"
+              onClick={() => {
+                setSecondsLeft((prev) => prev + 5 * 60)
+                setInitialSeconds((prev) => prev + 5 * 60)
+              }}
+              className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            >
+              +5m
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSecondsLeft((prev) => prev + 15 * 60)
+                setInitialSeconds((prev) => prev + 15 * 60)
+              }}
+              className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            >
+              +15m
+            </button>
+          </div>
         </div>
 
         {/* Ambient Sound Selector */}

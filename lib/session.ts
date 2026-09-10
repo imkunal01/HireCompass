@@ -133,7 +133,24 @@ export async function setAuthCookie(
  * Reads the auth cookie from the incoming Request object.
  */
 export async function getSession(request: NextRequest): Promise<Session | null> {
-  const token = request.cookies.get(COOKIE_NAME)?.value
+  let token = request.cookies.get(COOKIE_NAME)?.value
+
+  // Check Authorization Bearer header (for Browser Extension or external clients)
+  if (!token) {
+    const authHeader = request.headers.get("Authorization") || request.headers.get("authorization")
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.slice(7).trim()
+    }
+  }
+
+  // Also check custom extension token header
+  if (!token) {
+    const extHeader = request.headers.get("x-hirecompass-token")
+    if (extHeader) {
+      token = extHeader.trim()
+    }
+  }
+
   if (!token) return null
   const user = await verifyToken(token)
   if (!user) return null

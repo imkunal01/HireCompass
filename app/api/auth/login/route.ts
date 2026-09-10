@@ -14,17 +14,23 @@ import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import clientPromise from "@/lib/mongodb"
 import { signToken } from "@/lib/session"
+import { getExtensionCorsHeaders, handleOptionsCors } from "@/lib/extension-cors"
 
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60 // 30 days
 
+export async function OPTIONS(request: NextRequest) {
+  return handleOptionsCors(request)
+}
+
 export async function POST(request: NextRequest) {
+  const corsHeaders = getExtensionCorsHeaders(request)
   try {
     const body = await request.json()
     const { email, password } = body
 
     // ── Input validation ──────────────────────────────────────────────────
     if (!email || !password) {
-      return NextResponse.json({ error: "Email and password are required." }, { status: 400 })
+      return NextResponse.json({ error: "Email and password are required." }, { status: 400, headers: corsHeaders })
     }
 
     const normalizedEmail = (email as string).toLowerCase().trim()
@@ -46,7 +52,7 @@ export async function POST(request: NextRequest) {
     if (!user || !valid) {
       return NextResponse.json(
         { error: "Invalid email or password." },
-        { status: 401 }
+        { status: 401, headers: corsHeaders }
       )
     }
 
@@ -59,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
     const token = await signToken(sessionUser)
 
-    const response = NextResponse.json({ user: sessionUser })
+    const response = NextResponse.json({ user: sessionUser, token }, { headers: corsHeaders })
 
     response.headers.set(
       "Set-Cookie",
@@ -71,6 +77,6 @@ export async function POST(request: NextRequest) {
     return response
   } catch (error) {
     console.error("[POST /api/auth/login]", error)
-    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 })
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500, headers: corsHeaders })
   }
 }

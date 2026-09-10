@@ -178,7 +178,7 @@ export default function InstallPrompt() {
           <>
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5">
               <p className="text-sm text-amber-800 font-medium">
-                In your browser menu, look for <strong>"Add to Home Screen"</strong> or <strong>"Install App"</strong> option.
+                In your browser menu, look for <strong>&quot;Add to Home Screen&quot;</strong> or <strong>&quot;Install App&quot;</strong> option.
               </p>
             </div>
             <button

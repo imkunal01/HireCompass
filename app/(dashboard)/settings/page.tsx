@@ -6,7 +6,7 @@ import {
   ChevronRight, CheckCircle2, Database,
   Palette, Sliders, Send, Plus, X, Github, Linkedin, Globe,
   Sparkles, Loader2, AlertCircle, Key, Eye, EyeOff, Trash2,
-  ExternalLink, Zap, Bot, RefreshCw
+  ExternalLink, Zap, Bot, RefreshCw, Compass, Copy
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/hooks/useUser"
@@ -162,6 +162,33 @@ export default function SettingsPage() {
   useEffect(() => {
     fetchAiConfig()
   }, [])
+
+  /* Extension Access Token */
+  const [extToken, setExtToken] = useState("")
+  const [extTokenLoading, setExtTokenLoading] = useState(false)
+  const [extTokenCopied, setExtTokenCopied] = useState(false)
+
+  const handleGenerateExtToken = async () => {
+    setExtTokenLoading(true)
+    try {
+      const res = await fetch("/api/extension/token")
+      if (res.ok) {
+        const data = await res.json()
+        setExtToken(data.token)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setExtTokenLoading(false)
+    }
+  }
+
+  const handleCopyExtToken = () => {
+    if (!extToken) return
+    navigator.clipboard.writeText(extToken)
+    setExtTokenCopied(true)
+    setTimeout(() => setExtTokenCopied(false), 2000)
+  }
 
   const handleSaveGroqKey = async () => {
     setKeyError("")
@@ -553,7 +580,7 @@ export default function SettingsPage() {
 
                   {aiUsage.isLimitReached ? (
                     <p className="text-xs text-rose-600 font-medium">
-                      ⚠️ You've reached your free quota limit! Add your free Groq API key below to unlock unlimited requests.
+                      ⚠️ You&apos;ve reached your free quota limit! Add your free Groq API key below to unlock unlimited requests.
                     </p>
                   ) : (
                     <p className="text-[11px] text-slate-500">
@@ -655,6 +682,76 @@ export default function SettingsPage() {
                     )}
                   </button>
                 </div>
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* Browser Extension (1-Click Copilot) */}
+          <SectionCard icon={Compass} iconBg="bg-indigo-50" iconColor="text-indigo-600" title="Browser Extension (1-Click Job Copilot)">
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-violet-500/5 to-transparent border border-indigo-200/60 dark:border-indigo-800/40">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Manifest V3 Ready
+                    </span>
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Chrome • Edge • Brave • Opera
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    1-Click import from LinkedIn, Indeed, Greenhouse, Lever + FormKit auto-fill & AI recruiter outreach.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={extToken ? handleCopyExtToken : handleGenerateExtToken}
+                    disabled={extTokenLoading}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white transition-all shadow-sm"
+                    style={{ background: "linear-gradient(135deg, #6366F1 0%, #7C3AED 100%)" }}
+                  >
+                    {extTokenLoading ? (
+                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating...</>
+                    ) : extTokenCopied ? (
+                      <><CheckCircle2 className="h-3.5 w-3.5" /> Token Copied!</>
+                    ) : extToken ? (
+                      <><Copy className="h-3.5 w-3.5" /> Copy Token</>
+                    ) : (
+                      <><Key className="h-3.5 w-3.5" /> Get Extension Token</>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {extToken && (
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Your Personal Extension Token (30-day validity):</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <code className="text-xs font-mono text-indigo-600 dark:text-indigo-400 truncate select-all">{extToken}</code>
+                    <button onClick={handleCopyExtToken} className="p-1 text-slate-400 hover:text-indigo-600 transition-colors">
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 30-Second Quick Setup Instructions */}
+              <div className="space-y-2 pt-1">
+                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                  How to install in 30 seconds:
+                </h4>
+                <ol className="space-y-2 text-xs text-slate-600 dark:text-slate-400 list-decimal pl-4">
+                  <li>Open your browser and navigate to <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[11px]">chrome://extensions</code> (or <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[11px]">edge://extensions</code>).</li>
+                  <li>Enable <strong>"Developer mode"</strong> using the toggle switch in the top-right corner.</li>
+                  <li>Click <strong>"Load unpacked"</strong> and select the directory:
+                    <div className="mt-1 p-2 rounded-lg bg-slate-100 dark:bg-slate-800 font-mono text-[11px] text-slate-800 dark:text-slate-200 select-all">
+                      c:\Users\Kunal\Desktop\Projects\HireCompass\extension
+                    </div>
+                  </li>
+                  <li>Done! Pin the <strong>HireCompass Copilot</strong> icon. It will automatically detect your active login session.</li>
+                </ol>
               </div>
             </div>
           </SectionCard>

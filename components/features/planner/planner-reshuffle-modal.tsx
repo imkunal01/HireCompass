@@ -60,7 +60,7 @@ export default function PlannerReshuffleModal({
             Adaptive Rebalancing
           </span>
           <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-            Life Happens. Let's Adapt.
+            Life Happens. Let&apos;s Adapt.
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Your {completedCount} completed tasks stay intact. The remaining {remainingCount} tasks will be
