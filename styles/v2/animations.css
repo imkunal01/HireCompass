@@ -1,0 +1,135 @@
+/* =============================================================
+   HireCompass v2 — Keyframes & Animation Utilities
+   ============================================================= */
+
+/* ─── Keyframes ───────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes scaleInCenter {
+  from { opacity: 0; transform: scale(0.88) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%       { transform: scale(1.4); opacity: 0.7; }
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes drawerSlideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.94) translateY(12px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+
+@keyframes toastSlideIn {
+  from { transform: translateX(110%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+@keyframes borderGlow {
+  0%, 100% { border-color: var(--border-brand); }
+  50%       { border-color: var(--brand-400); }
+}
+
+/* ─── Utility animation classes ──────────────────────────────── */
+
+.anim-fade-in       { animation: fadeIn 300ms var(--ease-out-quart) both; }
+.anim-fade-in-up    { animation: fadeInUp 400ms var(--ease-out-quart) both; }
+.anim-fade-in-down  { animation: fadeInDown 300ms var(--ease-out-quart) both; }
+.anim-fade-in-left  { animation: fadeInLeft 350ms var(--ease-out-quart) both; }
+.anim-scale-in      { animation: scaleIn 250ms var(--ease-out-quart) both; }
+.anim-scale-in-c    { animation: scaleInCenter 300ms var(--ease-spring) both; }
+.anim-spin          { animation: spin 600ms linear infinite; }
+.anim-pulse         { animation: pulse 2s ease-in-out infinite; }
+.anim-pulse-dot     { animation: pulseDot 1.5s ease-in-out infinite; }
+.anim-count-up      { animation: countUp 500ms var(--ease-out-quart) both; }
+
+/* Stagger delay helpers */
+.delay-50  { animation-delay: 50ms; }
+.delay-100 { animation-delay: 100ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-250 { animation-delay: 250ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+
+/* ─── Skeleton shimmer ────────────────────────────────────────── */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface-2) 0px,
+    var(--bg-surface-3) 80px,
+    var(--bg-surface-2) 160px
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+/* ─── Gradient animated background (landing) ─────────────────── */
+
+.anim-gradient-bg {
+  background-size: 200% 200%;
+  animation: gradientShift 6s ease infinite;
+}
