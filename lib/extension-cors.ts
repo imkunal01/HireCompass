@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-export function getExtensionCorsHeaders(request: NextRequest) {
+export function getExtensionCorsHeaders(request: NextRequest): Record<string, string> {
   const origin = request.headers.get("origin")
   
   if (origin) {
