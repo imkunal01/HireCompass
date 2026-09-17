@@ -4,7 +4,7 @@ import React from "react"
 import { Calendar, MapPin, DollarSign, ExternalLink, ArrowRight, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export type OpportunityStatus = "WISHLIST" | "APPLIED" | "INTERVIEWING" | "OFFER" | "REJECTED"
+export type OpportunityStatus = "WISHLIST" | "SAVED" | "APPLIED" | "ASSESSMENT" | "INTERVIEW" | "INTERVIEWING" | "OFFER" | "GHOSTED" | "REJECTED"
 
 export interface OpportunityData {
   id: string
@@ -24,11 +24,15 @@ interface OpportunityCardProps {
   onStatusChange?: (id: string, newStatus: OpportunityStatus) => void
 }
 
-const statusThemes: Record<OpportunityStatus, { label: string; bg: string; text: string; dot: string }> = {
+const statusThemes: Record<string, { label: string; bg: string; text: string; dot: string }> = {
   WISHLIST: { label: "Wishlist", bg: "bg-blue-500/10", text: "text-blue-400", dot: "bg-blue-500" },
+  SAVED: { label: "Saved", bg: "bg-blue-500/10", text: "text-blue-400", dot: "bg-blue-500" },
   APPLIED: { label: "Applied", bg: "bg-amber-500/10", text: "text-amber-400", dot: "bg-amber-500" },
+  ASSESSMENT: { label: "Assessment", bg: "bg-cyan-500/10", text: "text-cyan-400", dot: "bg-cyan-500" },
+  INTERVIEW: { label: "Interview", bg: "bg-purple-500/10", text: "text-purple-400", dot: "bg-purple-500" },
   INTERVIEWING: { label: "Interviewing", bg: "bg-purple-500/10", text: "text-purple-400", dot: "bg-purple-500" },
   OFFER: { label: "Offer", bg: "bg-emerald-500/10", text: "text-emerald-400", dot: "bg-emerald-500" },
+  GHOSTED: { label: "Ghosted 👻", bg: "bg-slate-500/10", text: "text-slate-400", dot: "bg-slate-400" },
   REJECTED: { label: "Rejected", bg: "bg-rose-500/10", text: "text-rose-400", dot: "bg-rose-500" },
 }
 

@@ -47,6 +47,7 @@ const STATUSES = [
   { value: "ASSESSMENT", label: "Assessment" },
   { value: "INTERVIEW",  label: "Interview" },
   { value: "OFFER",      label: "Offer" },
+  { value: "GHOSTED",    label: "Ghosted 👻" },
   { value: "REJECTED",   label: "Rejected" },
 ]
 const PRIORITIES = [

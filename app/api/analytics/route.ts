@@ -34,12 +34,13 @@ export async function GET(request: NextRequest) {
     const total = all.length
     const saved = all.filter((o) => o.status === "SAVED" || o.status === "INTERESTED").length
     const applied = all.filter((o) =>
-      ["APPLIED", "ASSESSMENT", "INTERVIEW", "OFFER", "REJECTED"].includes(o.status)
+      ["APPLIED", "ASSESSMENT", "INTERVIEW", "OFFER", "GHOSTED", "REJECTED"].includes(o.status)
     ).length
     const interviewed = all.filter((o) =>
       ["INTERVIEW", "OFFER"].includes(o.status)
     ).length
     const offers = all.filter((o) => o.status === "OFFER").length
+    const ghosted = all.filter((o) => o.status === "GHOSTED").length
     const rejected = all.filter((o) => o.status === "REJECTED").length
 
     // Funnel conversion rates
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
         if (!o.createdAt) return false
         const d = new Date(o.createdAt)
         return d >= weekStart && d < weekEnd &&
-          ["APPLIED", "ASSESSMENT", "INTERVIEW", "OFFER", "REJECTED"].includes(o.status)
+          ["APPLIED", "ASSESSMENT", "INTERVIEW", "OFFER", "GHOSTED", "REJECTED"].includes(o.status)
       }).length
       weeklyData.push({ week: label, count })
     }
@@ -109,7 +110,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      funnel: { total, saved, applied, interviewed, offers, rejected },
+      funnel: { total, saved, applied, interviewed, offers, rejected, ghosted },
       conversion: { savedToApplied, appliedToInterview, interviewToOffer, overallYield },
       weeklyVelocity: trimmedWeekly,
       channels,

@@ -21,6 +21,8 @@ interface UserRecord {
   email: string
   role: "admin" | "user"
   aiAccess: "DEFAULT" | "UNRESTRICTED" | "DISABLED"
+  hasCustomLimit?: boolean
+  customLimit?: number | null
   aiUsage: {
     count: number
     limit: number | "UNLIMITED"
@@ -56,6 +58,16 @@ interface AdminStats {
   freeLimitDefault: number
 }
 
+interface UsersApiResponse {
+  users: UserRecord[]
+  pagination?: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
+}
+
 export default function AdminDashboardPage() {
   const { user, isLoading: userLoading } = useUser()
   const router = useRouter()
@@ -66,6 +78,23 @@ export default function AdminDashboardPage() {
   const [userSearch, setUserSearch] = useState("")
   const [roleFilter, setRoleFilter] = useState("ALL")
   const [aiAccessFilter, setAiAccessFilter] = useState("ALL")
+  const [userPage, setUserPage] = useState(1)
+
+  // Resumes states
+  const [resumeSearch, setResumeSearch] = useState("")
+  const [previewResume, setPreviewResume] = useState<any | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [deletingResume, setDeletingResume] = useState<ResumeRecord | null>(null)
+
+  // System AI test state
+  const [isTestingAi, setIsTestingAi] = useState(false)
+  const [aiTestResult, setAiTestResult] = useState<{
+    success: boolean
+    latencyMs?: number
+    model?: string
+    reply?: string
+    error?: string
+  } | null>(null)
 
   // Modals state
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
@@ -94,13 +123,15 @@ export default function AdminDashboardPage() {
   })
 
   // 2. Fetch Users
-  const { data: usersData, isLoading: usersLoading, refetch: refetchUsers } = useQuery<{ users: UserRecord[] }>({
-    queryKey: ["admin-users", userSearch, roleFilter, aiAccessFilter],
+  const { data: usersData, isLoading: usersLoading, refetch: refetchUsers } = useQuery<UsersApiResponse>({
+    queryKey: ["admin-users", userSearch, roleFilter, aiAccessFilter, userPage],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (userSearch) params.set("search", userSearch)
       if (roleFilter !== "ALL") params.set("role", roleFilter)
       if (aiAccessFilter !== "ALL") params.set("aiAccess", aiAccessFilter)
+      params.set("page", String(userPage))
+      params.set("limit", "15")
       const res = await fetch(`/api/admin/users?${params.toString()}`)
       if (!res.ok) throw new Error("Failed to load users")
       return res.json()
@@ -110,14 +141,89 @@ export default function AdminDashboardPage() {
 
   // 3. Fetch Resumes
   const { data: resumes, isLoading: resumesLoading, refetch: refetchResumes } = useQuery<ResumeRecord[]>({
-    queryKey: ["admin-resumes"],
+    queryKey: ["admin-resumes", resumeSearch],
     queryFn: async () => {
-      const res = await fetch("/api/admin/resumes")
+      const params = new URLSearchParams()
+      if (resumeSearch.trim()) params.set("search", resumeSearch.trim())
+      const res = await fetch(`/api/admin/resumes?${params.toString()}`)
       if (!res.ok) throw new Error("Failed to load resumes")
       return res.json()
     },
     enabled: user?.role === "admin" && activeTab === "resumes",
   })
+
+  // Resume Download Handler
+  const handleDownloadResume = async (resume: ResumeRecord | any) => {
+    try {
+      toast({ type: "info", title: "Preparing download...", message: `Fetching ${resume.name}` })
+      const res = await fetch(`/api/admin/resumes/${resume.id || resume._id}`)
+      if (!res.ok) throw new Error("Failed to fetch resume file")
+      const doc = await res.json()
+      if (!doc.data) throw new Error("Document file data not found")
+
+      // Base64 to Blob
+      const byteCharacters = atob(doc.data)
+      const byteNumbers = new Array(byteCharacters.length)
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
+      }
+      const byteArray = new Uint8Array(byteNumbers)
+      const blob = new Blob([byteArray], { type: doc.mimeType || "application/pdf" })
+
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = doc.name || "resume.pdf"
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast({ type: "success", title: "Downloaded", message: `${doc.name} downloaded successfully.` })
+    } catch (err: any) {
+      toast({ type: "error", title: "Download failed", message: err.message || "Could not download resume." })
+    }
+  }
+
+  // Resume Preview Handler
+  const handlePreviewResume = async (resume: ResumeRecord) => {
+    try {
+      setPreviewLoading(true)
+      const res = await fetch(`/api/admin/resumes/${resume.id}`)
+      if (!res.ok) throw new Error("Failed to fetch resume details")
+      const doc = await res.json()
+      setPreviewResume({
+        ...doc,
+        userName: resume.userName,
+        userEmail: resume.userEmail,
+      })
+    } catch (err: any) {
+      toast({ type: "error", title: "Preview failed", message: err.message })
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  // AI Connection Test Handler
+  const handleTestAi = async () => {
+    try {
+      setIsTestingAi(true)
+      setAiTestResult(null)
+      const res = await fetch("/api/admin/system/test-ai", { method: "POST" })
+      const data = await res.json()
+      setAiTestResult(data)
+      if (data.success) {
+        toast({ type: "success", title: "AI Connected!", message: `Latency: ${data.latencyMs}ms (${data.model})` })
+      } else {
+        toast({ type: "error", title: "AI Test Failed", message: data.error })
+      }
+    } catch (err: any) {
+      setAiTestResult({ success: false, error: err.message })
+      toast({ type: "error", title: "AI Test Failed", message: err.message })
+    } finally {
+      setIsTestingAi(false)
+    }
+  }
 
   // Create User Mutation
   const createUserMutation = useMutation({
@@ -398,7 +504,10 @@ export default function AdminDashboardPage() {
                 <input
                   type="text"
                   value={userSearch}
-                  onChange={(e) => setUserSearch(e.target.value)}
+                  onChange={(e) => {
+                    setUserSearch(e.target.value)
+                    setUserPage(1)
+                  }}
                   placeholder="Search by name or email..."
                   style={{
                     background: "transparent",
@@ -413,7 +522,10 @@ export default function AdminDashboardPage() {
 
               <select
                 value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
+                onChange={(e) => {
+                  setRoleFilter(e.target.value)
+                  setUserPage(1)
+                }}
                 className="v2-input"
                 style={{ padding: "6px 12px", fontSize: "13px", width: "auto" }}
               >
@@ -424,7 +536,10 @@ export default function AdminDashboardPage() {
 
               <select
                 value={aiAccessFilter}
-                onChange={(e) => setAiAccessFilter(e.target.value)}
+                onChange={(e) => {
+                  setAiAccessFilter(e.target.value)
+                  setUserPage(1)
+                }}
                 className="v2-input"
                 style={{ padding: "6px 12px", fontSize: "13px", width: "auto" }}
               >
@@ -520,10 +635,15 @@ export default function AdminDashboardPage() {
                         <td style={{ padding: "14px 18px" }}>
                           <button
                             onClick={() => {
+                              if (u.id === user?.id) {
+                                toast({ type: "error", title: "Cannot change role", message: "You cannot change your own admin account role." })
+                                return
+                              }
                               const newRole = u.role === "admin" ? "user" : "admin"
                               updateUserMutation.mutate({ id: u.id, updates: { role: newRole } })
                             }}
-                            title="Click to toggle role"
+                            title={u.id === user?.id ? "Your own account" : "Click to toggle role"}
+                            disabled={u.id === user?.id}
                             style={{
                               display: "inline-flex",
                               alignItems: "center",
@@ -535,7 +655,8 @@ export default function AdminDashboardPage() {
                               color: u.role === "admin" ? "var(--brand-300)" : "var(--txt-secondary)",
                               fontSize: "11px",
                               fontWeight: 800,
-                              cursor: "pointer",
+                              cursor: u.id === user?.id ? "default" : "pointer",
+                              opacity: u.id === user?.id ? 0.8 : 1,
                             }}
                           >
                             {u.role === "admin" ? <ShieldCheck size={12} /> : <Users size={12} />}
@@ -671,7 +792,7 @@ export default function AdminDashboardPage() {
                                   password: "",
                                   role: u.role,
                                   aiAccess: u.aiAccess,
-                                  aiLimit: typeof u.aiUsage.limit === "number" ? String(u.aiUsage.limit) : "",
+                                  aiLimit: u.hasCustomLimit && typeof u.customLimit === "number" ? String(u.customLimit) : "",
                                 })
                               }}
                               title="Edit user"
@@ -712,94 +833,222 @@ export default function AdminDashboardPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Users Table Pagination */}
+            {usersData?.pagination && usersData.pagination.totalPages > 1 && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "14px 20px",
+                  borderTop: "1px solid var(--border-subtle)",
+                  background: "var(--bg-surface-2)",
+                  fontSize: "12px",
+                  color: "var(--txt-secondary)",
+                }}
+              >
+                <span>
+                  Showing {Math.min(usersData.pagination.total, (usersData.pagination.page - 1) * usersData.pagination.limit + 1)}–
+                  {Math.min(usersData.pagination.total, usersData.pagination.page * usersData.pagination.limit)} of {usersData.pagination.total} users
+                </span>
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  <button
+                    onClick={() => setUserPage((p) => Math.max(1, p - 1))}
+                    disabled={usersData.pagination.page <= 1}
+                    className="v2-btn v2-btn--secondary"
+                    style={{ padding: "4px 10px", fontSize: "12px" }}
+                  >
+                    Previous
+                  </button>
+                  <span style={{ fontWeight: 700, color: "var(--txt-primary)", margin: "0 4px" }}>
+                    {usersData.pagination.page} / {usersData.pagination.totalPages}
+                  </span>
+                  <button
+                    onClick={() => setUserPage((p) => Math.min(usersData.pagination!.totalPages, p + 1))}
+                    disabled={usersData.pagination.page >= usersData.pagination.totalPages}
+                    className="v2-btn v2-btn--secondary"
+                    style={{ padding: "4px 10px", fontSize: "12px" }}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* ════════════════════ TAB 2: RESUMES ════════════════════ */}
       {activeTab === "resumes" && (
-        <div
-          className="v2-card"
-          style={{
-            background: "var(--bg-surface)",
-            border: "1px solid var(--border-default)",
-            borderRadius: "var(--radius-xl)",
-            overflow: "hidden",
-          }}
-        >
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--border-subtle)", background: "var(--bg-surface-2)" }}>
-                  <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>DOCUMENT NAME</th>
-                  <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>USER</th>
-                  <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>TARGET ROLE</th>
-                  <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>SIZE</th>
-                  <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>UPLOADED</th>
-                  <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700, textAlign: "right" }}>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {resumesLoading ? (
-                  <tr>
-                    <td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--txt-secondary)" }}>
-                      <Loader2 size={24} className="anim-spin" style={{ margin: "0 auto 8px" }} />
-                      Loading resumes...
-                    </td>
+        <div>
+          {/* Resumes Filter Bar */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "12px",
+              marginBottom: "16px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border-default)",
+                borderRadius: "var(--radius-md)",
+                padding: "6px 12px",
+                maxWidth: "380px",
+                flex: 1,
+              }}
+            >
+              <Search size={16} color="var(--txt-secondary)" />
+              <input
+                type="text"
+                value={resumeSearch}
+                onChange={(e) => setResumeSearch(e.target.value)}
+                placeholder="Search resumes by title or role..."
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  outline: "none",
+                  color: "var(--txt-primary)",
+                  fontSize: "13px",
+                  width: "100%",
+                }}
+              />
+              {resumeSearch && (
+                <button
+                  onClick={() => setResumeSearch("")}
+                  style={{ background: "transparent", border: "none", color: "var(--txt-secondary)", cursor: "pointer" }}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={() => refetchResumes()}
+              className="v2-btn v2-btn--secondary"
+              style={{ padding: "8px 12px" }}
+              title="Refresh resumes"
+            >
+              <RefreshCw size={14} />
+            </button>
+          </div>
+
+          <div
+            className="v2-card"
+            style={{
+              background: "var(--bg-surface)",
+              border: "1px solid var(--border-default)",
+              borderRadius: "var(--radius-xl)",
+              overflow: "hidden",
+            }}
+          >
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--border-subtle)", background: "var(--bg-surface-2)" }}>
+                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>DOCUMENT NAME</th>
+                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>USER</th>
+                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>TARGET ROLE</th>
+                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>SIZE</th>
+                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>UPLOADED</th>
+                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700, textAlign: "right" }}>ACTIONS</th>
                   </tr>
-                ) : resumes?.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--txt-secondary)" }}>
-                      No resumes uploaded by users yet.
-                    </td>
-                  </tr>
-                ) : (
-                  resumes?.map((r) => (
-                    <tr key={r.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                      <td style={{ padding: "14px 18px", fontWeight: 700, color: "var(--txt-primary)" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <FileText size={16} color="var(--brand-400)" />
-                          {r.name}
-                        </div>
-                      </td>
-                      <td style={{ padding: "14px 18px" }}>
-                        <div style={{ color: "var(--txt-primary)", fontWeight: 600 }}>{r.userName}</div>
-                        <div style={{ fontSize: "11px", color: "var(--txt-secondary)" }}>{r.userEmail}</div>
-                      </td>
-                      <td style={{ padding: "14px 18px", color: "var(--txt-secondary)" }}>
-                        {r.targetRole || "General"}
-                      </td>
-                      <td style={{ padding: "14px 18px", color: "var(--txt-secondary)" }}>
-                        {formatBytes(r.sizeBytes)}
-                      </td>
-                      <td style={{ padding: "14px 18px", color: "var(--txt-secondary)" }}>
-                        {new Date(r.uploadedAt).toLocaleDateString()}
-                      </td>
-                      <td style={{ padding: "14px 18px", textAlign: "right" }}>
-                        <button
-                          onClick={() => {
-                            if (confirm(`Are you sure you want to delete ${r.name}?`)) {
-                              deleteResumeMutation.mutate(r.id)
-                            }
-                          }}
-                          style={{
-                            background: "var(--bg-surface-2)",
-                            border: "1px solid var(--border-default)",
-                            borderRadius: "var(--radius-sm)",
-                            padding: "6px",
-                            color: "var(--clr-danger)",
-                            cursor: "pointer",
-                          }}
-                          title="Delete resume"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                </thead>
+                <tbody>
+                  {resumesLoading ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--txt-secondary)" }}>
+                        <Loader2 size={24} className="anim-spin" style={{ margin: "0 auto 8px" }} />
+                        Loading resumes...
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : resumes?.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--txt-secondary)" }}>
+                        No resumes found matching your search.
+                      </td>
+                    </tr>
+                  ) : (
+                    resumes?.map((r) => (
+                      <tr key={r.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                        <td style={{ padding: "14px 18px", fontWeight: 700, color: "var(--txt-primary)" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <FileText size={16} color="var(--brand-400)" />
+                            {r.name}
+                          </div>
+                        </td>
+                        <td style={{ padding: "14px 18px" }}>
+                          <div style={{ color: "var(--txt-primary)", fontWeight: 600 }}>{r.userName}</div>
+                          <div style={{ fontSize: "11px", color: "var(--txt-secondary)" }}>{r.userEmail}</div>
+                        </td>
+                        <td style={{ padding: "14px 18px", color: "var(--txt-secondary)" }}>
+                          {r.targetRole || "General"}
+                        </td>
+                        <td style={{ padding: "14px 18px", color: "var(--txt-secondary)" }}>
+                          {formatBytes(r.sizeBytes)}
+                        </td>
+                        <td style={{ padding: "14px 18px", color: "var(--txt-secondary)" }}>
+                          {new Date(r.uploadedAt).toLocaleDateString()}
+                        </td>
+                        <td style={{ padding: "14px 18px", textAlign: "right" }}>
+                          <div style={{ display: "inline-flex", gap: "6px" }}>
+                            <button
+                              onClick={() => handlePreviewResume(r)}
+                              style={{
+                                background: "var(--bg-surface-2)",
+                                border: "1px solid var(--border-default)",
+                                borderRadius: "var(--radius-sm)",
+                                padding: "6px",
+                                color: "var(--txt-secondary)",
+                                cursor: "pointer",
+                              }}
+                              title="Preview resume details"
+                            >
+                              <Eye size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleDownloadResume(r)}
+                              style={{
+                                background: "var(--bg-surface-2)",
+                                border: "1px solid var(--border-default)",
+                                borderRadius: "var(--radius-sm)",
+                                padding: "6px",
+                                color: "var(--brand-400)",
+                                cursor: "pointer",
+                              }}
+                              title="Download resume file"
+                            >
+                              <Download size={14} />
+                            </button>
+                            <button
+                              onClick={() => setDeletingResume(r)}
+                              style={{
+                                background: "var(--bg-surface-2)",
+                                border: "1px solid var(--border-default)",
+                                borderRadius: "var(--radius-sm)",
+                                padding: "6px",
+                                color: "var(--clr-danger)",
+                                cursor: "pointer",
+                              }}
+                              title="Delete resume"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -850,6 +1099,45 @@ export default function AdminDashboardPage() {
                 <span style={{ fontWeight: 700, color: "var(--txt-primary)" }}>
                   {stats?.freeLimitDefault} requests per user
                 </span>
+              </div>
+
+              {/* Interactive AI Health Test */}
+              <div style={{ marginTop: "8px", paddingTop: "14px", borderTop: "1px solid var(--border-subtle)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                  <span style={{ fontWeight: 700, color: "var(--txt-primary)" }}>AI Service Connectivity</span>
+                  <button
+                    onClick={handleTestAi}
+                    disabled={isTestingAi}
+                    className="v2-btn v2-btn--secondary"
+                    style={{ padding: "6px 12px", fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  >
+                    {isTestingAi ? <Loader2 size={13} className="anim-spin" /> : <RefreshCw size={13} />}
+                    {isTestingAi ? "Testing..." : "Test AI Connection"}
+                  </button>
+                </div>
+                {aiTestResult && (
+                  <div
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: "var(--radius-md)",
+                      background: aiTestResult.success ? "rgba(16, 185, 129, 0.08)" : "rgba(239, 68, 68, 0.08)",
+                      border: aiTestResult.success ? "1px solid var(--border-success)" : "1px solid var(--border-danger)",
+                      fontSize: "12px",
+                    }}
+                  >
+                    {aiTestResult.success ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--clr-success)" }}>
+                        <CheckCircle2 size={16} />
+                        <span>Connected to <strong>{aiTestResult.model}</strong> ({aiTestResult.latencyMs}ms latency).</span>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--clr-danger)" }}>
+                        <XCircle size={16} />
+                        <span>Error: {aiTestResult.error}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1233,6 +1521,140 @@ export default function AdminDashboardPage() {
                 className="v2-btn v2-btn--danger"
               >
                 {deleteUserMutation.isPending ? <Loader2 size={16} className="anim-spin" /> : "Confirm Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Delete Resume Confirmation ── */}
+      {deletingResume && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "var(--bg-overlay)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+            padding: "16px",
+          }}
+        >
+          <div
+            className="v2-card"
+            style={{
+              width: "100%",
+              maxWidth: "420px",
+              background: "var(--bg-surface)",
+              border: "1px solid var(--border-danger)",
+              borderRadius: "var(--radius-xl)",
+              padding: "24px",
+              textAlign: "center",
+            }}
+          >
+            <AlertTriangle size={36} color="var(--clr-danger)" style={{ margin: "0 auto 12px" }} />
+            <h3 style={{ fontSize: "18px", fontWeight: 800, color: "var(--txt-primary)", marginBottom: "8px" }}>
+              Delete Resume?
+            </h3>
+            <p style={{ fontSize: "13px", color: "var(--txt-secondary)", marginBottom: "20px", lineHeight: "1.5" }}>
+              Permanently delete <strong>{deletingResume.name}</strong> uploaded by {deletingResume.userName}? This cannot be undone.
+            </p>
+            <div style={{ display: "flex", justifyContent: "center", gap: "12px" }}>
+              <button onClick={() => setDeletingResume(null)} className="v2-btn v2-btn--secondary">
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteResumeMutation.mutate(deletingResume.id)
+                  setDeletingResume(null)
+                }}
+                disabled={deleteResumeMutation.isPending}
+                className="v2-btn v2-btn--danger"
+              >
+                {deleteResumeMutation.isPending ? <Loader2 size={16} className="anim-spin" /> : "Confirm Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Preview Resume ── */}
+      {previewResume && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "var(--bg-overlay)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+            padding: "16px",
+          }}
+        >
+          <div
+            className="v2-card"
+            style={{
+              width: "100%",
+              maxWidth: "520px",
+              background: "var(--bg-surface)",
+              border: "1px solid var(--border-brand)",
+              borderRadius: "var(--radius-xl)",
+              padding: "28px",
+              boxShadow: "var(--shadow-xl)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <FileText size={20} color="var(--brand-400)" />
+                <h3 style={{ fontSize: "18px", fontWeight: 800, color: "var(--txt-primary)" }}>Resume Metadata</h3>
+              </div>
+              <button
+                onClick={() => setPreviewResume(null)}
+                style={{ background: "transparent", border: "none", color: "var(--txt-secondary)", cursor: "pointer" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px", marginBottom: "24px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "8px" }}>
+                <span style={{ color: "var(--txt-secondary)" }}>File Name</span>
+                <strong style={{ color: "var(--txt-primary)" }}>{previewResume.name}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "8px" }}>
+                <span style={{ color: "var(--txt-secondary)" }}>Uploaded By</span>
+                <span style={{ color: "var(--txt-primary)", fontWeight: 600 }}>{previewResume.userName} ({previewResume.userEmail})</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "8px" }}>
+                <span style={{ color: "var(--txt-secondary)" }}>Target Role</span>
+                <span style={{ color: "var(--txt-primary)" }}>{previewResume.targetRole || "General"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "8px" }}>
+                <span style={{ color: "var(--txt-secondary)" }}>MIME Type</span>
+                <span style={{ color: "var(--brand-300)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>{previewResume.mimeType}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "8px" }}>
+                <span style={{ color: "var(--txt-secondary)" }}>Size</span>
+                <span style={{ color: "var(--txt-primary)" }}>{formatBytes(previewResume.sizeBytes || 0)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "8px" }}>
+                <span style={{ color: "var(--txt-secondary)" }}>Uploaded At</span>
+                <span style={{ color: "var(--txt-primary)" }}>{new Date(previewResume.uploadedAt).toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <button onClick={() => setPreviewResume(null)} className="v2-btn v2-btn--secondary">
+                Close
+              </button>
+              <button
+                onClick={() => handleDownloadResume(previewResume)}
+                className="v2-btn v2-btn--primary"
+                style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
+              >
+                <Download size={14} /> Download Document
               </button>
             </div>
           </div>

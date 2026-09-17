@@ -12,6 +12,7 @@ interface AnalyticsData {
     applied: number
     interviewed: number
     offers: number
+    ghosted?: number
     rejected: number
   }
   conversion: {
@@ -129,6 +130,7 @@ export default function AnalyticsPage() {
                 { label: "Applied", count: data.funnel.applied, color: "bg-blue-500" },
                 { label: "Interview", count: data.funnel.interviewed, color: "bg-violet-500" },
                 { label: "Offer", count: data.funnel.offers, color: "bg-emerald-500" },
+                { label: "Ghosted", count: data.funnel.ghosted || 0, color: "bg-slate-500" },
                 { label: "Rejected", count: data.funnel.rejected, color: "bg-rose-500" },
               ].map((stage, i) => {
                 const maxCount = data.funnel.total || 1

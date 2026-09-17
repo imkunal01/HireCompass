@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import clientPromise from "@/lib/mongodb"
-import { signToken } from "@/lib/session"
+import { signToken, isEmailAdmin } from "@/lib/session"
 
 const BCRYPT_ROUNDS = 12
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60 // 30 days
@@ -59,13 +59,17 @@ export async function POST(request: NextRequest) {
     // ── Hash password ─────────────────────────────────────────────────────
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS)
 
+    // ── Role assignment ───────────────────────────────────────────────────
+    const isAdmin = isEmailAdmin(normalizedEmail)
+    const role: "admin" | "user" = isAdmin ? "admin" : "user"
+
     // ── Insert user ───────────────────────────────────────────────────────
     const now = new Date()
     const result = await users.insertOne({
       name: name.trim(),
       email: normalizedEmail,
       passwordHash,
-      role: "user",
+      role,
       createdAt: now,
       updatedAt: now,
     })
@@ -73,7 +77,7 @@ export async function POST(request: NextRequest) {
     const userId = result.insertedId.toString()
 
     // ── Issue JWT cookie ──────────────────────────────────────────────────
-    const sessionUser = { id: userId, name: name.trim(), email: normalizedEmail, role: "user" }
+    const sessionUser = { id: userId, name: name.trim(), email: normalizedEmail, role }
     const token = await signToken(sessionUser)
 
     const response = NextResponse.json(

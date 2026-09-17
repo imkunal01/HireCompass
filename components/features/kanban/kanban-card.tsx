@@ -94,7 +94,7 @@ export function KanbanCard({
       </div>
 
       {/* Lifecycle Badges & Details */}
-      {(opportunity.oaDetails?.platform || opportunity.interviewRounds?.length || opportunity.offerDetails?.totalAmount || opportunity.rejectionDetails?.stage) && (
+      {(opportunity.oaDetails?.platform || opportunity.interviewRounds?.length || opportunity.offerDetails?.totalAmount || opportunity.rejectionDetails?.stage || opportunity.status === "GHOSTED") && (
         <div className="mt-2 flex flex-wrap gap-1">
           {opportunity.status === "ASSESSMENT" && opportunity.oaDetails?.platform && (
             <span className="inline-flex items-center rounded-md bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 text-[9px] font-semibold text-cyan-500 dark:text-cyan-400">
@@ -109,6 +109,11 @@ export function KanbanCard({
           {opportunity.status === "OFFER" && opportunity.offerDetails?.totalAmount && (
             <span className="inline-flex items-center rounded-md bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
               🎉 {opportunity.offerDetails.totalAmount}
+            </span>
+          )}
+          {opportunity.status === "GHOSTED" && (
+            <span className="inline-flex items-center rounded-md bg-slate-500/10 border border-slate-500/20 px-1.5 py-0.5 text-[9px] font-semibold text-slate-600 dark:text-slate-300">
+              👻 No Shortlist / Silent
             </span>
           )}
           {opportunity.status === "REJECTED" && (

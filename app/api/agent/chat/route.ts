@@ -54,7 +54,7 @@ const TOOLS: Groq.Chat.ChatCompletionTool[] = [
           company: { type: "string", description: "Company name" },
           status: {
             type: "string",
-            enum: ["SAVED", "INTERESTED", "APPLIED", "ASSESSMENT", "INTERVIEW", "OFFER", "REJECTED"],
+            enum: ["SAVED", "INTERESTED", "APPLIED", "ASSESSMENT", "INTERVIEW", "OFFER", "GHOSTED", "REJECTED"],
             description: "Current status (default: SAVED)",
           },
           priority: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] },
@@ -79,7 +79,7 @@ const TOOLS: Groq.Chat.ChatCompletionTool[] = [
           search: { type: "string", description: "Company name or job title to find" },
           status: {
             type: "string",
-            enum: ["SAVED", "INTERESTED", "APPLIED", "ASSESSMENT", "INTERVIEW", "OFFER", "REJECTED"],
+            enum: ["SAVED", "INTERESTED", "APPLIED", "ASSESSMENT", "INTERVIEW", "OFFER", "GHOSTED", "REJECTED"],
           },
         },
       },
@@ -1030,8 +1030,13 @@ Keys required: "title", "company", "location" (or null), "isRemote" (boolean), "
     const ghost14 = new Date(Date.now() - 14 * 86400000)
     const ghostedApps = await db.collection("opportunities").find({
       userId,
-      status: { $in: ["APPLIED", "ASSESSMENT"] },
-      updatedAt: { $lt: ghost14 },
+      $or: [
+        { status: "GHOSTED" },
+        {
+          status: { $in: ["APPLIED", "ASSESSMENT"] },
+          updatedAt: { $lt: ghost14 },
+        },
+      ],
     }).sort({ updatedAt: 1 }).toArray()
 
     if (ghostedApps.length === 0) {
@@ -1048,7 +1053,7 @@ Keys required: "title", "company", "location" (or null), "isRemote" (boolean), "
   // ── draft_followup_email ───────────────────────────────────────────────────
   if (name === "draft_followup_email") {
     const re = new RegExp(args.company, "i")
-    const opp = await db.collection("opportunities").findOne({ userId, company: re, status: { $in: ["APPLIED", "ASSESSMENT", "INTERVIEW"] } })
+    const opp = await db.collection("opportunities").findOne({ userId, company: re, status: { $in: ["APPLIED", "ASSESSMENT", "INTERVIEW", "GHOSTED"] } })
     
     if (!opp) {
       return { success: false, message: `Could not find an active application for "${args.company}".` }

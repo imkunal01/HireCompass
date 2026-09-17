@@ -4,7 +4,8 @@ import {
   X, ExternalLink, Edit2, Send, Calendar, Clock, MapPin, Tag,
   FileText, CheckSquare, Mail, Activity, ChevronRight, Loader2,
   ClipboardList, Copy, Check, Sparkles, FolderGit2, Zap, RefreshCw,
-  Trash2, Brain, Layers, AlertOctagon, DollarSign, CheckCircle2, XCircle, Plus, Save
+  Trash2, Brain, Layers, AlertOctagon, DollarSign, CheckCircle2, XCircle, Plus, Save,
+  Ghost
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -353,6 +354,14 @@ export function JobDrawer({ opportunityId, onClose, initialData }: JobDrawerProp
             </button>
             <button
               onClick={() => {
+                updateMutation.mutate({ status: "GHOSTED" } as any)
+              }}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-500/10 border border-slate-500/20 text-slate-400 hover:bg-slate-500/20 px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all"
+            >
+              <Ghost className="h-3 w-3" /> Ghosted 👻
+            </button>
+            <button
+              onClick={() => {
                 setActiveTab("rejection")
               }}
               className="flex items-center justify-center gap-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all"
@@ -405,6 +414,43 @@ export function JobDrawer({ opportunityId, onClose, initialData }: JobDrawerProp
               {/* Overview Tab */}
               {activeTab === "overview" && (
                 <div className="space-y-4">
+                  {normalizeStatus(opportunity.status) === "GHOSTED" && (
+                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Ghost className="h-4 w-4 text-slate-500" />
+                          <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                            Ghosted / No Shortlist
+                          </h4>
+                        </div>
+                        <span className="text-[11px] text-slate-400">
+                          Silent Application
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Not shortlisted for an OA or interview, or no communication received. You can send a polite follow-up or restore this back to active status.
+                      </p>
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          onClick={() => {
+                            window.dispatchEvent(new CustomEvent('open-bot', {
+                              detail: { prompt: `Draft a polite follow-up email for ${opportunity.company} (${opportunity.title}) since I haven't heard back regarding OA or interview shortlisting.` }
+                            }))
+                          }}
+                          className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary/40 transition-colors shadow-sm"
+                        >
+                          <Mail className="h-3 w-3" /> Draft Follow-up
+                        </button>
+                        <button
+                          onClick={() => updateMutation.mutate({ status: "APPLIED" } as any)}
+                          className="flex items-center gap-1.5 rounded-lg border border-amber-500/20 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-500 dark:text-amber-400 hover:bg-amber-500/20 transition-colors"
+                        >
+                          <Send className="h-3 w-3" /> Move back to Applied
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-3">
                     {opportunity.location && (
                       <InfoTile label="Location" icon={MapPin}>

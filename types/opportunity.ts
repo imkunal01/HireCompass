@@ -6,6 +6,7 @@ export type OpportunityStatus =
   | "ASSESSMENT"
   | "INTERVIEW"
   | "OFFER"
+  | "GHOSTED"
   | "REJECTED"
   // Legacy aliases kept for backward compatibility with seeded data
   | "WISHLIST"
@@ -96,6 +97,12 @@ export interface RejectionDetails {
   rejectionDate?: string | Date | null
 }
 
+export interface GhostedDetails {
+  ghostedAt?: string | Date | null
+  noShortlistStage?: string | null
+  notes?: string | null
+}
+
 export interface Opportunity {
   _id?: string
   id: string
@@ -125,6 +132,7 @@ export interface Opportunity {
   hrRoundDetails?: HrRoundDetails
   offerDetails?: OfferDetails
   rejectionDetails?: RejectionDetails
+  ghostedDetails?: GhostedDetails
 }
 
 export interface DashboardStats {
@@ -163,6 +171,7 @@ export const STATUS_CONFIG: Record<string, { label: string; color: string; bgCol
   INTERVIEW:   { label: "Interview",      color: "#a855f7", bgColor: "bg-purple-50 dark:bg-purple-950/60",   textColor: "text-purple-600 dark:text-purple-400",   borderColor: "border-t-purple-500" },
   INTERVIEWING:{ label: "Interview",      color: "#a855f7", bgColor: "bg-purple-50 dark:bg-purple-950/60",   textColor: "text-purple-600 dark:text-purple-400",   borderColor: "border-t-purple-500" },
   OFFER:       { label: "Offer 🎉",       color: "#10b981", bgColor: "bg-emerald-50 dark:bg-emerald-950/60", textColor: "text-emerald-600 dark:text-emerald-400", borderColor: "border-t-emerald-500" },
+  GHOSTED:     { label: "Ghosted 👻",     color: "#64748b", bgColor: "bg-slate-100 dark:bg-slate-800/80",    textColor: "text-slate-600 dark:text-slate-300",     borderColor: "border-t-slate-500" },
   REJECTED:    { label: "Rejected ❌",    color: "#ef4444", bgColor: "bg-rose-50 dark:bg-rose-950/60",       textColor: "text-rose-600 dark:text-rose-400",       borderColor: "border-t-rose-500" },
 }
 
@@ -178,6 +187,7 @@ export const KANBAN_COLUMNS: { status: OpportunityStatus; label: string }[] = [
   { status: "ASSESSMENT",  label: "OA / Assessment" },
   { status: "INTERVIEW",   label: "Interview" },
   { status: "OFFER",       label: "Offer" },
+  { status: "GHOSTED",     label: "Ghosted" },
   { status: "REJECTED",    label: "Rejected" },
 ]
 

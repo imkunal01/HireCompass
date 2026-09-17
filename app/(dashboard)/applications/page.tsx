@@ -71,6 +71,13 @@ const MOCK_OPPORTUNITIES: Opportunity[] = [
     },
     createdAt: new Date(Date.now() - 12 * 86400000).toISOString(),
   },
+  {
+    id: "m8", userId: "", company: "Airbnb", title: "Frontend Engineer",
+    status: "GHOSTED", priority: "MEDIUM",
+    skills: ["React", "TypeScript", "GraphQL"], tags: ["design-tech", "remote"],
+    notes: "Applied 3 weeks ago; no response or OA shortlist received.",
+    createdAt: new Date(Date.now() - 21 * 86400000).toISOString(),
+  },
 ]
 
 export default function ApplicationsPage() {
@@ -134,7 +141,7 @@ export default function ApplicationsPage() {
         {/* Loading skeleton */}
         {isLoading && (
           <div className="flex gap-4 overflow-x-auto pb-4">
-            {Array.from({ length: 6 }).map((_, i) => (
+            {Array.from({ length: 7 }).map((_, i) => (
               <div key={i} className="min-w-[240px] h-64 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 skeleton" />
             ))}
           </div>

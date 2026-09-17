@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     const [total, applied, interviews, offers] = await Promise.all([
       col.countDocuments({ userId }),
-      col.countDocuments({ userId, status: { $in: ["APPLIED", "ASSESSMENT", "INTERVIEW", "OFFER", "REJECTED", "INTERVIEWING"] } }),
+      col.countDocuments({ userId, status: { $in: ["APPLIED", "ASSESSMENT", "INTERVIEW", "OFFER", "GHOSTED", "REJECTED", "INTERVIEWING"] } }),
       col.countDocuments({ userId, status: { $in: ["INTERVIEW", "INTERVIEWING", "ASSESSMENT"] } }),
       col.countDocuments({ userId, status: "OFFER" }),
     ])

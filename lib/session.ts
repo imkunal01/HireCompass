@@ -73,6 +73,26 @@ export async function verifyToken(token: string): Promise<SessionUser | null> {
 }
 
 /**
+ * Checks if a given email is designated as an administrator
+ * via ADMIN_EMAIL, ADMIN_EMAILS, or GMAIL_USER env vars.
+ */
+export function isEmailAdmin(email?: string): boolean {
+  if (!email) return false
+  const normalized = email.toLowerCase().trim()
+  const adminList = [
+    process.env.ADMIN_EMAIL,
+    process.env.ADMIN_EMAILS,
+    process.env.GMAIL_USER,
+  ]
+    .filter(Boolean)
+    .flatMap((v) => (v as string).split(","))
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+
+  return adminList.includes(normalized)
+}
+
+/**
  * Guard for Admin API routes.
  * Returns { session } or { errorResponse }
  */
@@ -87,14 +107,35 @@ export async function requireAdmin(request: NextRequest): Promise<
     }
   }
 
-  if (session.user.role !== "admin") {
-    return {
-      session: null,
-      errorResponse: NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 }),
-    }
+  // Check token claim or designated admin emails
+  if (session.user.role === "admin" || isEmailAdmin(session.user.email)) {
+    session.user.role = "admin"
+    return { session, errorResponse: null }
   }
 
-  return { session, errorResponse: null }
+  // Fallback: check MongoDB in case user was promoted after JWT token was issued
+  try {
+    const clientPromise = (await import("@/lib/mongodb")).default
+    const { ObjectId } = await import("mongodb")
+    const client = await clientPromise
+    if (ObjectId.isValid(session.user.id)) {
+      const dbUser = await client.db().collection("users").findOne(
+        { _id: new ObjectId(session.user.id) },
+        { projection: { role: 1, email: 1 } }
+      )
+      if (dbUser && (dbUser.role === "admin" || isEmailAdmin(dbUser.email))) {
+        session.user.role = "admin"
+        return { session, errorResponse: null }
+      }
+    }
+  } catch (err) {
+    console.error("[requireAdmin db check error]", err)
+  }
+
+  return {
+    session: null,
+    errorResponse: NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 }),
+  }
 }
 
 // ─── Cookie Helpers ────────────────────────────────────────────────────────

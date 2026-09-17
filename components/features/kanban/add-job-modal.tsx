@@ -80,6 +80,7 @@ const PIPELINE_STATUS_OPTIONS: { value: OpportunityStatus; label: string }[] = [
   { value: "ASSESSMENT", label: "OA / Assessment" },
   { value: "INTERVIEW", label: "Interview" },
   { value: "OFFER", label: "Offer 🎉" },
+  { value: "GHOSTED", label: "Ghosted 👻" },
   { value: "REJECTED", label: "Rejected ❌" },
 ]
 
@@ -311,7 +312,7 @@ export function AddJobModal({ isOpen, onClose, defaultStatus = "SAVED" }: AddJob
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               Application Stage / Flow
             </label>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1.5">
               {PIPELINE_STATUS_OPTIONS.map((opt) => {
                 const isSelected = currentStatus === opt.value
                 const cfg = STATUS_CONFIG[opt.value]
@@ -332,6 +333,12 @@ export function AddJobModal({ isOpen, onClose, defaultStatus = "SAVED" }: AddJob
                 )
               })}
             </div>
+            {currentStatus === "GHOSTED" && (
+              <div className="flex items-center gap-2 rounded-xl bg-slate-500/10 border border-slate-500/20 px-3 py-2 text-xs text-slate-400 mt-1">
+                <span>👻</span>
+                <p>Not shortlisted for an OA or interview, or no response received from company.</p>
+              </div>
+            )}
           </div>
 
           {/* Company + Role */}

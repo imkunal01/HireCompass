@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireAdmin } from "@/lib/session"
+import { requireAdmin, isEmailAdmin } from "@/lib/session"
 import clientPromise from "@/lib/mongodb"
 import bcrypt from "bcryptjs"
 
@@ -66,16 +66,20 @@ export async function GET(request: NextRequest) {
 
     const users = rawUsers.map((u) => {
       const id = u._id.toString()
+      const isAdmin = u.role === "admin" || isEmailAdmin(u.email)
+      const hasCustomLimit = typeof u.aiLimit === "number" && u.aiLimit > 0
       return {
         id,
         _id: id,
         name: u.name || "",
         email: u.email || "",
-        role: u.role || "user",
+        role: isAdmin ? "admin" : "user",
         aiAccess: u.aiAccess || "DEFAULT", // "DEFAULT" | "UNRESTRICTED" | "DISABLED"
+        hasCustomLimit,
+        customLimit: hasCustomLimit ? u.aiLimit : null,
         aiUsage: {
           count: u.aiUsage?.count ?? 0,
-          limit: u.role === "admin" || u.aiAccess === "UNRESTRICTED" ? "UNLIMITED" : (u.aiLimit || defaultLimit),
+          limit: isAdmin || u.aiAccess === "UNRESTRICTED" ? "UNLIMITED" : (hasCustomLimit ? u.aiLimit : defaultLimit),
           lastUsedAt: u.aiUsage?.lastUsedAt?.toISOString?.() ?? u.aiUsage?.lastUsedAt ?? null,
         },
         hasCustomKey: Boolean(u.groqKey?.tag),

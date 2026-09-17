@@ -14,8 +14,13 @@ export async function GET(request: NextRequest) {
   const client = await clientPromise
   const ghosted = await client.db().collection("opportunities").find({
     userId: session.user.id,
-    status: { $in: ["APPLIED", "ASSESSMENT"] },
-    updatedAt: { $lt: cutoff },
+    $or: [
+      { status: "GHOSTED" },
+      {
+        status: { $in: ["APPLIED", "ASSESSMENT"] },
+        updatedAt: { $lt: cutoff },
+      },
+    ],
   }).sort({ updatedAt: 1 }).toArray()
 
   const now = Date.now()

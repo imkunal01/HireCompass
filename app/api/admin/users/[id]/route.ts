@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireAdmin } from "@/lib/session"
+import { requireAdmin, isEmailAdmin } from "@/lib/session"
 import clientPromise from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
 import bcrypt from "bcryptjs"
@@ -43,10 +43,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const updateSet: Record<string, any> = { updatedAt: new Date() }
     const unsetFields: Record<string, any> = {}
 
-    // Prevent demoting yourself if you are the logged in admin
+    // Prevent demoting yourself or designated env admin
     if (role && role !== existingUser.role) {
-      if (session.user.id === targetUserId && role !== "admin") {
-        return NextResponse.json({ error: "You cannot demote your own admin account." }, { status: 400 })
+      if ((session.user.id === targetUserId || isEmailAdmin(existingUser.email)) && role !== "admin") {
+        return NextResponse.json({ error: "This admin account cannot be demoted." }, { status: 400 })
       }
       if (["admin", "user"].includes(role)) {
         updateSet.role = role
@@ -57,12 +57,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       updateSet.aiAccess = aiAccess
     }
 
-    if (typeof aiLimit === "number") {
+    if (typeof aiLimit === "number" && !isNaN(aiLimit)) {
       if (aiLimit > 0) {
         updateSet.aiLimit = aiLimit
       } else {
         unsetFields.aiLimit = ""
       }
+    } else if (aiLimit === null || aiLimit === "" || (typeof aiLimit === "string" && aiLimit.trim() === "")) {
+      unsetFields.aiLimit = ""
     }
 
     if (resetAiUsage === true) {
@@ -138,6 +140,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const user = await db.collection("users").findOne({ _id: new ObjectId(targetUserId) })
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    if (isEmailAdmin(user.email)) {
+      return NextResponse.json({ error: "Designated primary admin accounts cannot be deleted." }, { status: 400 })
     }
 
     // Cascade delete user data

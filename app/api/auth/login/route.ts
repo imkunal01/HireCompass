@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import clientPromise from "@/lib/mongodb"
-import { signToken } from "@/lib/session"
+import { signToken, isEmailAdmin } from "@/lib/session"
 import { getExtensionCorsHeaders, handleOptionsCors } from "@/lib/extension-cors"
 
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60 // 30 days
@@ -56,12 +56,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // ── Check Admin Status ────────────────────────────────────────────────
+    const isAdmin = user.role === "admin" || isEmailAdmin(normalizedEmail)
+    if (isAdmin && user.role !== "admin") {
+      await users.updateOne(
+        { _id: user._id },
+        { $set: { role: "admin", updatedAt: new Date() } }
+      )
+    }
+
     // ── Issue JWT cookie ──────────────────────────────────────────────────
     const sessionUser = {
       id: user._id.toString(),
       name: user.name as string,
       email: user.email as string,
-      role: (user.role as string) || "user",
+      role: isAdmin ? "admin" : (user.role as string) || "user",
     }
     const token = await signToken(sessionUser)
 

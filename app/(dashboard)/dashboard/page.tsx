@@ -33,6 +33,7 @@ const EMPTY_PIPELINE = [
   { status: "ASSESSMENT",  count: 0,  label: "OA / Assessment"  },
   { status: "INTERVIEW",   count: 0,  label: "Interview"   },
   { status: "OFFER",       count: 0,  label: "Offer 🎉"   },
+  { status: "GHOSTED",     count: 0,  label: "Ghosted 👻" },
   { status: "REJECTED",    count: 0,  label: "Rejected ❌" },
 ]
 
