@@ -744,8 +744,8 @@ export default function SettingsPage() {
                 </h4>
                 <ol className="space-y-2 text-xs text-slate-600 dark:text-slate-400 list-decimal pl-4">
                   <li>Open your browser and navigate to <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[11px]">chrome://extensions</code> (or <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[11px]">edge://extensions</code>).</li>
-                  <li>Enable <strong>"Developer mode"</strong> using the toggle switch in the top-right corner.</li>
-                  <li>Click <strong>"Load unpacked"</strong> and select the directory:
+                  <li>Enable <strong>&quot;Developer mode&quot;</strong> using the toggle switch in the top-right corner.</li>
+                  <li>Click <strong>&quot;Load unpacked&quot;</strong> and select the directory:
                     <div className="mt-1 p-2 rounded-lg bg-slate-100 dark:bg-slate-800 font-mono text-[11px] text-slate-800 dark:text-slate-200 select-all">
                       c:\Users\Kunal\Desktop\Projects\HireCompass\extension
                     </div>

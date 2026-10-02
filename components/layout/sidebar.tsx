@@ -24,6 +24,8 @@ import {
   Send,
   AlertOctagon,
   ShieldCheck,
+  BrainCircuit,
+  ListChecks,
   type LucideIcon,
 } from "lucide-react"
 import { useUser } from "@/hooks/useUser"
@@ -40,19 +42,21 @@ interface NavItem {
 }
 
 const sidebarItems: NavItem[] = [
-  { name: "Dashboard",         href: "/dashboard",        icon: LayoutDashboard },
-  { name: "Opportunities",     href: "/opportunities",    icon: Briefcase },
-  { name: "Applications",      href: "/applications",     icon: FolderOpen },
-  { name: "Interviews",        href: "/interviews",      icon: Calendar },
-  { name: "Rejection Tracker", href: "/rejected",        icon: AlertOctagon },
-  { name: "Analytics",         href: "/analytics",      icon: BarChart3 },
-  { name: "Reminders",         href: "/reminders",      icon: Bell,       dividerBefore: true },
-  { name: "Day Planner",       href: "/planner",         icon: CalendarCheck, badge: "AI", badgeVariant: "ai" },
-  { name: "Import Job",        href: "/import",          icon: Download },
-  { name: "Outreach",          href: "/outreach",        icon: Send,       badge: "NEW", badgeVariant: "new" },
-  { name: "Projects",          href: "/projects",        icon: FolderGit2, dividerBefore: true },
-  { name: "Resumes",           href: "/resumes",         icon: FileText },
-  { name: "Settings",          href: "/settings",        icon: Settings },
+  { name: "Dashboard",         href: "/dashboard",            icon: LayoutDashboard },
+  { name: "Opportunities",     href: "/opportunities",        icon: Briefcase },
+  { name: "Applications",      href: "/applications",         icon: FolderOpen },
+  { name: "Interviews",        href: "/interviews",           icon: Calendar },
+  { name: "Problem Solving",   href: "/prep/problem-solving", icon: ListChecks,    badge: "NEW", badgeVariant: "new" },
+  { name: "Interview Prep",    href: "/prep",                 icon: BrainCircuit,  badge: "AI", badgeVariant: "ai" },
+  { name: "Rejection Tracker", href: "/rejected",            icon: AlertOctagon },
+  { name: "Analytics",         href: "/analytics",          icon: BarChart3 },
+  { name: "Reminders",         href: "/reminders",          icon: Bell,          dividerBefore: true },
+  { name: "Day Planner",       href: "/planner",             icon: CalendarCheck, badge: "AI", badgeVariant: "ai" },
+  { name: "Import Job",        href: "/import",              icon: Download },
+  { name: "Outreach",          href: "/outreach",            icon: Send,          badge: "NEW", badgeVariant: "new" },
+  { name: "Projects",          href: "/projects",            icon: FolderGit2,    dividerBefore: true },
+  { name: "Resumes",           href: "/resumes",             icon: FileText },
+  { name: "Settings",          href: "/settings",            icon: Settings },
 ]
 
 export default function Sidebar() {
