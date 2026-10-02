@@ -427,7 +427,7 @@ export function WarRoomTab({
                 <span>Dangerous Traps & Anti-Patterns to Avoid</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {dossier.commonPitfalls.map((trap, idx) => (
+                {dossier.commonPitfalls.map((trap: string, idx: number) => (
                   <div key={idx} className="p-3.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-rose-500/20 text-xs text-slate-700 dark:text-slate-300 leading-relaxed shadow-xs">
                     <span className="font-bold text-rose-500 block mb-0.5">Trap #{idx + 1}</span>
                     {trap}
@@ -456,24 +456,40 @@ export function WarRoomTab({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {dossier.reverseQuestions.map((q, idx) => {
                 const isCopied = copiedIdx === idx
+                const questionText = typeof q === "string" ? q : q.question
+                const category = typeof q === "object" ? q.category : null
+                const contextRationale = typeof q === "object" ? q.contextRationale : null
+
                 return (
                   <div
                     key={idx}
                     className="relative group p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 hover:border-indigo-500/50 hover:bg-white dark:hover:bg-slate-900 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-200 flex flex-col justify-between gap-3"
                   >
                     <div className="space-y-1.5">
-                      <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">
-                        Question #{idx + 1}
-                      </span>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">
+                          Question #{idx + 1}
+                        </span>
+                        {category && (
+                          <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                            {category}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 leading-relaxed">
-                        &quot;{q}&quot;
+                        &quot;{questionText}&quot;
                       </p>
+                      {contextRationale && (
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 italic">
+                          💡 {contextRationale}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-end pt-1">
                       <button
                         type="button"
-                        onClick={() => handleCopyQuestion(q, idx)}
+                        onClick={() => handleCopyQuestion(questionText, idx)}
                         className={cn(
                           "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs",
                           isCopied

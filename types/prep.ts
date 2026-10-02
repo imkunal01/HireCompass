@@ -20,10 +20,13 @@ export interface Scorecard {
   technicalDepth: number // 1-10
   tradeOffAwareness: number // 1-10
   communicationComposure: number // 1-10
+  composure?: number // alias
   strengths: string[]
   gaps: string[]
   goldStandardAnswer?: string
+  goldStandardCounter?: string // alias
   feedback: string
+  critique?: string // alias
 }
 
 export interface GrillerMessage {
@@ -73,6 +76,11 @@ export interface StarStory {
     pe: string
     pm: string
   }
+  versions?: {
+    em: string
+    pe: string
+    pm: string
+  }
   tags: string[]
   bookmarked?: boolean
   createdAt: string
@@ -80,7 +88,7 @@ export interface StarStory {
 }
 
 export interface ReverseQuestion {
-  category: "Architecture" | "Scale & Reliability" | "Culture & Team" | "Product & Vision"
+  category: "Architecture" | "Scale & Reliability" | "Culture & Team" | "Product & Vision" | string
   question: string
   contextRationale: string
 }
@@ -92,7 +100,8 @@ export interface WarRoomDossier {
   cultureNotes: string
   roundExpectations: string[]
   highYieldTopics: string[]
-  reverseQuestions: ReverseQuestion[]
+  reverseQuestions: (ReverseQuestion | string)[]
+  commonPitfalls?: string[]
   suggestedSheetCategory?: string
 }
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
 import clientPromise from "@/lib/mongodb"
-import { getUserAiConfig, recordAiUsage } from "@/lib/ai-quota"
+import { getUserAiConfig, incrementUserAiUsage } from "@/lib/ai-quota"
 import Groq from "groq-sdk"
 
 export const dynamic = "force-dynamic"
@@ -155,7 +155,7 @@ Respond ONLY with a valid JSON object matching this structure:
       return NextResponse.json({ error: "Failed to parse remediation drills" }, { status: 500 })
     }
 
-    await recordAiUsage(session.user.id)
+    await incrementUserAiUsage(session.user.id)
 
     return NextResponse.json({
       drills: parsed.drills || [],

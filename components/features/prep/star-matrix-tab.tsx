@@ -261,7 +261,12 @@ export function StarMatrixTab() {
             {stories.map((story) => {
               const sId = (story._id || story.id) as string
               const currentAudience: StarAudience = audienceTabs[sId] || "em"
-              const activePitch = story.versions?.[currentAudience] || story.versions?.em || story.situation
+              const activePitch =
+                story.audienceVersions?.[currentAudience] ||
+                story.versions?.[currentAudience] ||
+                story.audienceVersions?.em ||
+                story.versions?.em ||
+                story.situation
               const isCopied = copiedId === sId
 
               return (

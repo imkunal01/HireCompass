@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
 import clientPromise from "@/lib/mongodb"
-import { getUserAiConfig, recordAiUsage } from "@/lib/ai-quota"
+import { getUserAiConfig, incrementUserAiUsage } from "@/lib/ai-quota"
 import Groq from "groq-sdk"
 import { ObjectId } from "mongodb"
 import { InterviewerPersona } from "@/types/prep"
@@ -153,7 +153,7 @@ Respond ONLY with a valid JSON object matching this structure:
     }
 
     // Record AI quota usage
-    await recordAiUsage(session.user.id)
+    await incrementUserAiUsage(session.user.id)
 
     return NextResponse.json({
       reply: parsedData.reply,

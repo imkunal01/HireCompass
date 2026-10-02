@@ -152,6 +152,11 @@ export async function incrementUserAiUsage(userId: string, count: number = 1): P
 }
 
 /**
+ * Backward compatibility alias for incrementUserAiUsage
+ */
+export const recordAiUsage = incrementUserAiUsage
+
+/**
  * Validates, encrypts, and saves a user's custom Groq API key.
  */
 export async function saveUserApiKey(

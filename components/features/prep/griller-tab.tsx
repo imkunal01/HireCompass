@@ -444,7 +444,7 @@ export function GrillerTab() {
                         {[
                           { label: "Technical Depth", val: m.scorecard.technicalDepth, max: 10 },
                           { label: "Trade-Off Awareness", val: m.scorecard.tradeOffAwareness, max: 10 },
-                          { label: "Composure & Clarity", val: m.scorecard.composure, max: 10 },
+                          { label: "Composure & Clarity", val: m.scorecard.communicationComposure ?? m.scorecard.composure ?? 8, max: 10 },
                         ].map((metric, mIdx) => {
                           const isHigh = metric.val >= 8
                           const isMid = metric.val >= 5 && metric.val < 8
@@ -467,15 +467,15 @@ export function GrillerTab() {
                         })}
                       </div>
 
-                      {m.scorecard.critique && (
+                      {(m.scorecard.critique || m.scorecard.feedback) && (
                         <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
                           <strong>Staff Feedback: </strong>
-                          {m.scorecard.critique}
+                          {m.scorecard.critique || m.scorecard.feedback}
                         </p>
                       )}
 
                       {/* Collapsible Gold-Standard Counter Defense */}
-                      {m.scorecard.goldStandardCounter && (
+                      {(m.scorecard.goldStandardCounter || m.scorecard.goldStandardAnswer) && (
                         <div className="pt-1">
                           {!isSolutionRevealed ? (
                             <button
@@ -494,7 +494,7 @@ export function GrillerTab() {
                                 Gold-Standard Defense Script:
                               </span>
                               <p className="leading-relaxed font-medium">
-                                {m.scorecard.goldStandardCounter}
+                                {m.scorecard.goldStandardCounter || m.scorecard.goldStandardAnswer}
                               </p>
                             </div>
                           )}
