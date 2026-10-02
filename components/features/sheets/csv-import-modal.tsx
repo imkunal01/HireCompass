@@ -81,6 +81,12 @@ export function CsvImportModal({
     duplicates: number
     rejected: number
     errors: Array<{ line: number; error: string }>
+    summary?: {
+      totalRowsProcessed: number
+      detectedFields: string[]
+      smartDefaultsApplied: string[]
+      usedAiAlignment?: boolean
+    }
   } | null>(null)
   const [generalError, setGeneralError] = useState<string | null>(null)
 
@@ -227,9 +233,12 @@ export function CsvImportModal({
         {/* Supported Columns & Template Download Card */}
         <div className="rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40 p-4 space-y-2.5 text-xs backdrop-blur-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-semibold text-slate-700 dark:text-slate-300">
-            <span className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Expected Column Schema:
-            </span>
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span className="uppercase tracking-wider">
+                Smart Auto-Mapping Active
+              </span>
+            </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -254,10 +263,11 @@ export function CsvImportModal({
             Topic, Title, Difficulty, Platform, Problem Link, Article Link, YouTube, Tags
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
-            <span>✓ Column header names are case-insensitive</span>
-            <span>✓ Duplicates are automatically skipped</span>
-            <span>✓ Missing topics auto-create new sections</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
+            <span>✓ Tolerates any column names & order</span>
+            <span>✓ Imports only present fields (Title/Link alone works)</span>
+            <span>✓ Auto-infers platforms & slugs from URLs</span>
+            <span>✓ Missing topics auto-route to General / sections</span>
           </div>
         </div>
 
@@ -391,6 +401,35 @@ export function CsvImportModal({
                 <div className="text-[10px] uppercase font-bold tracking-wider mt-0.5">Row Errors</div>
               </div>
             </div>
+
+            {result.summary && (
+              <div className="p-3.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-emerald-500/20 text-[11px] text-slate-600 dark:text-slate-300 space-y-1.5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Smart Layout Analysis</span>
+                  </span>
+                  {result.summary.usedAiAlignment && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/25">
+                      AI Schema Aligned
+                    </span>
+                  )}
+                </div>
+                {result.summary.detectedFields && result.summary.detectedFields.length > 0 && (
+                  <div>
+                    <span className="text-slate-400 font-medium">Mapped Attributes: </span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">
+                      {result.summary.detectedFields.join(", ")}
+                    </span>
+                  </div>
+                )}
+                {result.summary.smartDefaultsApplied && result.summary.smartDefaultsApplied.length > 0 && (
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 italic">
+                    {result.summary.smartDefaultsApplied.join(" • ")}
+                  </div>
+                )}
+              </div>
+            )}
 
             {result.errors && result.errors.length > 0 && (
               <div className="max-h-28 overflow-y-auto p-3 rounded-xl border border-rose-500/20 bg-rose-500/5 text-[11px] text-rose-600 dark:text-rose-400 space-y-1">

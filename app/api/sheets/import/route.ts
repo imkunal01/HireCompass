@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
 import { getSheetsDb, findOwnedSheet, toObjectId } from "@/lib/sheets-db"
 import { parseSheetCsv, parseSpreadsheetBuffer } from "@/lib/csv-import"
+import { getUserAiConfig } from "@/lib/ai-quota"
 
 // POST /api/sheets/import — bulk import problems (either create new sheet or append to existing)
 export async function POST(request: NextRequest) {
@@ -11,6 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const aiConfig = await getUserAiConfig(session.user.id).catch(() => null)
     const db = await getSheetsDb()
     const sheetsCol = db.collection("sheets")
     const itemsCol = db.collection("sheet_items")
@@ -19,7 +21,7 @@ export async function POST(request: NextRequest) {
     let newSheetTitle = ""
     let newSheetCategory = "DSA"
     let newSheetDesc = ""
-    let parseResult: { items: any[]; errors: any[] }
+    let parseResult: { items: any[]; errors: any[]; summary?: any }
 
     const contentType = request.headers.get("content-type") || ""
 
@@ -29,24 +31,33 @@ export async function POST(request: NextRequest) {
       if (!file) {
         return NextResponse.json({ error: "Spreadsheet or CSV file is required" }, { status: 400 })
       }
-      const buffer = Buffer.from(await file.arrayBuffer())
-      parseResult = parseSpreadsheetBuffer(buffer, file.name)
-
       existingSheetId = (formData.get("sheetId") as string) || null
       newSheetTitle = (formData.get("title") as string) || file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ")
       newSheetCategory = (formData.get("category") as string) || "DSA"
       newSheetDesc = (formData.get("description") as string) || ""
+
+      const buffer = Buffer.from(await file.arrayBuffer())
+      parseResult = await parseSpreadsheetBuffer(buffer, file.name, {
+        apiKey: aiConfig?.apiKey,
+        model: aiConfig?.model,
+        sheetTitle: newSheetTitle,
+      })
     } else {
       const body = await request.json().catch(() => ({}))
       const csvText = body.csvText || ""
       if (!csvText.trim()) {
         return NextResponse.json({ error: "File content cannot be empty" }, { status: 400 })
       }
-      parseResult = parseSheetCsv(csvText)
       existingSheetId = body.sheetId || null
       newSheetTitle = body.title || "Imported Roadmap"
       newSheetCategory = body.category || "DSA"
       newSheetDesc = body.description || ""
+
+      parseResult = await parseSheetCsv(csvText, {
+        apiKey: aiConfig?.apiKey,
+        model: aiConfig?.model,
+        sheetTitle: newSheetTitle,
+      })
     }
 
     const { items, errors } = parseResult
@@ -164,6 +175,7 @@ export async function POST(request: NextRequest) {
       rejected: errors.length,
       errors,
       totalCount,
+      summary: parseResult.summary,
     })
   } catch (error) {
     console.error("[POST /api/sheets/import]", error)

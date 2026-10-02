@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   BrainCircuit,
   ListChecks,
+  Terminal,
   type LucideIcon,
 } from "lucide-react"
 import { useUser } from "@/hooks/useUser"
@@ -48,6 +49,7 @@ const sidebarItems: NavItem[] = [
   { name: "Interviews",        href: "/interviews",           icon: Calendar },
   { name: "Problem Solving",   href: "/prep/problem-solving", icon: ListChecks,    badge: "NEW", badgeVariant: "new" },
   { name: "Interview Prep",    href: "/prep",                 icon: BrainCircuit,  badge: "AI", badgeVariant: "ai" },
+  { name: "AI Assessment",     href: "/assessment",           icon: Terminal,      badge: "EXAM", badgeVariant: "ai" },
   { name: "Rejection Tracker", href: "/rejected",            icon: AlertOctagon },
   { name: "Analytics",         href: "/analytics",          icon: BarChart3 },
   { name: "Reminders",         href: "/reminders",          icon: Bell,          dividerBefore: true },

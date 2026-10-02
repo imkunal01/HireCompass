@@ -12,6 +12,15 @@
 3. [Technology Stack & Key Dependencies](#3-technology-stack--key-dependencies)
 4. [Repository Topology & Directory Structure](#4-repository-topology--directory-structure)
 5. [Database Architecture & MongoDB Schema Reference](#5-database-architecture--mongodb-schema-reference)
+   - [5.1 users Collection](#51-users-collection)
+   - [5.2 opportunities Collection](#52-opportunities-collection)
+   - [5.3 projects Collection](#53-projects-collection)
+   - [5.4 cv_documents Collection](#54-cv_documents-collection)
+   - [5.5 outreach_campaigns & outreach_records Collections](#55-outreach_campaigns--outreach_records-collections)
+   - [5.6 day_plans Collection](#56-day_plans-collection)
+   - [5.7 interviews, reminders & email_jobs Collections](#57-interviews-reminders--email_jobs-collections)
+   - [5.8 sheets, sheet_items & item_progress Collections](#58-sheets-sheet_items--item_progress-collections)
+   - [5.9 prep_sessions, star_stories & war_room_dossiers Collections](#59-prep_sessions-star_stories--war_room_dossiers-collections)
 6. [Core Modules & Engineering Deep-Dive](#6-core-modules--engineering-deep-dive)
    - [6.1 Authentication, Session Management & Cryptography](#61-authentication-session-management--cryptography)
    - [6.2 AI Quota, LLM Gateway & Dynamic Encryption Vault](#62-ai-quota-llm-gateway--dynamic-encryption-vault)
@@ -25,10 +34,13 @@
    - [6.10 Interview Management & Google Calendar Sync](#610-interview-management--google-calendar-sync)
    - [6.11 Notification Subsystem, Email Alerts & Morning Digest](#611-notification-subsystem-email-alerts--morning-digest)
    - [6.12 Administration, Observability & User Management](#612-administration-observability--user-management)
+   - [6.13 Problem Solving Prep Ecosystem & Universal Spreadsheet Importer](#613-problem-solving-prep-ecosystem--universal-spreadsheet-importer)
+   - [6.14 Interview Prep Hub & Defense Cockpit](#614-interview-prep-hub--defense-cockpit)
 7. [Comprehensive API Route Matrix](#7-comprehensive-api-route-matrix)
 8. [Environment Configuration Reference](#8-environment-configuration-reference)
 9. [DevOps, Local Development & Deployment Guide](#9-devops-local-development--deployment-guide)
-10. [Companion Roadmap: DSA & Problem Tracker Integration](#10-companion-roadmap-dsa--problem-tracker-integration)
+10. [Delivered Preparation Ecosystem & Cross-System Synergy](#10-delivered-preparation-ecosystem--cross-system-synergy)
+11. [Conclusion & Maintenance](#11-conclusion--maintenance)
 
 ---
 
@@ -579,6 +591,150 @@ Manages calendar events, tasks, and queued asynchronous emails.
 }
 ```
 
+### 5.8 `sheets`, `sheet_items` & `item_progress` Collections
+Powers the Problem Solving & Curriculum Engine (`/prep/problem-solving`). Employs a normalized **Strategy B** architecture with sparse user progress for high query efficiency and atomic tracking.
+
+**`sheets`:**
+```typescript
+{
+  _id: ObjectId,
+  owner: ObjectId | null,              // null indicates built-in system template (DSA, OS, CN, DBMS, System Design)
+  isTemplate: boolean,
+  templateKey?: string | null,         // "dsa" | "os" | "cn" | "dbms" | "system-design"
+  clonedFrom?: ObjectId | null,
+  title: string,                       // e.g. "Blind 75 & Striver SDE Sheet"
+  description: string,
+  category: "DSA" | "CP" | "OS" | "CN" | "OOPS" | "DBMS" | "Development" | "Company" | "Custom",
+  topics: Array<{
+    name: string,                      // e.g. "Binary Search", "Dynamic Programming"
+    order: number
+  }>,
+  itemCount: number,                   // Denormalized count of problems
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+**`sheet_items`:**
+```typescript
+{
+  _id: ObjectId,
+  sheet: ObjectId,                     // Foreign key -> sheets._id
+  topic: string,                       // Must match one of parent sheet.topics.name
+  title: string,                       // e.g. "Two Sum", "LRU Cache"
+  difficulty: "Easy" | "Medium" | "Hard" | "N/A",
+  platform: "LeetCode" | "GFG" | "CodeChef" | "Codeforces" | "HackerRank" | "InterviewBit" | "Other",
+  problemLink?: string,
+  articleLink?: string,
+  youtubeLink?: string,
+  tags: string[],
+  order: number,
+  createdAt: Date,
+  updatedAt: Date
+}
+// Compound unique index: { sheet: 1, topic: 1, title: 1 }
+```
+
+**`item_progress` (Sparse User Progress):**
+```typescript
+{
+  _id: ObjectId,
+  user: ObjectId,                      // Foreign key -> users._id
+  sheet: ObjectId,                     // Foreign key -> sheets._id
+  item: ObjectId,                      // Foreign key -> sheet_items._id
+  status: "todo" | "done" | "revisit",
+  completedAt?: Date | null,
+  notes?: string,                      // Personal solution notes or code snippets
+  linkedProblem?: ObjectId | null,
+  createdAt: Date,
+  updatedAt: Date
+}
+// Compound unique index: { user: 1, item: 1 } (Guarantees atomic, idempotent status toggles)
+```
+
+### 5.9 `prep_sessions`, `star_stories` & `war_room_dossiers` Collections
+Stores AI interview simulation scorecards, behavioral STAR stories, and cached tactical round dossiers.
+
+**`war_room_dossiers`:**
+```typescript
+{
+  _id: ObjectId,
+  userId: string,
+  company: string,                     // Normalized lowercase
+  roundType: string,                   // Normalized lowercase
+  role: string,
+  cultureNotes: string,
+  roundExpectations: string[],
+  highYieldTopics: string[],
+  reverseQuestions: Array<{
+    category: string,
+    question: string,
+    contextRationale: string
+  }>,
+  commonPitfalls?: string[],
+  suggestedSheetCategory?: string,
+  createdAt: Date,
+  updatedAt: Date
+}
+// Unique compound index: { userId: 1, company: 1, roundType: 1 }
+```
+
+**`star_stories`:**
+```typescript
+{
+  _id: ObjectId,
+  userId: string,
+  projectId?: string,                  // Foreign key -> projects._id
+  projectTitle: string,
+  title: string,                       // Executive title
+  archetype: "outage_crisis" | "technical_disagreement" | "tight_deadlines" | "ambiguity_architecture" | "leadership_mentorship" | "custom",
+  situation: string,
+  task: string,
+  action: string,
+  result: string,
+  metrics: string[],                   // Quantified impact metrics e.g. ["-40% latency", "99.99% uptime"]
+  audienceVersions: {
+    em: string,                        // Engineering Manager focus (collaboration, timeline, conflict)
+    pe: string,                        // Principal Engineer focus (architecture, trade-offs, scale limits)
+    pm: string                         // Product Leader focus (user adoption, business metrics, velocity)
+  },
+  tags: string[],
+  bookmarked: boolean,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+**`prep_sessions`:**
+```typescript
+{
+  _id: ObjectId,
+  userId: string,
+  projectId: string,
+  projectTitle: string,
+  persona: "staff" | "lead" | "em",
+  status: "active" | "completed",
+  messages: Array<{
+    id: string,
+    role: "assistant" | "user" | "system",
+    content: string,
+    timestamp: string,
+    scorecard?: {
+      technicalDepth: number,          // 1-10
+      tradeOffAwareness: number,       // 1-10
+      communicationComposure: number,  // 1-10
+      strengths: string[],
+      gaps: string[],
+      goldStandardAnswer?: string,
+      feedback: string
+    }
+  }>,
+  overallScore?: number,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
 ---
 
 ## 6. Core Modules & Engineering Deep-Dive
@@ -596,11 +752,12 @@ The AI subsystem (`lib/gemini.ts`, `lib/ai-quota.ts`, `lib/crypto.ts`) abstracts
 - **Two Operating Modes**:
   1. *Structured JSON Output*: `extractJSON<T>(prompt)` instructs the LLM to return strict JSON using `response_format: { type: "json_object" }`. It automatically retries on rate limits (HTTP 429/503) with exponential backoff and message parsing (`parseRetryDelay`).
   2. *Streaming Text*: `streamText(prompt)` returns a standard Web `ReadableStream<Uint8Array>` for chunked live-typing in the browser.
-- **Hybrid AI Quota Engine**:
+- **Hybrid AI Quota Engine & Usage Tracking**:
   - Unauthenticated users have no access.
   - Standard users receive a free allowance (default: 30 requests, configurable via `FREE_AI_LIMIT`).
   - Administrators and users with `aiAccess: "UNRESTRICTED"` enjoy unlimited platform requests.
-  - Standard users can unlock **Bring-Your-Own-Key (BYOK)** by inputting their personal Groq API key (`gsk_...`).
+  - Standard users can unlock **Bring-Your-Own-Key (BYOK)** by inputting their personal Groq API key (`gsk_...`), bypassing platform quota limits entirely.
+  - Usage tracking is centralized through `incrementUserAiUsage(userId, count = 1)` in `lib/ai-quota.ts` (with `recordAiUsage` exported as a backward-compatible alias). Generative features (AI Agent Sweety, Company War Room, The Griller, STAR Story Matrix, and Rejection Remediation) call this method upon successful LLM completion. Static problem-solving sheet operations (viewing sheets, toggling status, adding notes) consume zero AI quota.
 - **AES-256-GCM Secret Vault**: User API keys are never stored in plaintext. In `lib/crypto.ts`, keys are encrypted with an initialization vector (`iv`), ciphertext, and authentication tag (`tag`) derived from `ENCRYPTION_SECRET`. Only when the user triggers an AI action is the key temporarily decrypted in memory.
 
 ### 6.3 Opportunities Management & Kanban Pipeline
@@ -695,7 +852,58 @@ Located in `app/(dashboard)/admin/page.tsx` and `app/api/admin/`:
 - Dedicated portal restricted to users with `role: "admin"`.
 - **System Telemetry**: Displays total platform user registrations, cumulative job opportunities tracked, total uploaded resumes, and global AI inference request volumes.
 - **User Governance**: Inspect user access modes (`DEFAULT`, `UNRESTRICTED`, `DISABLED`), modify custom AI quota caps, inspect encrypted key presence, or ban compromised accounts.
-- **Resume Vault Inspection**: Inspect and verify uploaded user documents and storage allocations.
+### 6.13 Problem Solving Prep Ecosystem & Universal Spreadsheet Importer
+Located in `app/(dashboard)/prep/problem-solving/`, `lib/csv-import.ts`, and `lib/sheets-db.ts`:
+- **Curriculum & Roadmap Engine**:
+  - Provides 5 built-in, production-grade templates: *DSA Essentials & Blind 75*, *Operating Systems*, *Computer Networks*, *DBMS & SQL*, and *System Design Core Concepts*.
+  - Supports 1-click cloning of templates into user-owned custom sheets, custom sheet creation, topic grouping, inline problem additions, revisit flagging, and personal markdown notes.
+- **Normalized Strategy B Architecture with Sparse Progress**:
+  - The `sheets` collection stores catalog metadata; `sheet_items` stores problem rows (`order`, `title`, `topic`, `difficulty`, `platform`, `problemLink`, `articleLink`, `youtubeLink`, `tags`).
+  - User completion states are persisted sparsely in `item_progress` via atomic compound unique index `{ user, item }`.
+  - Detail page `GET /api/sheets/[id]` joins items and progress in a single database roundtrip, grouping items under topic accordions with real-time percentage completion meters.
+- **Zero-Failure Smart Spreadsheet Import Engine (`lib/csv-import.ts`)**:
+  - **Multi-Format Ingestion**: Ingests `.xlsx`, `.xls`, `.xlsm`, and `.csv` files using `xlsx` (SheetJS) and `papaparse`.
+  - **Multi-Worksheet Scanning**: Automatically inspects all sheets in multi-tab workbooks (e.g. Striver, NeetCode) and selects the worksheet with the highest problem row density, bypassing "Readme", "Changelog", or "Instructions" cover sheets.
+  - **15+ Synonym Header Mapping**: Tolerant, case-insensitive mapping dictionary supporting every common column naming variation (`Topic`, `Module`, `Pattern`, `Question`, `Problem`, `Task`, `Difficulty`, `Level`, `Platform`, `Site`, `LeetCode URL`, `Link`, `Solution`, `Video`, `Tags`, `Tags / Concepts`).
+  - **Content-Based Column Signature Sniffing (`inspectColumnsByContent`)**: If headers are missing, cryptic, or generic (e.g., `Col 1`, `Col 2`, `A`, `B`), parses row data using regex pattern heuristics to identify URL columns, difficulty keywords (`easy`/`med`/`hard`), and title-like strings.
+  - **Section-Header & Topic Carry-Forward**: Handles outline-style spreadsheets where topics appear as solitary header rows (e.g., "Two Pointers" on row 1, followed by problem rows). Automatically carries the active topic forward across all subsequent problems until the next section header.
+  - **Zero-Drop Title & Platform Recovery**:
+    - If a row lacks a title column, infers clean problem titles from URL slugs (e.g., `leetcode.com/problems/trapping-rain-water` -> "Trapping Rain Water").
+    - Auto-infers platforms (`LeetCode`, `GeeksforGeeks`, `Codeforces`, `CodeChef`, `HackerRank`, `InterviewBit`) from URL hostnames when the platform column is omitted.
+    - Missing topics cleanly default to the sheet title or `"General Problems"` without rejecting the row.
+  - **Non-blocking URL Sanitization**: Auto-prefixes missing protocols (`https://`), strips markdown link wrappers (`[Two Sum](url)`), and safely ignores non-URL text notes (`N/A`, `Done`, `-`) without throwing validation errors or dropping items.
+  - **AI Schema Alignment Fallback (`alignColumnsWithAi`)**: If heuristic column matching yields 0 valid fields (e.g., in foreign-language or heavily obfuscated sheets), automatically invokes Groq Cloud LLM (`openai/gpt-oss-120b`) to analyze the headers and sample row values, producing an exact JSON field mapping.
+  - **Import-Only-Present-Fields Philosophy**: Guaranteed 100% import success rate. If a spreadsheet only contains links or only contains titles and topics, it imports all available data into the sheet gracefully with zero errors.
+  - **Duplicate-Tolerant Bulk Insertion**: Leverages MongoDB `ordered: false` insert arrays to gracefully skip duplicate problem rows while inserting hundreds of items in under 2 seconds.
+- **Day Planner Linkage (`POST /api/planner/link-task`)**:
+  - Candidates can click "Send to Day Planner" on any problem row to instantly schedule a 45-minute coding practice block in their active Day Plan.
+
+### 6.14 Interview Prep Hub & Defense Cockpit
+Located in `app/(dashboard)/prep/page.tsx` and `components/features/prep/`:
+A unified tactical prep command center designed with high-aesthetic cyber-intelligence styling, keyboard shortcuts (1–5), live defense status indicators, and 5 specialized preparation modules:
+1. **Company & Round War Room (`WarRoomTab`)**:
+   - Synchronizes with scheduled interviews from `/interviews`.
+   - Generates tactical round intelligence using Groq Cloud LLMs: evaluates company culture quirks, round scoring criteria, an interactive high-yield topic checklist with live readiness percentage, and 4 high-signal reverse interview questions with 1-click clipboard copying. Cached in `war_room_dossiers`.
+2. **Project Defense Arena ("The Griller") (`GrillerTab`)**:
+   - Simulates high-stakes technical defense rounds on the candidate's actual projects from Project Vault (`/projects`).
+   - 3 distinct interviewer personas:
+     - *Principal / Staff Systems Engineer*: Relentless probing into concurrency, race conditions, failover mechanisms, and 50k+ req/sec scalability limits.
+     - *Pragmatic Tech Lead*: Focuses on maintainability, testing strategies, observability, metrics, and incident rollback.
+     - *Engineering Manager*: Evaluates trade-offs under deadlines, team leadership, cross-functional alignment, and post-mortems.
+   - Dynamic real-time defense scorecards evaluate **Technical Depth (1–10)**, **Trade-Off Awareness (1–10)**, and **Communication & Composure (1–10)** alongside staff critique and gold-standard model answers.
+3. **Dynamic STAR Story Matrix (`StarMatrixTab`)**:
+   - Synthesizes quantified behavioral STAR stories from project documentation.
+   - 1-click audience re-targeting across 3 lenses:
+     - *Engineering Manager (EM)*: Team collaboration, timelines, conflict resolution.
+     - *Principal Engineer (PE)*: Deep architectural bottlenecks, failure recovery, scale trade-offs.
+     - *Product Leader (PM)*: User value, business metrics, delivery velocity.
+   - Includes quantified impact badges, 4-stage color-accented cards (Situation, Task, Action, Result), and an integrated 90-second spoken rehearsal teleprompter.
+4. **Rejection Remediation Feedback Loop (`RemediationTab`)**:
+   - Scans rejected opportunities from `/rejected`, analyzes drop-off stage patterns, and generates targeted anti-pattern recovery drills.
+   - Connects identified vulnerability gaps directly to problem-solving sheet topics and enables 1-click scheduling into `/planner`.
+5. **15-Minute Pre-Interview Adrenaline Primer (`PrimerTab`)**:
+   - High-contrast neuro-adrenaline sprint modal taken 15 minutes before a live interview.
+   - Features 4 fast-paced stages: Bug Triage in 60s (concurrency flaw analysis), instant Big-O reflex quizzes with feedback, 2-sentence architectural trade-off justification flash, and a glowing animated 4-4-4-4 Box Breathing visualizer with 3 golden interview anchors.
 
 ---
 
@@ -773,6 +981,27 @@ Located in `app/(dashboard)/admin/page.tsx` and `app/api/admin/`:
 | **DELETE** | `/api/admin/users/[id]` | Admin | Deletes a user account and associated data |
 | **GET** | `/api/admin/resumes` | Admin | Global list of uploaded resumes |
 | **DELETE** | `/api/admin/resumes/[id]` | Admin | Deletes a resume document from storage |
+| **GET** | `/api/sheets` | Yes | Lists user custom sheets and curriculum roadmaps with progress counts |
+| **POST** | `/api/sheets` | Yes | Creates a new custom problem-solving sheet |
+| **GET** | `/api/sheets/templates` | Yes | Returns 5 built-in curriculum templates (DSA, OS, CN, DBMS, System Design) |
+| **POST** | `/api/sheets/from-template/[key]` | Yes | Clones a system curriculum template into the user's personal sheets |
+| **GET** | `/api/sheets/[id]` | Yes | Fetches sheet metadata, items grouped by topic, and user sparse progress |
+| **PUT** | `/api/sheets/[id]` | Yes | Updates sheet title, description, or category (IDOR protected) |
+| **DELETE** | `/api/sheets/[id]` | Yes | Cascades deletion of sheet, its items, and user progress records |
+| **POST** | `/api/sheets/[id]/items` | Yes | Adds a problem item to a specific topic |
+| **PUT** | `/api/sheets/[id]/items/[itemId]` | Yes | Updates problem title, difficulty, platform, or external links |
+| **DELETE** | `/api/sheets/[id]/items/[itemId]` | Yes | Deletes an individual problem item and associated progress |
+| **POST** | `/api/sheets/[id]/items/[itemId]/progress` | Yes | Atomic upsert of problem status (`todo`, `done`, `revisit`) and notes |
+| **DELETE** | `/api/sheets/[id]/topics/[topicName]` | Yes | Removes a topic and deletes all contained problem items |
+| **POST** | `/api/sheets/import` | Yes | Universal spreadsheet parser (.xlsx/.csv): auto-creates sheet & inserts items |
+| **POST** | `/api/sheets/[id]/import` | Yes | Bulk imports spreadsheet rows into an existing sheet with duplicate tolerance |
+| **POST** | `/api/prep/war-room` | Yes | Generates LLM tactical interview dossier with reverse questions (Groq AI) |
+| **POST** | `/api/prep/griller` | Yes | Simulates technical project defense round with 3 personas & live scorecards |
+| **GET** | `/api/prep/star-matrix` | Yes | Lists user synthesized STAR stories from Project Vault |
+| **POST** | `/api/prep/star-matrix` | Yes | Generates behavioral STAR stories with 3-lens audience re-targeting |
+| **DELETE** | `/api/prep/star-matrix` | Yes | Deletes a stored STAR story |
+| **GET** | `/api/prep/remediation` | Yes | Scans rejected opportunities and generates anti-pattern recovery drills |
+| **POST** | `/api/planner/link-task` | Yes | Schedules a problem from a sheet directly into the active Day Plan |
 
 ---
 
@@ -853,18 +1082,25 @@ CRON_SECRET="your-random-cron-secret-token"
    ```
    Open `http://localhost:3000` in your browser. Turbopack hot reloading is enabled by default (`next dev --turbo`).
 
-5. **Lint and Validate**:
+5. **Lint, Typecheck & Production Build**:
    ```bash
+   # Validate ESLint rules
    npm run lint
+
+   # Validate TypeScript types across all App Router routes
+   npx tsc --noEmit
+
+   # Generate optimized production bundle (allocated 4GB heap space to support full AST type-checking)
+   npm run build
    ```
 
-### 9.2 Production Deployment (Vercel)
+### 9.2 Production Deployment (Vercel & Self-Hosted)
 
 1. Push your repository to GitHub / GitLab.
-2. Import the project into the [Vercel Dashboard](https://vercel.com).
-3. Configure Environment Variables in the Vercel Project Settings matching your `.env`.
+2. Import the project into the [Vercel Dashboard](https://vercel.com) or configure a Node.js production server.
+3. Configure Environment Variables in Project Settings matching your `.env`.
 4. Ensure `NEXT_PUBLIC_BASE_URL` points to your production domain (e.g. `https://hirecompass.yourdomain.com`).
-5. Set `Build Command` to `npm run build` and `Output Directory` to `.next`.
+5. Set `Build Command` to `npm run build` (which runs `node --max-old-space-size=4096 ./node_modules/next/dist/bin/next build` to prevent Node V8 heap limits during production bundling) and `Output Directory` to `.next`.
 6. Deploy!
 
 ### 9.3 External Cron Scheduling
@@ -882,27 +1118,31 @@ To enable background reminder dispatch and morning digest emails in serverless e
 
 ---
 
-## 10. Companion Roadmap: DSA & Problem Tracker Integration
+## 10. Delivered Preparation Ecosystem & Cross-System Synergy
 
-In `tracker.md`, specifications were drafted for tracking competitive programming and DSA progress (inspired by the 75-Day Hard preparation challenge across LeetCode, CodeChef, and Codeforces). 
+Originally conceived in `tracker.md` as an external DSA tracker, the **Preparation Ecosystem** has been fully designed and integrated into the core HireCompass platform, creating a seamless feedback loop between job hunting, day-to-day preparation, and interview performance:
 
-### Proposed Architecture for the DSA Module within HireCompass:
-To incorporate DSA progress tracking into HireCompass without breaking architectural cohesion, the following additions are recommended:
+```mermaid
+graph LR
+    Opps["/opportunities<br/>(Applications & Interviews)"] -->|Upcoming Rounds| WarRoom["War Room<br/>(/prep)"]
+    Rejection["/rejected<br/>(Drop-offs & Failures)"] -->|Identified Gaps| Remediation["Remediation Loop<br/>(/prep)"]
+    Projects["/projects<br/>(Project Vault)"] -->|Architecture Data| Griller["The Griller & STAR Matrix<br/>(/prep)"]
+    Sheets["Problem Solving Sheets<br/>(/prep/problem-solving)"] -->|1-Click Task Link| Planner["Day Planner Cockpit<br/>(/planner)"]
+    Remediation -->|Target Drills| Sheets
+    WarRoom -->|High-Yield Topics| Planner
+```
 
-1. **Dedicated Route**: `app/(dashboard)/dsa/page.tsx` accessible via a new sidebar navigation item (`Code2` icon).
-2. **Data Model**: A new `dsa_problems` MongoDB collection storing:
-   - `platform`: `LEETCODE` | `CODECHEF` | `CODEFORCES` | `GEEKSFORGEEKS`
-   - `problemTitle`: Name of the challenge
-   - `problemUrl`: Direct link to question
-   - `difficulty`: `EASY` | `MEDIUM` | `HARD`
-   - `solutionCode`: Candidate's stored solution
-   - `language`: `C++` | `Java` | `Python` | `TypeScript`
-   - `tags`: `Binary Search`, `Dynamic Programming`, `Graphs`, etc.
-   - `timeSpentMinutes`: Time logged to reach an accepted verdict
-3. **Integration with Day Planner**:
-   - Tasks generated under the `coding` category in `/planner` can automatically link to pending problems in the DSA module.
-4. **Integration with Rejection Intelligence**:
-   - When an application is tagged with `reasonCategory: "DSA & Problem-Solving Speed Gaps"`, HireCompass can automatically surface recommended problem sets targeting those specific topic tags.
+### Key Integrations & System Synergies:
+1. **Application Pipeline to Tactical War Room (`/interviews` -> `/prep`)**:
+   Scheduled technical interviews feed directly into the **War Room**, generating company culture insights, scoring guidelines, and senior reverse questions with zero manual data re-entry.
+2. **Rejection Post-Mortems to Targeted Remediation (`/rejected` -> `/prep`)**:
+   When candidates log interview drop-offs in the Rejection Tracker, the **Rejection Remediation** engine aggregates failure patterns across rounds and generates anti-pattern practice drills linked directly to problem sheets.
+3. **Project Vault to Live Defense Arena (`/projects` -> `/prep`)**:
+   Projects logged in the Project Vault serve as the source of truth for **The Griller** (AI Staff Engineer interrogation) and the **Dynamic STAR Story Matrix** (audience-adapted behavioral pitches for EM, PE, PM).
+4. **Curriculum Sheets to Day Planner Execution (`/prep/problem-solving` -> `/planner`)**:
+   Every problem item across Blind 75, DSA, OS, CN, DBMS, and System Design sheets includes a **"Send to Day Planner"** action (`POST /api/planner/link-task`), booking dedicated 45-minute coding blocks straight into today's schedule.
+5. **Universal Spreadsheet Ingestion**:
+   Supports dragging and dropping custom curricula or external sheets (`.xlsx`, `.xls`, `.xlsm`, `.csv`) with automatic header discovery and duplicate-tolerant bulk insertion.
 
 ---
 

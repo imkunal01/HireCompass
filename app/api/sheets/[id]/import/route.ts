@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
 import { getSheetsDb, findOwnedSheet } from "@/lib/sheets-db"
 import { parseSheetCsv, parseSpreadsheetBuffer } from "@/lib/csv-import"
+import { getUserAiConfig } from "@/lib/ai-quota"
 
 // POST /api/sheets/[id]/import — bulk import problems from CSV
 export async function POST(
@@ -14,13 +15,14 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const aiConfig = await getUserAiConfig(session.user.id).catch(() => null)
     const db = await getSheetsDb()
     const sheet = await findOwnedSheet(db, params.id, session.user.id)
     if (!sheet) {
       return NextResponse.json({ error: "Sheet not found or unauthorized" }, { status: 404 })
     }
 
-    let parseResult: { items: any[]; errors: any[] }
+    let parseResult: { items: any[]; errors: any[]; summary?: any }
     const contentType = request.headers.get("content-type") || ""
 
     if (contentType.includes("multipart/form-data")) {
@@ -30,14 +32,22 @@ export async function POST(
         return NextResponse.json({ error: "Spreadsheet or CSV file is required" }, { status: 400 })
       }
       const buffer = Buffer.from(await file.arrayBuffer())
-      parseResult = parseSpreadsheetBuffer(buffer, file.name)
+      parseResult = await parseSpreadsheetBuffer(buffer, file.name, {
+        apiKey: aiConfig?.apiKey,
+        model: aiConfig?.model,
+        sheetTitle: sheet.title,
+      })
     } else {
       const body = await request.json().catch(() => ({}))
       const csvText = body.csvText || ""
       if (!csvText.trim()) {
         return NextResponse.json({ error: "File content cannot be empty" }, { status: 400 })
       }
-      parseResult = parseSheetCsv(csvText)
+      parseResult = await parseSheetCsv(csvText, {
+        apiKey: aiConfig?.apiKey,
+        model: aiConfig?.model,
+        sheetTitle: sheet.title,
+      })
     }
 
     const { items, errors } = parseResult
@@ -120,6 +130,7 @@ export async function POST(
       rejected: errors.length,
       errors,
       totalCount,
+      summary: parseResult.summary,
     })
   } catch (error) {
     console.error("[POST /api/sheets/[id]/import]", error)

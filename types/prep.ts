@@ -5,6 +5,8 @@ export type PrepTab =
   | "remediation"
   | "primer"
 
+export * from "./assessment"
+
 export type InterviewerPersona = "staff" | "lead" | "em"
 
 export interface PersonaConfig {

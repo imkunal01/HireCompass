@@ -21,9 +21,20 @@
 > 📚 **Looking for the exhaustive technical reference?**  
 > Read the complete architectural blueprint and engineering guide in [PROJECT_DOCUMENTATION.md](file:///c:/Users/Kunal/Desktop/Projects/HireCompass/PROJECT_DOCUMENTATION.md).
 
----
-
 ## ✨ Key Features
+
+### 🎯 Preparation Ecosystem & Interview Cockpit
+- **Problem Solving & Curriculum Engine (`/prep/problem-solving`)**:
+  - 5 built-in curriculum roadmaps: *DSA Essentials & Blind 75*, *Operating Systems*, *Computer Networks*, *DBMS & SQL*, and *System Design*.
+  - Normalized sparse progress tracking with real-time topic completion meters, revisit flags, and personal solution notes.
+  - **Zero-Failure Smart Spreadsheet Importer (`.xlsx`, `.xls`, `.xlsm`, `.csv`)**: Drag-and-drop any problem sheet with multi-tier synonym matching, content signature sniffing, section-header topic carry-forward, slug-to-title extraction, and Groq AI schema alignment fallback. Automatically places only present fields without import errors or failures.
+  - **1-Click Day Planner Task Linking**: Schedule any coding challenge directly into today's focus schedule (`/planner`).
+- **Tactical Interview Prep Hub (`/prep`)**:
+  - **Company & Round War Room**: Auto-syncs with scheduled interviews to synthesize company culture notes, scoring rubrics, high-yield topic checklists, and senior reverse interview questions.
+  - **Project Defense Arena ("The Griller")**: AI Staff Engineer interrogation simulation testing candidates on their actual Project Vault projects across 3 interviewer personas (Staff, Lead, EM) with live defense scorecards and gold-standard model answers.
+  - **Dynamic STAR Story Matrix**: Auto-synthesizes quantified behavioral stories from project data with 1-click audience re-targeting (EM, Principal Engineer, Product Leader) and a spoken pitch teleprompter.
+  - **Rejection Remediation Feedback Loop**: Connects to the Rejection Tracker (`/rejected`) to turn historical drop-offs into targeted practice drills.
+  - **15-Minute Pre-Interview Adrenaline Primer**: Timed 4-stage sprint modal (Bug triage in 60s, Big-O reflex quizzes, architectural trade-off justification flash, and 4-4-4-4 Box Breathing visualizer) taken right before live interviews.
 
 ### 📋 Interactive Drag-and-Drop Pipeline
 - Built with `@dnd-kit` for fluid Kanban card management across 6 lifecycle stages: `Saved`, `Applied`, `OA / Assessment`, `Interview`, `Offer 🎉`, and `Rejected ❌`.
@@ -116,9 +127,15 @@ npm run dev
 ```
 Visit [http://localhost:3000](http://localhost:3000) to start using HireCompass.
 
-### 4. Build for Production
+### 4. Validate & Build for Production
 ```bash
+# Verify TypeScript types
+npx tsc --noEmit
+
+# Compile production bundle (configured with 4GB heap allocation)
 npm run build
+
+# Launch production server
 npm run start
 ```
 
@@ -135,6 +152,8 @@ HireCompass/
 │   │   ├── opportunities/  # Filterable job inventory
 │   │   ├── outreach/       # Cold emailing campaign manager
 │   │   ├── planner/        # AI Day Planner & Focus Cockpit
+│   │   ├── prep/           # Interview Prep Cockpit (War Room, Griller, STAR, Primer)
+│   │   │   └── problem-solving/ # Curriculum sheets, roadmaps & spreadsheet importer
 │   │   ├── rejected/       # Rejection intelligence & analytics
 │   │   ├── projects/       # Portfolio vault & snippet tailor
 │   │   ├── import/         # Smart job URL scraper
