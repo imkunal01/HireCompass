@@ -356,3 +356,17 @@
   @apply bg-white dark:bg-slate-800/90 border border-slate-200/70 dark:border-slate-700/60 rounded-xl shadow-sm
          hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-500/40 transition-all duration-200 cursor-pointer;
 }
+
+/* ══════════════════════════════════════════════════════════
+   PROCTORED EXAM MODE (Zero Cheat / Hide Sweety & Floating Bots)
+   ══════════════════════════════════════════════════════════ */
+body[data-in-exam="true"] #hire-bot-trigger,
+body.exam-mode-active #hire-bot-trigger,
+body[data-in-exam="true"] [data-agent-chat],
+body.exam-mode-active [data-agent-chat] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+

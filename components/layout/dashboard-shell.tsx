@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { usePathname } from "next/navigation"
 import { useStore } from "@/hooks/useStore"
 import Sidebar from "./sidebar"
 import Navbar from "./navbar"
@@ -14,6 +15,8 @@ interface DashboardShellProps {
 
 export default function DashboardShell({ children }: DashboardShellProps) {
   const { sidebarOpen } = useStore()
+  const pathname = usePathname()
+  const isAssessmentRoute = pathname?.startsWith("/assessment")
 
   return (
     <div className="relative min-h-[100dvh] flex bg-slate-100/70 dark:bg-[#080C14] font-sans text-slate-900 dark:text-slate-100 selection:bg-indigo-500/30 overflow-x-hidden transition-colors duration-200">
@@ -52,8 +55,8 @@ export default function DashboardShell({ children }: DashboardShellProps) {
       {/* Notification background checker */}
       <NotificationInitializer />
 
-      {/* AI Agent Chatbot — floats on every page */}
-      <AgentChat />
+      {/* AI Agent Chatbot — strictly hidden on assessment routes for test integrity */}
+      {!isAssessmentRoute && <AgentChat />}
     </div>
   )
 }

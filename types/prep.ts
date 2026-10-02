@@ -7,7 +7,18 @@ export type PrepTab =
 
 export * from "./assessment"
 
-export type InterviewerPersona = "staff" | "lead" | "em"
+export type InterviewerPersona = "mentor" | "staff" | "lead" | "em"
+
+export type CandidateRole =
+  | "fullstack"
+  | "frontend"
+  | "backend"
+  | "data_ml"
+  | "devops"
+  | "mobile"
+  | "general_sde"
+
+export type ExperienceLevel = "fresher" | "mid" | "senior"
 
 export interface PersonaConfig {
   id: InterviewerPersona
@@ -16,6 +27,7 @@ export interface PersonaConfig {
   avatar: string
   description: string
   tone: string
+  recommendedFor?: ExperienceLevel[]
 }
 
 export interface Scorecard {

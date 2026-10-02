@@ -7,7 +7,7 @@ import React, {
   useCallback,
 } from "react"
 import { createPortal } from "react-dom"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   Bot,
@@ -257,8 +257,10 @@ const INTRO_MSG: ChatMessage = {
 
 export default function AgentChat() {
   const router = useRouter()
+  const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [inExamMode, setInExamMode] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([INTRO_MSG])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
@@ -267,6 +269,27 @@ export default function AgentChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+
+  // ── Assessment / Exam Mode Guard ──────────────────────────────────────────
+  useEffect(() => {
+    const evaluateExamMode = () => {
+      const isExam =
+        pathname?.startsWith("/assessment") ||
+        document.body.getAttribute("data-in-exam") === "true" ||
+        document.body.classList.contains("exam-mode-active")
+      setInExamMode(!!isExam)
+      if (isExam) {
+        setOpen(false)
+        setWelcomePopup(null)
+      }
+    }
+
+    evaluateExamMode()
+    window.addEventListener("exam-mode-change", evaluateExamMode)
+    return () => {
+      window.removeEventListener("exam-mode-change", evaluateExamMode)
+    }
+  }, [pathname])
 
   // ── Load history from localStorage on mount ─────────────────────────────
   useEffect(() => {
@@ -447,7 +470,7 @@ export default function AgentChat() {
 
   const rememberedCount = messages.filter((m) => !m.isTyping && m.role !== "assistant" || m === messages[0]).length
 
-  if (!mounted) return null
+  if (!mounted || inExamMode || pathname?.startsWith("/assessment")) return null
 
   return createPortal(
     <>
@@ -576,6 +599,7 @@ export default function AgentChat() {
       <button
         onClick={() => setOpen((p) => !p)}
         id="hire-bot-trigger"
+        data-agent-chat="true"
         className={cn(
           "fixed bottom-6 right-4 sm:right-6 z-[9999]",
           "w-14 h-14 rounded-2xl",

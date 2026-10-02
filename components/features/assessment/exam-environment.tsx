@@ -138,6 +138,19 @@ export function ExamEnvironment({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  // Enforce zero-cheat exam mode: hide Sweety and all floating chatbots on document.body
+  useEffect(() => {
+    document.body.setAttribute("data-in-exam", "true")
+    document.body.classList.add("exam-mode-active")
+    window.dispatchEvent(new Event("exam-mode-change"))
+
+    return () => {
+      document.body.removeAttribute("data-in-exam")
+      document.body.classList.remove("exam-mode-active")
+      window.dispatchEvent(new Event("exam-mode-change"))
+    }
+  }, [])
+
   // Auto-scroll messages to bottom whenever messages change or loading state changes
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })

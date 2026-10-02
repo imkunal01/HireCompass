@@ -15,9 +15,7 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
    - CSV Bulk Importer (`Topic, Title, Difficulty, Platform, Problem Link, Article Link, YouTube, Tags`) using `papaparse`.
    - Day Planner task sync (`/planner`).
 2. **Interview Prep Hub (`/prep`)**:
-   - **Company & Round War Room**: Syncs with scheduled interviews from `/interviews`, generates round profile intelligence, focus checklists, and high-signal Reverse Interview questions.
-   - **Project Defense Arena ("The Griller")**: AI Staff Engineer interrogation simulation testing candidates on their actual projects from `/projects`.
-   - **Dynamic STAR Story Matrix**: Auto-synthesizes quantified behavioral stories from project data with 1-click audience re-targeting (EM, Principal Engineer, PM).
+   - **Project Defense Arena ("The Griller")**: Upgraded with **Fresher-Oriented Mode** (focusing on core fundamentals, tech stack decisions, request lifecycle, schema design, and hands-on debugging stories rather than enterprise 50k+ QPS scale), **Role Selection** (Full Stack, Frontend, Backend, Data/ML, DevOps, Mobile, General SDE), **Fresher Starter Projects** (E-Commerce Storefront, Real-Time Chat, HireCompass Mini Tracker, Task REST API), and a **Supportive Senior Mentor Persona**.
    - **Rejection Remediation Loop**: Connects to `/rejected` to turn historical drop-off causes into targeted practice drills.
    - **15-Minute Pre-Interview Adrenaline Primer**: Timed 4-stage sprint modal (Bug triage, Big-O reflex, Trade-off flash, Box breathing) taken 15 mins before a live interview.
 3. **AI Assessment Arena (`/assessment`)**:
@@ -191,6 +189,52 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
   - Built `components/features/prep/company-tab.tsx`: Capgemini Spotlight hub with assessment state machine explainer, difficulty selector, problem library with search & difficulty filters, custom problem creator, and past session scorecard history.
   - Mounted Company Section into `app/(dashboard)/prep/page.tsx` as primary module and created direct route `app/(dashboard)/prep/company/capgemini/page.tsx`.
   - Validated clean `npx tsc --noEmit` (0 errors) and `npm run lint` (0 errors).
+- **2026-10-03 (Phase 10 Complete — Dedicated Standalone Exam Environment & Docked UI)**:
+  - Separated the AI Coding Assessment from `/prep` and company tracks into its own top-level route `/assessment`.
+  - Added dedicated sidebar navigation entry "AI Assessment" with "EXAM" badge.
+  - Built `components/features/assessment/exam-environment.tsx`:
+    * True fullscreen distraction-free exam console (`fixed inset-0 z-[100] h-screen w-screen overflow-hidden`) masking sidebar, topbar, and floating agent chat during active tests.
+    * Pinned bottom prompt composer (`shrink-0 bg-[#0a0f1d] border-t border-slate-800`) completely eliminating page scrolling.
+    * Dual-scroll viewports: independent problem/rubric pane on the left, independent conversation stream and code pane on the right.
+    * Syntax-highlighted code viewer with line numbers, copy button, and 100-pt evaluation rubric modal.
+  - Built `components/features/assessment/assessment-lobby.tsx`: Pre-flight briefing, difficulty toggle, curated problem library, custom problem builder, and historical scorecards.
+- **2026-10-03 (Phase 11 Complete — Fresher-Oriented Griller & Candidate Role Selection)**:
+  - Updated `types/prep.ts`:
+    * Added `CandidateRole` (`"fullstack" | "frontend" | "backend" | "data_ml" | "devops" | "mobile" | "general_sde"`).
+    * Added `ExperienceLevel` (`"fresher" | "mid" | "senior"`).
+    * Added `InterviewerPersona` (`"mentor" | "lead" | "staff" | "em"`).
+  - Created `lib/fresher-projects.ts`:
+    * 4 curated fresher starter projects (E-Commerce Storefront, Real-Time Collaboration Chat, Job Prep Tracker, Scalable Task REST API).
+    * Detailed role metadata with probing focus areas and typical starter prompts for each role.
+    * Seniority tier descriptors (Fresher 0-1 yrs focusing on fundamentals, implementation understanding, why technologies were chosen, and real debugging stories).
+- **2026-10-03 (The Griller — Strict Project Anchoring & Anti-Repetition Resolution)**:
+  - Identified root cause of generic/hardcoded questions:
+    1. Static few-shot examples (JWT verification middleware, MongoDB vs PostgreSQL) in system guidelines caused LLMs to repeat those exact queries regardless of project topic.
+    2. Vault projects in MongoDB store project titles under `name` and documentation under `documentationText`/`snippets`, which previously evaluated to `undefined` when reading `project.title`, giving the AI incomplete project context.
+    3. Low temperature (0.4) caused deterministic repeating questions.
+  - Implemented comprehensive fixes:
+    * In `app/api/prep/griller/route.ts`: Normalized project attributes (`name || title`, `documentationText || responsibilities`, `snippets`, `metrics`, `challenges`). Merged payload with live MongoDB record when `projectId` is passed.
+    * Added strict anti-generic rules explicitly forbidding questions about JWT, tokens, or databases not in the project's tech stack. The AI is strictly mandated to cite the project name and a concrete feature/API/data flow from its specifications.
+    * Increased generation temperature to 0.6 for dynamic, diverse questioning.
+    * In `lib/fresher-projects.ts`: Expanded curated starter projects to cover Data/ML (FastAPI Churn Pipeline), DevOps (Containerized CI/CD), and Mobile (Offline-first Habit Tracker).
+  - Verified clean `npm run lint` (0 errors) and `npx tsc --noEmit` (0 errors).
+- **2026-10-03 (Assessment Proctoring — Zero-Cheat Sweety Bot Isolation)**:
+  - Enforced full suppression of Sweety's floating chatbot (`AgentChat`) during assessments to guarantee test integrity (preventing candidates from asking for solutions, code generation, or hints):
+    1. In `components/layout/dashboard-shell.tsx`: Conditionally unmounts `<AgentChat />` whenever `pathname.startsWith("/assessment")`.
+    2. In `components/features/agent/agent-chat.tsx`: Monitors pathname and body attributes (`data-in-exam="true"`, `exam-mode-active` class, `exam-mode-change` event). Immediately closes any open panel, dismisses popups, and returns `null`.
+    3. In `components/features/assessment/exam-environment.tsx`: Automatically sets `data-in-exam="true"` and `exam-mode-active` on `document.body` during mount, and cleans up on unmount/exit.
+  - Verified clean `npm run lint` (0 errors) and `npx tsc --noEmit` (0 errors).
+- **2026-10-03 (The Griller — Next Question Progression & Answer Rewrite Loop)**:
+  - Solved dead-end simulation stop after answering a question:
+    1. In `app/api/prep/griller/route.ts`: Supported `action: "next_question"` and decoupled answer evaluation from asking the next question. Answering provides dedicated evaluation in `reply` with the 10-point scorecard. When the candidate requests the next question, the AI generates a brand-new technical question probing a different architectural layer or failure scenario of the project (`scorecard: null`).
+    2. In `components/features/prep/griller-tab.tsx`:
+       - Added **"Proceed to Next Question"** button directly on the scorecard and in an ambient Call-To-Action banner above the composer (`handleNextQuestion`), ensuring continuous multi-turn defense rounds.
+       - Added **"Rewrite / Improve Answer"** button (`handleRewriteAnswer`) that loads the candidate's previous answer back into the composer, rolls back the session stream to the active question, and enables candidates to incorporate their critique and aim for a 10/10 score.
+  - Verified clean `npm run lint` (0 errors) and `npx tsc --noEmit` (0 errors).
+
+
+
+
 
 
 
