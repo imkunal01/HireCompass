@@ -6,12 +6,11 @@ import {
   ChevronRight, CheckCircle2, Database,
   Palette, Sliders, Send, Plus, X, Github, Linkedin, Globe,
   Sparkles, Loader2, AlertCircle, Key, Eye, EyeOff, Trash2,
-  ExternalLink, Zap, Bot, RefreshCw, Compass, Copy
+  ExternalLink, Zap, Bot, RefreshCw, Compass, Copy, Sun
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/hooks/useUser"
 import { useQueryClient } from "@tanstack/react-query"
-import { useTheme } from "next-themes"
 
 /* ── Toggle Switch ── */
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -1025,44 +1024,24 @@ export default function SettingsPage() {
 }
 
 function ThemeSelector() {
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  const options = [
-    { label: "Light", value: "light" },
-    { label: "Dark", value: "dark" },
-    { label: "System", value: "system" },
-  ] as const
-
   return (
     <div className="space-y-3">
-      <p className="text-xs text-slate-500 dark:text-slate-400">Theme preference</p>
-      <div className="grid grid-cols-3 gap-2">
-        {options.map((t) => {
-          const isActive = mounted && theme === t.value
-          return (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => setTheme(t.value)}
-              className={cn(
-                "rounded-xl border py-2.5 text-xs font-semibold transition-all duration-150",
-                isActive
-                  ? "border-indigo-400 dark:border-indigo-500 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 shadow-sm"
-                  : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-750"
-              )}
-            >
-              {t.label}
-            </button>
-          )
-        })}
+      <div className="flex items-center justify-between p-3.5 rounded-xl border border-indigo-200 bg-indigo-50/70 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
+            <Sun className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-800">Unified Light Theme</p>
+            <p className="text-[10px] text-slate-500">Optimized for high-contrast, premium readability</p>
+          </div>
+        </div>
+        <span className="text-[10px] font-bold text-indigo-600 bg-white px-2.5 py-1 rounded-full border border-indigo-200 shadow-xs">
+          Default Active
+        </span>
       </div>
-      <p className="text-[11px] text-slate-400 dark:text-slate-500">
-        Changes apply immediately across all application surfaces.
+      <p className="text-[11px] text-slate-400">
+        HireCompass is standardized on the vibrant, high-contrast light theme workspace.
       </p>
     </div>
   )

@@ -478,8 +478,8 @@ export default function AgentChat() {
       <div
         ref={panelRef}
         className={cn(
-          "fixed bottom-24 right-4 sm:right-6 z-[9998]",
-          "w-[calc(100vw-2rem)] sm:w-[380px]",
+          "fixed bottom-24 right-3 sm:right-6 z-[9998]",
+          "w-[calc(100vw-1.5rem)] sm:w-[380px]",
           "flex flex-col",
           "rounded-2xl overflow-hidden",
           "shadow-2xl shadow-indigo-900/20 dark:shadow-black/60 ring-1 ring-slate-900/5 dark:ring-white/10",
@@ -532,7 +532,7 @@ export default function AgentChat() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-3.5 py-4 space-y-4 scroll-smooth bg-slate-50/30 dark:bg-slate-950/40">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-3.5 py-4 space-y-4 scroll-smooth bg-slate-50/40 dark:bg-slate-950/40">
           {messages.map((msg, i) => (
             <MessageBubble key={i} msg={msg} onNavigate={navigate} />
           ))}
@@ -541,7 +541,7 @@ export default function AgentChat() {
 
         {/* Quick Suggestions (shown only when 1 message = intro) */}
         {messages.length === 1 && (
-          <div className="px-3.5 pb-4 shrink-0 bg-slate-50/30 dark:bg-slate-950/40">
+          <div className="px-3.5 pb-4 shrink-0 bg-slate-50/40 dark:bg-slate-950/40">
             <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-2.5 font-bold uppercase tracking-wider pl-1">Suggested for you</p>
             <div className="flex flex-wrap gap-1.5">
               {SUGGESTIONS.map((s) => (
@@ -595,39 +595,48 @@ export default function AgentChat() {
         </div>
       </div>
 
-      {/* ── Floating Trigger Button ───────────────────────────────────────── */}
+      {/* ── Floating Trigger Button (Circular FAB placed above mobile bottom nav) ── */}
       <button
         onClick={() => setOpen((p) => !p)}
         id="hire-bot-trigger"
         data-agent-chat="true"
         className={cn(
-          "fixed bottom-6 right-4 sm:right-6 z-[9999]",
-          "w-14 h-14 rounded-2xl",
-          "flex items-center justify-center",
-          "shadow-card-xl transition-all duration-300 ease-out",
-          "hover:scale-105 active:scale-95",
+          "fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-[9999]",
+          "w-12 h-12 sm:w-14 sm:h-14 rounded-full",
+          "flex items-center justify-center cursor-pointer",
+          "shadow-xl shadow-indigo-900/20 dark:shadow-black/60",
+          "border border-white/80 dark:border-white/20",
+          "hover:scale-105 active:scale-95 transition-all duration-300 ease-out",
           open
-            ? "bg-slate-800 dark:bg-slate-700 rotate-0"
+            ? "bg-slate-800 dark:bg-slate-700 text-white"
             : "btn-primary-glow bg-gradient-to-br from-indigo-500 to-violet-600"
         )}
-        aria-label="Open Sweety"
+        aria-label={open ? "Close Sweety" : "Open Sweety"}
       >
         {/* Glow pulse when closed */}
         {!open && (
-          <span className="absolute inset-0 rounded-2xl bg-indigo-500/40 animate-ping" style={{ animationDuration: "3s" }} />
+          <span
+            className="absolute inset-0 rounded-full bg-indigo-500/40 animate-ping pointer-events-none"
+            style={{ animationDuration: "3s" }}
+          />
         )}
 
         {open ? (
           <X className="h-6 w-6 text-white relative z-10" />
         ) : (
-          <>
-            <SweetyAvatar className="w-12 h-12 rounded-[14px] z-10 bg-transparent border-none shadow-none" imageClass="drop-shadow-md" />
+          <div className="relative w-full h-full p-1 flex items-center justify-center">
+            <SweetyAvatar
+              className="w-full h-full rounded-full bg-transparent border-none shadow-none"
+              imageClass="drop-shadow-md rounded-full"
+            />
+            {/* Online indicator dot */}
+            <span className="absolute bottom-0.5 right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
             {hasNewMessage && (
-              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 rounded-full border-2 border-white dark:border-slate-900 text-[10px] font-bold text-white flex items-center justify-center z-20 shadow-sm animate-bounce">
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 rounded-full border-2 border-white dark:border-slate-900 text-[10px] font-bold text-white flex items-center justify-center z-20 shadow-sm animate-bounce">
                 !
               </span>
             )}
-          </>
+          </div>
         )}
       </button>
 
@@ -635,12 +644,11 @@ export default function AgentChat() {
       {!open && welcomePopup && (
         <div
           className={cn(
-            "fixed bottom-8 right-20 sm:right-24 z-[9997]",
+            "fixed bottom-20 sm:bottom-8 right-20 sm:right-24 z-[9997]",
             "flex items-center gap-3 px-4 py-3 rounded-2xl rounded-br-sm",
-            "bg-white/95 dark:bg-slate-800/95 border border-indigo-100 dark:border-slate-750 shadow-card-xl dark:shadow-black/50",
+            "bg-white/95 dark:bg-slate-800/95 border border-indigo-100 dark:border-slate-700 shadow-xl",
             "text-slate-800 dark:text-slate-100 text-sm font-medium max-w-[280px]",
-            "animate-in slide-in-from-right-4 fade-in duration-500",
-            "backdrop-blur-md"
+            "animate-in slide-in-from-right-4 fade-in duration-300 backdrop-blur-md"
           )}
           style={{ animationDelay: "0.2s" }}
         >

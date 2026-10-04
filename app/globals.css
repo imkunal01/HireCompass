@@ -363,7 +363,11 @@
 body[data-in-exam="true"] #hire-bot-trigger,
 body.exam-mode-active #hire-bot-trigger,
 body[data-in-exam="true"] [data-agent-chat],
-body.exam-mode-active [data-agent-chat] {
+body.exam-mode-active [data-agent-chat],
+body[data-in-exam="true"] #hirecompass-global-navbar,
+body.exam-mode-active #hirecompass-global-navbar,
+body[data-in-exam="true"] #mobile-bottom-nav,
+body.exam-mode-active #mobile-bottom-nav {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
