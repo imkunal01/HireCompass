@@ -6,6 +6,7 @@ import Groq from "groq-sdk"
 import nodemailer from "nodemailer"
 import { scrapeJobUrl } from "@/lib/job-scraper"
 import { getUserAiConfig, saveUserApiKey, incrementUserAiUsage } from "@/lib/ai-quota"
+import { verifyAiRequestSecurity, AI_MAX_TOKENS } from "@/lib/ai-security"
 
 async function getGroqClientForUser(userId: string) {
   const config = await getUserAiConfig(userId)
@@ -1373,50 +1374,81 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── 2. Resolve User's AI Configuration & Quota ───────────────────────────
-    const aiConfig = await getUserAiConfig(session.user.id)
-
-    // Free-tier quota guard
-    if (!aiConfig.isCustom && aiConfig.usage.isLimitReached) {
-      return NextResponse.json({
-        role: "assistant",
-        content: `You hit your limit of ${aiConfig.usage.limit} free requests. Seriously? If you want to keep using this, get your own free Groq API key at **[console.groq.com/keys](https://console.groq.com/keys)** and paste it here or in **[Settings](/settings)** so we can actually get back to work.`,
-        isQuotaLimit: true,
-      })
-    }
-
-    if (!aiConfig.apiKey || aiConfig.apiKey === "your_groq_api_key_here") {
-      return NextResponse.json({
-        role: "assistant",
-        content: `You haven't even configured an API key yet. Go to https://console.groq.com/keys, grab a free key, and paste it here or in **[Settings](/settings)** so I can actually do things for you.`,
-      })
-    }
-
-    const now = new Date().toLocaleString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      dateStyle: "full",
-      timeStyle: "short",
+    // ── 2. Run Global AI Security & Anti-Token-Drainage Guard ───────────────
+    const securityCheck = await verifyAiRequestSecurity({
+      userId: session.user.id,
+      userInput: userText,
+      messages,
+      maxRequestsPerMinute: 12,
+      maxInputChars: 2500,
+      maxHistoryTurns: 8,
+      checkDuplicate: true,
+      enforceConcurrencyLock: true,
     })
 
-    const client = new Groq({ apiKey: aiConfig.apiKey })
-    const activeModel = aiConfig.model || "openai/gpt-oss-120b"
-    const userName = session.user.name || ""
-    const systemMessage: Groq.Chat.ChatCompletionMessageParam = {
-      role: "system",
-      content: buildSystemPrompt(now, userName),
+    if (!securityCheck.allowed) {
+      return NextResponse.json(
+        {
+          role: "assistant",
+          content: securityCheck.error || "Rate limit or duplicate request blocked.",
+          error: securityCheck.error,
+        },
+        {
+          status: securityCheck.status || 429,
+          headers: securityCheck.retryAfterSeconds
+            ? { "Retry-After": String(securityCheck.retryAfterSeconds) }
+            : undefined,
+        }
+      )
     }
 
-    const allMessages: Groq.Chat.ChatCompletionMessageParam[] = [systemMessage, ...messages]
+    try {
+      // ── 3. Resolve User's AI Configuration & Quota ───────────────────────────
+      const aiConfig = await getUserAiConfig(session.user.id)
 
-    // First LLM call — may return tool calls or a direct message
-    let response = await client.chat.completions.create({
-      model: activeModel,
-      messages: allMessages,
-      tools: TOOLS,
-      tool_choice: "auto",
-      max_tokens: 1024,
-      temperature: 0.7,
-    })
+      // Free-tier quota guard
+      if (!aiConfig.isCustom && aiConfig.usage.isLimitReached) {
+        return NextResponse.json({
+          role: "assistant",
+          content: `You hit your limit of ${aiConfig.usage.limit} free requests. Seriously? If you want to keep using this, get your own free Groq API key at **[console.groq.com/keys](https://console.groq.com/keys)** and paste it here or in **[Settings](/settings)** so we can actually get back to work.`,
+          isQuotaLimit: true,
+        })
+      }
+
+      if (!aiConfig.apiKey || aiConfig.apiKey === "your_groq_api_key_here") {
+        return NextResponse.json({
+          role: "assistant",
+          content: `You haven't even configured an API key yet. Go to https://console.groq.com/keys, grab a free key, and paste it here or in **[Settings](/settings)** so I can actually do things for you.`,
+        })
+      }
+
+      const now = new Date().toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        dateStyle: "full",
+        timeStyle: "short",
+      })
+
+      const client = new Groq({ apiKey: aiConfig.apiKey })
+      const activeModel = aiConfig.model || "openai/gpt-oss-120b"
+      const userName = session.user.name || ""
+      const systemMessage: Groq.Chat.ChatCompletionMessageParam = {
+        role: "system",
+        content: buildSystemPrompt(now, userName),
+      }
+
+      // Bound history to prevent payload-bloat context window drainage
+      const boundedHistory = (securityCheck.sanitizedMessages || messages.slice(-8)) as Groq.Chat.ChatCompletionMessageParam[]
+      const allMessages: Groq.Chat.ChatCompletionMessageParam[] = [systemMessage, ...boundedHistory]
+
+      // First LLM call — capped to AI_MAX_TOKENS.CHAT_COMPLETION
+      let response = await client.chat.completions.create({
+        model: activeModel,
+        messages: allMessages,
+        tools: TOOLS,
+        tool_choice: "auto",
+        max_tokens: AI_MAX_TOKENS.CHAT_COMPLETION,
+        temperature: 0.7,
+      })
 
     let assistantMessage = response.choices[0].message
     const toolResults: { toolName: string; result: ToolResult }[] = []
@@ -1462,7 +1494,7 @@ export async function POST(request: NextRequest) {
         messages: allMessages,
         tools: TOOLS,
         tool_choice: "none",
-        max_tokens: 1024,
+        max_tokens: AI_MAX_TOKENS.CHAT_COMPLETION,
         temperature: 0.7,
       })
       assistantMessage = response.choices[0].message
@@ -1496,6 +1528,9 @@ export async function POST(request: NextRequest) {
       actions,
       navigateTo,
     })
+    } finally {
+      securityCheck.releaseLock?.()
+    }
   } catch (error) {
     console.error("[POST /api/agent/chat]", error)
     const msg = error instanceof Error ? error.message : "Internal server error"

@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio"
 import Groq from "groq-sdk"
+import { AI_MAX_TOKENS } from "@/lib/ai-security"
 
 const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b"
 
@@ -345,7 +346,7 @@ OUTPUT FORMAT:
           },
         ],
         temperature: 0.1,
-        max_tokens: 1024,
+        max_tokens: AI_MAX_TOKENS.SCRAPER_EXTRACT,
       })
 
       const raw = completion.choices[0]?.message?.content?.trim() || "{}"

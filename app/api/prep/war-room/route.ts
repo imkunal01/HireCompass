@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
 import clientPromise from "@/lib/mongodb"
 import { getUserAiConfig, incrementUserAiUsage } from "@/lib/ai-quota"
+import { verifyAiRequestSecurity, createAiRateLimitResponse, AI_MAX_TOKENS } from "@/lib/ai-security"
 import Groq from "groq-sdk"
 import { WarRoomDossier } from "@/types/prep"
 
@@ -60,9 +61,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const groq = new Groq({ apiKey: aiConfig.apiKey })
+    // AI Security Check: sliding window velocity, concurrency lock, and token defense
+    const securityCheck = await verifyAiRequestSecurity({
+      userId: session.user.id,
+      userInput: `${company}:${role}:${roundType}`,
+      maxRequestsPerMinute: 8,
+      checkDuplicate: false, // forceRefresh may legitimately re-generate
+      enforceConcurrencyLock: true,
+    })
 
-    const prompt = `You are a Principal Engineering Interview Coach & Technical Talent Strategist.
+    if (!securityCheck.allowed) {
+      return createAiRateLimitResponse(securityCheck)
+    }
+
+    try {
+      const groq = new Groq({ apiKey: aiConfig.apiKey })
+
+      const prompt = `You are a Principal Engineering Interview Coach & Technical Talent Strategist.
 Generate a tactical interview preparation dossier for the following target:
 - Company: ${company}
 - Role: ${role || "Software Engineer"}
@@ -94,53 +109,57 @@ Respond ONLY with a valid JSON object matching this structure:
   "suggestedSheetCategory": "DSA | System Design | OS | DBMS"
 }`
 
-    const completion = await groq.chat.completions.create({
-      model: aiConfig.model || "openai/gpt-oss-120b",
-      messages: [
+      const completion = await groq.chat.completions.create({
+        model: aiConfig.model || "openai/gpt-oss-120b",
+        messages: [
+          {
+            role: "system",
+            content: "You output only clean, valid JSON without markdown fences or additional commentary.",
+          },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.3,
+        response_format: { type: "json_object" },
+        max_tokens: AI_MAX_TOKENS.WAR_ROOM_DOSSIER,
+      })
+
+      const rawContent = completion.choices[0]?.message?.content || "{}"
+      let dossier: WarRoomDossier
+
+      try {
+        dossier = JSON.parse(rawContent)
+      } catch {
+        return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 })
+      }
+
+      // Record AI quota usage
+      await incrementUserAiUsage(session.user.id)
+
+      // Cache the dossier in MongoDB
+      const now = new Date()
+      await dossiersCol.updateOne(
         {
-          role: "system",
-          content: "You output only clean, valid JSON without markdown fences or additional commentary.",
-        },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.3,
-      response_format: { type: "json_object" },
-    })
-
-    const rawContent = completion.choices[0]?.message?.content || "{}"
-    let dossier: WarRoomDossier
-
-    try {
-      dossier = JSON.parse(rawContent)
-    } catch {
-      return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 })
-    }
-
-    // Record AI quota usage
-    await incrementUserAiUsage(session.user.id)
-
-    // Cache the dossier in MongoDB
-    const now = new Date()
-    await dossiersCol.updateOne(
-      {
-        userId: session.user.id,
-        company: company.toLowerCase(),
-        roundType: roundType.toLowerCase(),
-      },
-      {
-        $set: {
           userId: session.user.id,
           company: company.toLowerCase(),
           roundType: roundType.toLowerCase(),
-          dossier,
-          updatedAt: now,
         },
-        $setOnInsert: { createdAt: now },
-      },
-      { upsert: true }
-    )
+        {
+          $set: {
+            userId: session.user.id,
+            company: company.toLowerCase(),
+            roundType: roundType.toLowerCase(),
+            dossier,
+            updatedAt: now,
+          },
+          $setOnInsert: { createdAt: now },
+        },
+        { upsert: true }
+      )
 
-    return NextResponse.json({ dossier, cached: false })
+      return NextResponse.json({ dossier, cached: false })
+    } finally {
+      securityCheck.releaseLock?.()
+    }
   } catch (error: any) {
     console.error("[POST /api/prep/war-room]", error)
     return NextResponse.json(

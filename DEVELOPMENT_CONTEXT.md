@@ -230,14 +230,39 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
     2. In `components/features/prep/griller-tab.tsx`:
        - Added **"Proceed to Next Question"** button directly on the scorecard and in an ambient Call-To-Action banner above the composer (`handleNextQuestion`), ensuring continuous multi-turn defense rounds.
        - Added **"Rewrite / Improve Answer"** button (`handleRewriteAnswer`) that loads the candidate's previous answer back into the composer, rolls back the session stream to the active question, and enables candidates to incorporate their critique and aim for a 10/10 score.
-  - Verified clean `npm run lint` (0 errors) and `npx tsc --noEmit` (0 errors).
-
-
-
-
-
-
-
-
-
-
+- **2026-10-04 (AI Assessment — Excel Problem Bank, Tabbed History, & Persistent State Machine)**:
+  - **Random Problem Dispatcher**: Replaced the manual problem catalog in the assessment lobby with a randomized problem dispatcher. Parsed all 29 DSA problems from `Capgemini_DSA_Practice_Problems.xlsx` into `lib/assessment-problems.ts` spanning 4 key tracks:
+    1. Arrays & Strings (9 questions: Special Chars to Front, Move Zeroes, Run-Length Compression, Kadane's, Product Except Self, Spiral Matrix, Rotate Image, Longest Substring, K-Anagrams).
+    2. Mathematics & Greedy (7 questions: Jump Game II, Stock I & II, Container With Most Water, Modular Exponentiation, Two Sum, K-Diff Pairs).
+    3. Stacks & Linked Lists (5 questions: Detect/Remove Loop, Reverse in K Groups, Next Greater Element, Valid Parentheses, Middle of List).
+    4. Dynamic Programming & Trees (8 questions: 0/1 Knapsack, Subset Sum, Coin Change, LCS, LIS, BST Node Count in Range, Left View, Zigzag Level Order).
+  - **Tabbed Layout ("Assessment Arena" & "Recent Assessments")**:
+    * Created dedicated top-level tabs in `components/features/assessment/assessment-lobby.tsx`.
+    * Arena tab features the randomized problem launcher, difficulty toggles (Standard vs Strict/Hard), and active in-progress assessment cards.
+    * Recent Assessments tab lists all past attempts with attempt badges, status filters, 100-pt scorecard pill, and a full turn-by-turn prompt & AI reply inspection modal.
+  - **State Persistence & Anti-Reset Protection**:
+    * Updated `app/(dashboard)/assessment/page.tsx` with dual-layer persistence (localStorage + MongoDB authoritative active session check) ensuring tests do not reset when the user presses the browser back button, reloads, or navigates away.
+    * Intercepted `popstate` in `components/features/assessment/exam-environment.tsx` with confirmation modal offering "Pause & Save" (preserves test) vs "Abandon & Reset".
+    * Enabled full chat history review for every attempt, displaying candidate prompts, evaluator replies, verdicts, missing requirements, generated code, and rubric evaluations.
+  - Verified clean `npx tsc --noEmit` (0 errors) and `npm run lint` (0 errors).
+- **2026-10-04 (Phase 12 Complete — Global AI Usage Security & Token Drainage Defense Framework)**:
+  - **Created Centralized Security Layer (`lib/ai-security.ts`)**:
+    * **Sliding-Window Velocity Limiter**: Tracks request timestamps within rolling 60-second windows per user/IP with automatic 5-minute garbage collection. Returns standard HTTP `429 Too Many Requests` with dynamic `Retry-After` header.
+    * **Concurrency Mutex Locking**: Tracks active in-flight LLM generations per user with a 45-second hard safety timeout. Eliminates the race condition where parallel asynchronous requests could flood the system and bypass free quota limits simultaneously.
+    * **Duplicate / Replay Spam Defense**: Computes SHA-256 fingerprint (`userId:sanitizedInput`) and blocks identical replayed prompts within 3.5 seconds.
+    * **Payload Bounding & Sanitization**: Strips null bytes (`\0`) and enforces strict character limits on single prompts (`sanitizePromptText`) and sliding turn limits on chat history (`boundChatMessages`).
+    * **Global Token Ceilings (`AI_MAX_TOKENS`)**: Defined strict maximum completion tokens for all AI workloads (`CHAT_COMPLETION: 1024`, `ASSESSMENT_TURN: 1200`, `WAR_ROOM_DOSSIER: 850`, `GRILLER_EVALUATION: 850`, `STAR_STORY_MATRIX: 1000`, `REMEDIATION_DRILL: 850`, `JD_PARSER: 600`, `QUICK_HELPER: 500`, `CSV_ALIGN: 400`, `SCRAPER_EXTRACT: 800`).
+    * **Helper Response Generator**: Exported `createAiRateLimitResponse` to uniformly generate standard HTTP 429 JSON responses with `Retry-After` headers.
+  - **Protected All AI Route Handlers & Engines**:
+    * `app/api/agent/chat/route.ts` (Sweety bot copilot): 12 req/min, 2500 max input chars, 8-turn history window, concurrency mutex lock, `AI_MAX_TOKENS.CHAT_COMPLETION`.
+    * `app/api/prep/assessment/route.ts` & `lib/assessment-engine.ts`: 15 req/min, 3500 max input chars, concurrency mutex lock, `AI_MAX_TOKENS.ASSESSMENT_TURN`.
+    * `app/api/prep/war-room/route.ts`: 8 req/min, concurrency mutex lock, `AI_MAX_TOKENS.WAR_ROOM_DOSSIER`.
+    * `app/api/prep/griller/route.ts`: 15 req/min, 3000 max input chars, 6-turn history, concurrency mutex lock, `AI_MAX_TOKENS.GRILLER_EVALUATION`.
+    * `app/api/prep/star-matrix/route.ts`: 8 req/min, concurrency mutex lock, `AI_MAX_TOKENS.STAR_STORY_MATRIX`.
+    * `app/api/prep/remediation/route.ts`: 8 req/min, concurrency mutex lock, `AI_MAX_TOKENS.REMEDIATION_DRILL`.
+    * `app/api/import/jd/route.ts`: 10 req/min, 8000 max input chars, concurrency mutex lock, `AI_MAX_TOKENS.JD_PARSER`.
+    * `app/api/import/url/route.ts` & `app/api/scrape-job/route.ts`: 10 req/min, concurrency mutex lock, URL replay deduplication.
+    * `lib/gemini.ts`: Enforced `AI_MAX_TOKENS.CHAT_COMPLETION` (1024) ceiling in `extractJSON` and `streamText` (reduced from 4096).
+    * `lib/csv-import.ts`: Enforced `AI_MAX_TOKENS.CSV_ALIGN` (400) in `alignColumnsWithAi`.
+    * `lib/job-scraper.ts`: Enforced `AI_MAX_TOKENS.SCRAPER_EXTRACT` (800) in HTML parsing fallback.
+  - **Verification**: Verified clean `npx tsc --noEmit` (0 errors) and `npm run lint` (0 errors).

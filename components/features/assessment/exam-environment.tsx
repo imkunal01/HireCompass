@@ -151,10 +151,20 @@ export function ExamEnvironment({
     }
   }, [])
 
-  // Auto-scroll messages to bottom whenever messages change or loading state changes
+  // Intercept browser back button (popstate) to prevent accidental state reset
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [session.messages, isLoading])
+    window.history.pushState({ inExam: true, sessionId: session._id || session.id }, "", window.location.href)
+
+    const handlePopState = () => {
+      setShowExitConfirm(true)
+      window.history.pushState({ inExam: true, sessionId: session._id || session.id }, "", window.location.href)
+    }
+
+    window.addEventListener("popstate", handlePopState)
+    return () => {
+      window.removeEventListener("popstate", handlePopState)
+    }
+  }, [session._id, session.id])
 
   // Practice Timer
   useEffect(() => {
@@ -229,6 +239,11 @@ export function ExamEnvironment({
     }
   }
 
+  // Auto-scroll messages to bottom whenever messages change or loading state changes
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [session.messages, isLoading])
+
   const handleResetSession = async () => {
     if (!confirm("Are you sure you want to restart this problem assessment? Your progress will reset.")) {
       return
@@ -254,6 +269,26 @@ export function ExamEnvironment({
       console.error("[ExamEnvironment] Reset error:", err)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleAbandonSession = async () => {
+    setIsLoading(true)
+    try {
+      await fetch("/api/prep/assessment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "abandon",
+          sessionId: session._id || session.id,
+        }),
+      })
+    } catch (err) {
+      console.error("[ExamEnvironment] Abandon error:", err)
+    } finally {
+      setIsLoading(false)
+      setShowExitConfirm(false)
+      onExit()
     }
   }
 
@@ -919,102 +954,153 @@ export function ExamEnvironment({
             <div ref={messagesEndRef} />
           </div>
 
-          {/* ── 3. DOCKED BOTTOM COMPOSER: ALWAYS VISIBLE, ZERO PAGE SCROLLING NEEDED ── */}
-          <div className="shrink-0 bg-[#0a0f1d] border-t border-slate-800/80 p-3 sm:p-4 z-20 space-y-2 shadow-2xl">
-            {/* Quick Stage Prompts Chips */}
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
-              <span className="text-[10px] font-extrabold uppercase text-slate-500 shrink-0">
-                Suggested Prompts:
-              </span>
-              {getStageSuggestions().map((suggestion, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setUserInput(suggestion.text)}
-                  disabled={isLoading}
-                  className="shrink-0 text-[11px] px-2.5 py-1 rounded-lg bg-[#0e162a] text-slate-300 hover:text-white hover:bg-[#131e3a] border border-slate-800 hover:border-[#0070ad]/50 transition-all font-medium"
+          {/* ── 3. DOCKED BOTTOM COMPOSER OR REVIEW MODE BANNER ── */}
+          {session.status !== "ACTIVE" ? (
+            <div className="shrink-0 bg-[#0a0f1d] border-t border-slate-800/80 p-3 sm:p-4 z-20 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs font-extrabold uppercase border",
+                    session.status === "PASSED" && "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+                    session.status === "FAILED" && "bg-rose-500/10 text-rose-400 border-rose-500/30",
+                    session.status === "ABANDONED" && "bg-slate-500/10 text-slate-400 border-slate-500/30"
+                  )}
                 >
-                  {suggestion.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Input Textarea Box */}
-            <div className="relative rounded-2xl border border-slate-700/80 bg-[#060a14] p-2 focus-within:ring-2 focus-within:ring-[#0070ad]/40 focus-within:border-[#0070ad] transition-all">
-              <textarea
-                ref={textareaRef}
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                    e.preventDefault()
-                    handleSendMessage()
-                  }
-                }}
-                disabled={isLoading || session.status === "PASSED" || session.status === "FAILED"}
-                placeholder={
-                  session.status === "PASSED" || session.status === "FAILED"
-                    ? "Assessment completed. Check your final scorecard."
-                    : session.currentStage === "UNDERSTANDING"
-                    ? "Explain your problem understanding: input, output, constraints, edge cases..."
-                    : session.currentStage === "APPROACH"
-                    ? "State your proposed algorithm, data structure, and O(...) complexity..."
-                    : session.currentStage === "IMPLEMENTATION_PROMPT"
-                    ? "Write the structured prompt directing the AI to implement the solution..."
-                    : session.currentStage === "CODE_REVIEW"
-                    ? "Identify logical errors, trace normal and edge cases, explain findings..."
-                    : session.currentStage === "REFINEMENT"
-                    ? "Provide specific targeted modification instructions to fix the code..."
-                    : "Type your response..."
-                }
-                rows={2}
-                className="w-full bg-transparent resize-none outline-none text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 p-1"
-              />
-
-              <div className="flex items-center justify-between pt-1.5 border-t border-slate-800/80 px-1">
-                <span className="text-[10px] text-slate-500">
-                  Press <kbd className="px-1.5 py-0.5 rounded bg-slate-800 font-mono text-[9px] text-slate-400">Ctrl+Enter</kbd> to submit
+                  {session.status}
                 </span>
+                <div className="text-xs text-slate-300">
+                  <span className="font-bold text-white">Attempt Review Mode:</span> All candidate prompts and AI responses from this attempt are preserved above.
+                </div>
+              </div>
 
+              <div className="flex items-center gap-2 shrink-0">
+                {session.evaluation && (
+                  <button
+                    onClick={() => setShowScoreModal(true)}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm hover:scale-105 transition-all"
+                  >
+                    View Scorecard ({session.evaluation.totalScore}/100)
+                  </button>
+                )}
                 <button
-                  onClick={() => handleSendMessage()}
-                  disabled={!userInput.trim() || isLoading || session.status === "PASSED" || session.status === "FAILED"}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#0070ad] hover:bg-[#005a8c] disabled:opacity-50 text-white shadow-md shadow-[#0070ad]/30 transition-all hover:scale-[1.02] cursor-pointer disabled:cursor-not-allowed"
+                  onClick={onExit}
+                  className="px-4 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
                 >
-                  <span>Submit</span>
-                  <Send className="w-3.5 h-3.5" />
+                  Exit to Lobby
                 </button>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="shrink-0 bg-[#0a0f1d] border-t border-slate-800/80 p-3 sm:p-4 z-20 space-y-2 shadow-2xl">
+              {/* Quick Stage Prompts Chips */}
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
+                <span className="text-[10px] font-extrabold uppercase text-slate-500 shrink-0">
+                  Suggested Prompts:
+                </span>
+                {getStageSuggestions().map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setUserInput(suggestion.text)}
+                    disabled={isLoading}
+                    className="shrink-0 text-[11px] px-2.5 py-1 rounded-lg bg-[#0e162a] text-slate-300 hover:text-white hover:bg-[#131e3a] border border-slate-800 hover:border-[#0070ad]/50 transition-all font-medium"
+                  >
+                    {suggestion.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Input Textarea Box */}
+              <div className="relative rounded-2xl border border-slate-700/80 bg-[#060a14] p-2 focus-within:ring-2 focus-within:ring-[#0070ad]/40 focus-within:border-[#0070ad] transition-all">
+                <textarea
+                  ref={textareaRef}
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                      e.preventDefault()
+                      handleSendMessage()
+                    }
+                  }}
+                  disabled={isLoading}
+                  placeholder={
+                    session.currentStage === "UNDERSTANDING"
+                      ? "Explain your problem understanding: input, output, constraints, edge cases..."
+                      : session.currentStage === "APPROACH"
+                      ? "State your proposed algorithm, data structure, and O(...) complexity..."
+                      : session.currentStage === "IMPLEMENTATION_PROMPT"
+                      ? "Write the structured prompt directing the AI to implement the solution..."
+                      : session.currentStage === "CODE_REVIEW"
+                      ? "Identify logical errors, trace normal and edge cases, explain findings..."
+                      : session.currentStage === "REFINEMENT"
+                      ? "Provide specific targeted modification instructions to fix the code..."
+                      : "Type your response..."
+                  }
+                  rows={2}
+                  className="w-full bg-transparent resize-none outline-none text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 p-1"
+                />
+
+                <div className="flex items-center justify-between pt-1.5 border-t border-slate-800/80 px-1">
+                  <span className="text-[10px] text-slate-500">
+                    Press <kbd className="px-1.5 py-0.5 rounded bg-slate-800 font-mono text-[9px] text-slate-400">Ctrl+Enter</kbd> to submit
+                  </span>
+
+                  <button
+                    onClick={() => handleSendMessage()}
+                    disabled={!userInput.trim() || isLoading}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#0070ad] hover:bg-[#005a8c] disabled:opacity-50 text-white shadow-md shadow-[#0070ad]/30 transition-all hover:scale-[1.02] cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    <span>Submit</span>
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
       </div>
 
       {/* ── 4. End Exam Confirmation Modal ── */}
       {showExitConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-[#0d1424] p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center gap-3 text-rose-400 font-bold">
-              <AlertTriangle className="w-5 h-5 shrink-0" />
-              <h3 className="text-base font-black text-white">Exit Active Examination?</h3>
+          <div className="w-full max-w-lg rounded-3xl border border-slate-800 bg-[#0d1424] p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3 text-amber-400 font-bold">
+              <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400" />
+              <h3 className="text-base font-black text-white">Exit Active Assessment?</h3>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Are you sure you want to exit the exam environment? Your current progress and conversation will be preserved in your session history.
+              Your assessment state and chat history are securely preserved in your database. You can pause and return to resume anytime, or explicitly abandon this test attempt.
             </p>
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-slate-200">
+                <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" />
+                <span>Pause & Save: You can resume this exact test at any time without losing progress.</span>
+              </div>
+              <div className="flex items-center gap-1.5 font-bold text-rose-400">
+                <XCircle className="w-3.5 h-3.5" />
+                <span>Abandon & Reset: Terminates this active test attempt.</span>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-2 pt-2">
               <button
                 onClick={() => setShowExitConfirm(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
               >
-                Continue Exam
+                Continue Test
+              </button>
+              <button
+                onClick={handleAbandonSession}
+                className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all"
+              >
+                Abandon & Reset
               </button>
               <button
                 onClick={() => {
                   setShowExitConfirm(false)
                   onExit()
                 }}
-                className="px-5 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-all shadow-md"
+                className="w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-bold bg-[#0070ad] hover:bg-[#005a8c] text-white transition-all shadow-md shadow-[#0070ad]/30"
               >
-                Confirm Exit
+                Pause & Return to Hub
               </button>
             </div>
           </div>

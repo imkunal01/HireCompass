@@ -11,6 +11,7 @@
  */
 
 import Groq from "groq-sdk"
+import { AI_MAX_TOKENS } from "@/lib/ai-security"
 
 const apiKey = process.env.GROQ_API_KEY
 const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b"
@@ -65,7 +66,7 @@ export async function extractJSON<T = unknown>(
 ): Promise<T> {
   const client = getClient(apiKeyOverride)
   const targetModel = modelOverride || MODEL
-  const maxTokens = maxTokensOverride || 4096
+  const maxTokens = maxTokensOverride || AI_MAX_TOKENS.CHAT_COMPLETION
   let lastError: unknown
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -137,7 +138,7 @@ export function streamText(
               { role: "user", content: prompt },
             ],
             temperature: 0.7,
-            max_completion_tokens: 4096,
+            max_completion_tokens: AI_MAX_TOKENS.CHAT_COMPLETION,
             stream: true,
           })
 

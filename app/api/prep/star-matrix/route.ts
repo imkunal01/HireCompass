@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
 import clientPromise from "@/lib/mongodb"
 import { getUserAiConfig, incrementUserAiUsage } from "@/lib/ai-quota"
+import { verifyAiRequestSecurity, createAiRateLimitResponse, AI_MAX_TOKENS } from "@/lib/ai-security"
 import Groq from "groq-sdk"
 import { ObjectId } from "mongodb"
 import { StarStory } from "@/types/prep"
@@ -78,9 +79,23 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const groq = new Groq({ apiKey: aiConfig.apiKey })
+      // AI Security Check: velocity rate limit and concurrency lock
+      const securityCheck = await verifyAiRequestSecurity({
+        userId: session.user.id,
+        userInput: `${projectId}:${archetype}`,
+        maxRequestsPerMinute: 8,
+        checkDuplicate: false,
+        enforceConcurrencyLock: true,
+      })
 
-      const prompt = `You are an Executive Tech Career Coach & Behavioral Interview Specialist.
+      if (!securityCheck.allowed) {
+        return createAiRateLimitResponse(securityCheck)
+      }
+
+      try {
+        const groq = new Groq({ apiKey: aiConfig.apiKey })
+
+        const prompt = `You are an Executive Tech Career Coach & Behavioral Interview Specialist.
 Convert the candidate's real project experience into a punchy, metric-backed behavioral interview story using the STAR framework.
 
 Candidate's Project Details:
@@ -116,54 +131,58 @@ Respond ONLY with a valid JSON object matching this structure:
   "tags": ["tag1", "tag2"]
 }`
 
-      const completion = await groq.chat.completions.create({
-        model: aiConfig.model || "openai/gpt-oss-120b",
-        messages: [
-          { role: "system", content: "You output only clean, valid JSON without markdown fences." },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.3,
-        response_format: { type: "json_object" },
-      })
+        const completion = await groq.chat.completions.create({
+          model: aiConfig.model || "openai/gpt-oss-120b",
+          messages: [
+            { role: "system", content: "You output only clean, valid JSON without markdown fences." },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.3,
+          response_format: { type: "json_object" },
+          max_tokens: AI_MAX_TOKENS.STAR_STORY_MATRIX,
+        })
 
-      const raw = completion.choices[0]?.message?.content || "{}"
-      let synthesized: any
-      try {
-        synthesized = JSON.parse(raw)
-      } catch {
-        return NextResponse.json({ error: "Failed to parse synthesized story" }, { status: 500 })
+        const raw = completion.choices[0]?.message?.content || "{}"
+        let synthesized: any
+        try {
+          synthesized = JSON.parse(raw)
+        } catch {
+          return NextResponse.json({ error: "Failed to parse synthesized story" }, { status: 500 })
+        }
+
+        await incrementUserAiUsage(session.user.id)
+
+        const now = new Date()
+        const newStory: any = {
+          userId: session.user.id,
+          projectId: project._id.toString(),
+          projectTitle: project.title,
+          title: synthesized.title,
+          archetype: synthesized.archetype || archetype,
+          situation: synthesized.situation,
+          task: synthesized.task,
+          action: synthesized.action,
+          result: synthesized.result,
+          metrics: synthesized.metrics || [],
+          audienceVersions: synthesized.audienceVersions,
+          tags: synthesized.tags || [],
+          bookmarked: false,
+          createdAt: now,
+          updatedAt: now,
+        }
+
+        const insertResult = await storiesCol.insertOne(newStory)
+
+        return NextResponse.json({
+          story: {
+            ...newStory,
+            _id: insertResult.insertedId.toString(),
+            id: insertResult.insertedId.toString(),
+          },
+        })
+      } finally {
+        securityCheck.releaseLock?.()
       }
-
-      await incrementUserAiUsage(session.user.id)
-
-      const now = new Date()
-      const newStory: any = {
-        userId: session.user.id,
-        projectId: project._id.toString(),
-        projectTitle: project.title,
-        title: synthesized.title,
-        archetype: synthesized.archetype || archetype,
-        situation: synthesized.situation,
-        task: synthesized.task,
-        action: synthesized.action,
-        result: synthesized.result,
-        metrics: synthesized.metrics || [],
-        audienceVersions: synthesized.audienceVersions,
-        tags: synthesized.tags || [],
-        bookmarked: false,
-        createdAt: now,
-        updatedAt: now,
-      }
-
-      const insertResult = await storiesCol.insertOne(newStory)
-
-      return NextResponse.json({
-        story: {
-          ...newStory,
-          _id: insertResult.insertedId.toString(),
-          id: insertResult.insertedId.toString(),
-        },
-      })
     }
 
     // Manual Save Mode

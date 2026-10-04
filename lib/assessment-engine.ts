@@ -1,4 +1,5 @@
 import Groq from "groq-sdk"
+import { AI_MAX_TOKENS } from "@/lib/ai-security"
 import {
   AssessmentSession,
   AssessmentStage,
@@ -182,6 +183,7 @@ RESPOND WITH STRICT JSON ONLY (no markdown fences, no extra text):
       messages: messagesToSend,
       temperature: 0.2,
       response_format: { type: "json_object" },
+      max_tokens: AI_MAX_TOKENS.ASSESSMENT_TURN,
     })
 
     const raw = completion.choices[0]?.message?.content?.trim() || "{}"

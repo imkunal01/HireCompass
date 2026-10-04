@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
+import { verifyAiRequestSecurity, createAiRateLimitResponse } from "@/lib/ai-security"
 import { streamText, isGeminiConfigured } from "@/lib/gemini"
 import { scrapeJobUrl } from "@/lib/job-scraper"
 import * as cheerio from "cheerio"
@@ -70,6 +71,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         error: "Indeed blocks direct automated fetching. Please copy the job description text and switch to the 'Paste Job Description' tab — AI will extract everything automatically!"
       }, { status: 422 })
+    }
+
+    // AI Security check: rate limiter, duplicate URL replay blocker, concurrency mutex
+    const securityCheck = await verifyAiRequestSecurity({
+      userId: session.user.id,
+      userInput: rawUrl,
+      maxRequestsPerMinute: 10,
+      checkDuplicate: true,
+      enforceConcurrencyLock: true,
+    })
+
+    if (!securityCheck.allowed) {
+      return createAiRateLimitResponse(securityCheck)
     }
 
     // 2. Try ATS APIs & structured scraper (Greenhouse, Lever, Ashby, JSON-LD)
@@ -171,6 +185,7 @@ export async function POST(request: NextRequest) {
 
     // If we already have prestructured ATS data, return that directly as a stream chunk
     if (prestructuredJson) {
+      securityCheck.releaseLock?.()
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           controller.enqueue(encoder.encode(rawContentPayload))
@@ -205,6 +220,7 @@ export async function POST(request: NextRequest) {
           const msg = err instanceof Error ? err.message : "Unknown error"
           controller.enqueue(encoder.encode(`__ERROR__:${msg}`))
         } finally {
+          securityCheck.releaseLock?.()
           controller.close()
         }
       },

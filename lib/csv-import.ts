@@ -1,6 +1,7 @@
 import Papa from "papaparse"
 import * as XLSX from "xlsx"
 import Groq from "groq-sdk"
+import { AI_MAX_TOKENS } from "@/lib/ai-security"
 import { Difficulty, Platform } from "@/types/sheet"
 
 export interface ParsedCsvItem {
@@ -345,6 +346,7 @@ Example format:
       ],
       temperature: 0.1,
       response_format: { type: "json_object" },
+      max_tokens: AI_MAX_TOKENS.CSV_ALIGN,
     })
 
     const raw = completion.choices[0]?.message?.content || "{}"

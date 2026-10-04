@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
 import clientPromise from "@/lib/mongodb"
 import { getUserAiConfig, incrementUserAiUsage } from "@/lib/ai-quota"
+import { verifyAiRequestSecurity, createAiRateLimitResponse, AI_MAX_TOKENS } from "@/lib/ai-security"
 import Groq from "groq-sdk"
 
 export const dynamic = "force-dynamic"
@@ -106,9 +107,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const groq = new Groq({ apiKey: aiConfig.apiKey })
+    // AI Security Check: velocity rate limit and concurrency lock
+    const securityCheck = await verifyAiRequestSecurity({
+      userId: session.user.id,
+      userInput: targetCategory,
+      maxRequestsPerMinute: 8,
+      checkDuplicate: false,
+      enforceConcurrencyLock: true,
+    })
 
-    const prompt = `You are a Principal Engineering Career Strategist & Post-Mortem Remediation Specialist.
+    if (!securityCheck.allowed) {
+      return createAiRateLimitResponse(securityCheck)
+    }
+
+    try {
+      const groq = new Groq({ apiKey: aiConfig.apiKey })
+
+      const prompt = `You are a Principal Engineering Career Strategist & Post-Mortem Remediation Specialist.
 The candidate has logged the following rejection drop-offs in their job hunt:
 ${JSON.stringify(rejectionContext, null, 2)}
 
@@ -137,30 +152,34 @@ Respond ONLY with a valid JSON object matching this structure:
   "confidenceRecoveryTip": "A 1-sentence psychological anchor to rebuild confidence before the next interview."
 }`
 
-    const completion = await groq.chat.completions.create({
-      model: aiConfig.model || "openai/gpt-oss-120b",
-      messages: [
-        { role: "system", content: "You output only clean, valid JSON without markdown fences." },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.3,
-      response_format: { type: "json_object" },
-    })
+      const completion = await groq.chat.completions.create({
+        model: aiConfig.model || "openai/gpt-oss-120b",
+        messages: [
+          { role: "system", content: "You output only clean, valid JSON without markdown fences." },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.3,
+        response_format: { type: "json_object" },
+        max_tokens: AI_MAX_TOKENS.REMEDIATION_DRILL,
+      })
 
-    const raw = completion.choices[0]?.message?.content || "{}"
-    let parsed: any
-    try {
-      parsed = JSON.parse(raw)
-    } catch {
-      return NextResponse.json({ error: "Failed to parse remediation drills" }, { status: 500 })
+      const raw = completion.choices[0]?.message?.content || "{}"
+      let parsed: any
+      try {
+        parsed = JSON.parse(raw)
+      } catch {
+        return NextResponse.json({ error: "Failed to parse remediation drills" }, { status: 500 })
+      }
+
+      await incrementUserAiUsage(session.user.id)
+
+      return NextResponse.json({
+        drills: parsed.drills || [],
+        confidenceRecoveryTip: parsed.confidenceRecoveryTip || "",
+      })
+    } finally {
+      securityCheck.releaseLock?.()
     }
-
-    await incrementUserAiUsage(session.user.id)
-
-    return NextResponse.json({
-      drills: parsed.drills || [],
-      confidenceRecoveryTip: parsed.confidenceRecoveryTip || "",
-    })
   } catch (error: any) {
     console.error("[POST /api/prep/remediation]", error)
     return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 })

@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
 import { getUserAiConfig, incrementUserAiUsage } from "@/lib/ai-quota"
-import { CAPGEMINI_PROBLEMS, getProblemById } from "@/lib/assessment-problems"
+import { verifyAiRequestSecurity, createAiRateLimitResponse } from "@/lib/ai-security"
+import { CAPGEMINI_PROBLEMS, getProblemById, getRandomProblem } from "@/lib/assessment-problems"
 import {
   createAssessmentSession,
   getAssessmentSession,
   updateAssessmentSession,
   getUserAssessmentSessions,
+  getActiveAssessmentSession,
+  abandonAssessmentSession,
   resetAssessmentSession,
 } from "@/lib/assessment-db"
 import { evaluateAssessmentTurn } from "@/lib/assessment-engine"
@@ -34,10 +37,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ session: assessmentSession })
     }
 
-    const pastSessions = await getUserAssessmentSessions(session.user.id, company)
+    const [pastSessions, activeSession] = await Promise.all([
+      getUserAssessmentSessions(session.user.id, company),
+      getActiveAssessmentSession(session.user.id, company),
+    ])
 
     return NextResponse.json({
       company,
+      activeSession,
       problems: CAPGEMINI_PROBLEMS,
       recentSessions: pastSessions,
     })
@@ -66,21 +73,36 @@ export async function POST(request: NextRequest) {
 
       if (customProblem) {
         problem = customProblem
-      } else if (problemId) {
+      } else if (problemId && problemId !== "random") {
         problem = getProblemById(problemId)
       } else {
-        problem = CAPGEMINI_PROBLEMS[0]
+        // Pick a random problem from the Capgemini set
+        problem = getRandomProblem()
       }
 
       if (!problem) {
-        return NextResponse.json({ error: "Problem not found" }, { status: 404 })
+        problem = getRandomProblem()
       }
 
       const newSession = await createAssessmentSession(session.user.id, problem, difficulty)
       return NextResponse.json({ session: newSession })
     }
 
-    // ─── 2. Action: RESET ───────────────────────────────────────────────
+    // ─── 2. Action: ABANDON ─────────────────────────────────────────────
+    if (action === "abandon") {
+      if (!sessionId) {
+        return NextResponse.json({ error: "Session ID is required" }, { status: 400 })
+      }
+
+      const abandoned = await abandonAssessmentSession(sessionId, session.user.id)
+      if (!abandoned) {
+        return NextResponse.json({ error: "Session not found" }, { status: 404 })
+      }
+
+      return NextResponse.json({ session: abandoned })
+    }
+
+    // ─── 3. Action: RESET ───────────────────────────────────────────────
     if (action === "reset") {
       if (!sessionId) {
         return NextResponse.json({ error: "Session ID is required" }, { status: 400 })
@@ -94,7 +116,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ session: reset })
     }
 
-    // ─── 3. Action: RESPOND ─────────────────────────────────────────────
+    // ─── 4. Action: RESPOND ─────────────────────────────────────────────
     if (action === "respond") {
       if (!sessionId || typeof userInput !== "string") {
         return NextResponse.json(
@@ -103,125 +125,144 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const assessmentSession = await getAssessmentSession(sessionId, session.user.id)
-      if (!assessmentSession) {
-        return NextResponse.json({ error: "Assessment session not found" }, { status: 404 })
-      }
-
-      if (assessmentSession.status === "PASSED" || assessmentSession.status === "FAILED") {
-        return NextResponse.json(
-          { error: "This assessment session has already ended.", session: assessmentSession },
-          { status: 400 }
-        )
-      }
-
-      // Check AI config and quotas
-      const aiConfig = await getUserAiConfig(session.user.id)
-      if (aiConfig.usage.isLimitReached) {
-        return NextResponse.json(
-          {
-            error:
-              "Free AI quota limit reached. Add your personal Groq API key in Settings for unlimited generations.",
-            isQuotaExceeded: true,
-          },
-          { status: 429 }
-        )
-      }
-
-      const now = new Date().toISOString()
-
-      // Record candidate message into history
-      assessmentSession.messages.push({
-        id: `msg-cand-${Date.now()}`,
-        role: "candidate",
-        content: userInput,
-        stage: assessmentSession.currentStage,
-        timestamp: now,
-      })
-
-      // Run evaluator turn
-      const evaluatorResult = await evaluateAssessmentTurn({
-        session: assessmentSession,
+      // Security check: rate limiting, concurrency lock, duplicate spam, input bounding
+      const securityCheck = await verifyAiRequestSecurity({
+        userId: session.user.id,
         userInput,
-        apiKey: aiConfig.apiKey,
-        model: aiConfig.model,
+        maxRequestsPerMinute: 15,
+        maxInputChars: 3500,
+        checkDuplicate: true,
+        enforceConcurrencyLock: true,
       })
 
-      // Update session state based on authoritative evaluator output
-      if (evaluatorResult.isBypassAttempt) {
-        assessmentSession.bypassAttemptsCount = (assessmentSession.bypassAttemptsCount || 0) + 1
+      if (!securityCheck.allowed) {
+        return createAiRateLimitResponse(securityCheck)
       }
 
-      if (evaluatorResult.unlockNextStage && evaluatorResult.nextStage) {
-        assessmentSession.currentStage = evaluatorResult.nextStage
-      }
-
-      // Track stage inputs
-      if (assessmentSession.currentStage === "UNDERSTANDING" && evaluatorResult.status === "SUFFICIENT") {
-        assessmentSession.candidateUnderstanding = userInput
-      } else if (assessmentSession.currentStage === "APPROACH" && evaluatorResult.status === "VALID") {
-        assessmentSession.candidateApproach = userInput
-      } else if (assessmentSession.currentStage === "IMPLEMENTATION_PROMPT" && evaluatorResult.status === "SUFFICIENT") {
-        assessmentSession.implementationPrompt = userInput
-      }
-
-      // If code was generated
-      if (evaluatorResult.generatedCode) {
-        assessmentSession.generatedCode = evaluatorResult.generatedCode
-        assessmentSession.revisions.push({
-          revisionNumber: assessmentSession.revisions.length + 1,
-          timestamp: now,
-          code: evaluatorResult.generatedCode,
-          modificationRequest: userInput,
-          isCurrent: true,
-        })
-      }
-
-      // If defect was seeded
-      if (evaluatorResult.seededDefect) {
-        assessmentSession.seededDefect = evaluatorResult.seededDefect
-      }
-
-      // If candidate identified defect during review
-      if (evaluatorResult.defectAcknowledged && assessmentSession.seededDefect) {
-        assessmentSession.seededDefect.wasIdentified = true
-        assessmentSession.seededDefect.candidateIdentifiedDescription = userInput
-      }
-
-      // If final scorecard produced
-      if (evaluatorResult.scorecard) {
-        assessmentSession.evaluation = evaluatorResult.scorecard
-        assessmentSession.status = evaluatorResult.scorecard.passed ? "PASSED" : "FAILED"
-        if (evaluatorResult.scorecard.passed) {
-          assessmentSession.currentStage = "COMPLETED"
+      try {
+        const assessmentSession = await getAssessmentSession(sessionId, session.user.id)
+        if (!assessmentSession) {
+          return NextResponse.json({ error: "Assessment session not found" }, { status: 404 })
         }
+
+        if (assessmentSession.status === "PASSED" || assessmentSession.status === "FAILED") {
+          return NextResponse.json(
+            { error: "This assessment session has already ended.", session: assessmentSession },
+            { status: 400 }
+          )
+        }
+
+        // Check AI config and quotas
+        const aiConfig = await getUserAiConfig(session.user.id)
+        if (aiConfig.usage.isLimitReached) {
+          return NextResponse.json(
+            {
+              error:
+                "Free AI quota limit reached. Add your personal Groq API key in Settings for unlimited generations.",
+              isQuotaExceeded: true,
+            },
+            { status: 429 }
+          )
+        }
+
+        const effectiveInput = securityCheck.sanitizedInput || userInput.trim()
+        const now = new Date().toISOString()
+
+        // Record candidate message into history
+        assessmentSession.messages.push({
+          id: `msg-cand-${Date.now()}`,
+          role: "candidate",
+          content: effectiveInput,
+          stage: assessmentSession.currentStage,
+          timestamp: now,
+        })
+
+        // Run evaluator turn
+        const evaluatorResult = await evaluateAssessmentTurn({
+          session: assessmentSession,
+          userInput: effectiveInput,
+          apiKey: aiConfig.apiKey,
+          model: aiConfig.model,
+        })
+
+        // Update session state based on authoritative evaluator output
+        if (evaluatorResult.isBypassAttempt) {
+          assessmentSession.bypassAttemptsCount = (assessmentSession.bypassAttemptsCount || 0) + 1
+        }
+
+        if (evaluatorResult.unlockNextStage && evaluatorResult.nextStage) {
+          assessmentSession.currentStage = evaluatorResult.nextStage
+        }
+
+        // Track stage inputs
+        if (assessmentSession.currentStage === "UNDERSTANDING" && evaluatorResult.status === "SUFFICIENT") {
+          assessmentSession.candidateUnderstanding = effectiveInput
+        } else if (assessmentSession.currentStage === "APPROACH" && evaluatorResult.status === "VALID") {
+          assessmentSession.candidateApproach = effectiveInput
+        } else if (assessmentSession.currentStage === "IMPLEMENTATION_PROMPT" && evaluatorResult.status === "SUFFICIENT") {
+          assessmentSession.implementationPrompt = effectiveInput
+        }
+
+        // If code was generated
+        if (evaluatorResult.generatedCode) {
+          assessmentSession.generatedCode = evaluatorResult.generatedCode
+          assessmentSession.revisions.push({
+            revisionNumber: assessmentSession.revisions.length + 1,
+            timestamp: now,
+            code: evaluatorResult.generatedCode,
+            modificationRequest: effectiveInput,
+            isCurrent: true,
+          })
+        }
+
+        // If defect was seeded
+        if (evaluatorResult.seededDefect) {
+          assessmentSession.seededDefect = evaluatorResult.seededDefect
+        }
+
+        // If candidate identified defect during review
+        if (evaluatorResult.defectAcknowledged && assessmentSession.seededDefect) {
+          assessmentSession.seededDefect.wasIdentified = true
+          assessmentSession.seededDefect.candidateIdentifiedDescription = effectiveInput
+        }
+
+        // If final scorecard produced
+        if (evaluatorResult.scorecard) {
+          assessmentSession.evaluation = evaluatorResult.scorecard
+          assessmentSession.status = evaluatorResult.scorecard.passed ? "PASSED" : "FAILED"
+          if (evaluatorResult.scorecard.passed) {
+            assessmentSession.currentStage = "COMPLETED"
+          }
+        }
+
+        // Add assistant response message
+        assessmentSession.messages.push({
+          id: `msg-ai-${Date.now()}`,
+          role: "assistant",
+          content: evaluatorResult.aiMessage,
+          stage: assessmentSession.currentStage,
+          timestamp: new Date().toISOString(),
+          isBypassAttempt: evaluatorResult.isBypassAttempt,
+          verdict: evaluatorResult.status,
+          missingRequirements: evaluatorResult.missingRequirements,
+          codeSnippet: evaluatorResult.generatedCode,
+        })
+
+        assessmentSession.updatedAt = new Date().toISOString()
+
+        // Save updated authoritative state to MongoDB
+        await updateAssessmentSession(assessmentSession)
+
+        // Count AI usage
+        await incrementUserAiUsage(session.user.id)
+
+        return NextResponse.json({
+          session: assessmentSession,
+          evaluatorResult,
+        })
+      } finally {
+        securityCheck.releaseLock?.()
       }
-
-      // Add assistant response message
-      assessmentSession.messages.push({
-        id: `msg-ai-${Date.now()}`,
-        role: "assistant",
-        content: evaluatorResult.aiMessage,
-        stage: assessmentSession.currentStage,
-        timestamp: new Date().toISOString(),
-        isBypassAttempt: evaluatorResult.isBypassAttempt,
-        verdict: evaluatorResult.status,
-        missingRequirements: evaluatorResult.missingRequirements,
-        codeSnippet: evaluatorResult.generatedCode,
-      })
-
-      assessmentSession.updatedAt = new Date().toISOString()
-
-      // Save updated authoritative state to MongoDB
-      await updateAssessmentSession(assessmentSession)
-
-      // Count AI usage
-      await incrementUserAiUsage(session.user.id)
-
-      return NextResponse.json({
-        session: assessmentSession,
-        evaluatorResult,
-      })
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 })

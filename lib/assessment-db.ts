@@ -146,6 +146,45 @@ export async function getUserAssessmentSessions(
   })) as unknown as AssessmentSession[]
 }
 
+export async function getActiveAssessmentSession(
+  userId: string,
+  company: string = "Capgemini"
+): Promise<AssessmentSession | null> {
+  const db = await getAssessmentDb()
+  const sessionsCol = db.collection("assessment_sessions")
+
+  const doc = await sessionsCol.findOne(
+    { userId, company, status: "ACTIVE" },
+    { sort: { updatedAt: -1 } }
+  )
+
+  if (!doc) return null
+
+  return {
+    ...doc,
+    _id: doc._id.toString(),
+    id: doc._id.toString(),
+  } as unknown as AssessmentSession
+}
+
+export async function abandonAssessmentSession(
+  sessionId: string,
+  userId: string
+): Promise<AssessmentSession | null> {
+  const existing = await getAssessmentSession(sessionId, userId)
+  if (!existing) return null
+
+  const now = new Date().toISOString()
+  const abandonedSession: AssessmentSession = {
+    ...existing,
+    status: "ABANDONED",
+    updatedAt: now,
+  }
+
+  await updateAssessmentSession(abandonedSession)
+  return abandonedSession
+}
+
 export async function resetAssessmentSession(
   sessionId: string,
   userId: string
@@ -186,3 +225,4 @@ Explain your understanding of the problem before proceeding: state the input, ex
   await updateAssessmentSession(resetSession)
   return resetSession
 }
+

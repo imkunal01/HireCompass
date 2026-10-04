@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
 import clientPromise from "@/lib/mongodb"
 import { getUserAiConfig, incrementUserAiUsage } from "@/lib/ai-quota"
+import { verifyAiRequestSecurity, createAiRateLimitResponse, AI_MAX_TOKENS } from "@/lib/ai-security"
 import Groq from "groq-sdk"
 import { ObjectId } from "mongodb"
 import { InterviewerPersona, CandidateRole, ExperienceLevel } from "@/types/prep"
@@ -132,11 +133,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const groq = new Groq({ apiKey: aiConfig.apiKey })
-    const personaInstruction = PERSONA_PROMPTS[persona as InterviewerPersona] || PERSONA_PROMPTS.mentor
-    const roleFocusInstruction = ROLE_FOCUS_MAP[candidateRole as CandidateRole] || ROLE_FOCUS_MAP.fullstack
+    // AI Security Check: sliding window velocity, concurrency lock, and token defense
+    const securityCheck = await verifyAiRequestSecurity({
+      userId: session.user.id,
+      userInput: userAnswer || action,
+      messages: Array.isArray(messages) ? messages : [],
+      maxRequestsPerMinute: 15,
+      maxInputChars: 3000,
+      maxHistoryTurns: 6,
+      checkDuplicate: Boolean(userAnswer && userAnswer.trim().length > 10),
+      enforceConcurrencyLock: true,
+    })
 
-    // Normalize project data fields for rich, contextual prompt grounding
+    if (!securityCheck.allowed) {
+      return createAiRateLimitResponse(securityCheck)
+    }
+
+    try {
+      const groq = new Groq({ apiKey: aiConfig.apiKey })
+      const personaInstruction = PERSONA_PROMPTS[persona as InterviewerPersona] || PERSONA_PROMPTS.mentor
+      const roleFocusInstruction = ROLE_FOCUS_MAP[candidateRole as CandidateRole] || ROLE_FOCUS_MAP.fullstack
+
+      // Normalize project data fields for rich, contextual prompt grounding
     const projectTitle = project.name || project.title || "Selected Project"
     const projectCategory =
       project.category ||
@@ -287,6 +305,7 @@ Respond ONLY with a valid JSON object matching this structure:
       ],
       temperature: 0.6,
       response_format: { type: "json_object" },
+      max_tokens: AI_MAX_TOKENS.GRILLER_EVALUATION,
     })
 
     const rawContent = completion.choices[0]?.message?.content || "{}"
@@ -305,6 +324,9 @@ Respond ONLY with a valid JSON object matching this structure:
       reply: parsedData.reply,
       scorecard: parsedData.scorecard || null,
     })
+    } finally {
+      securityCheck.releaseLock?.()
+    }
   } catch (error: any) {
     console.error("[POST /api/prep/griller]", error)
     return NextResponse.json(
