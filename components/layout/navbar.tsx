@@ -41,6 +41,57 @@ import { useStore } from "@/hooks/useStore"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import CommandPalette from "@/components/ui/command-palette"
+import type { Reminder } from "@/types/reminder"
+
+function getUrgencyLevel(r: Reminder): "critical" | "high" | "medium" | "low" {
+  const dateStr = r.eventDate || r.registrationDeadline || r.dueAt
+  if (!dateStr) return "low"
+  const diff = new Date(dateStr).getTime() - Date.now()
+  if (diff <= 3 * 3600000) return "critical"
+  if (diff <= 24 * 3600000) return "high"
+  if (diff <= 72 * 3600000) return "medium"
+  return "low"
+}
+
+const URGENCY_STYLE: Record<
+  "critical" | "high" | "medium" | "low",
+  { dot: string; text: string; badge: string }
+> = {
+  critical: {
+    dot: "bg-rose-500 animate-pulse",
+    text: "text-rose-600 dark:text-rose-400",
+    badge: "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/60",
+  },
+  high: {
+    dot: "bg-amber-500",
+    text: "text-amber-600 dark:text-amber-400",
+    badge: "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/60",
+  },
+  medium: {
+    dot: "bg-blue-500",
+    text: "text-blue-600 dark:text-blue-400",
+    badge: "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800/60",
+  },
+  low: {
+    dot: "bg-slate-400",
+    text: "text-slate-600 dark:text-slate-400",
+    badge: "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700",
+  },
+}
+
+function getTimeLabel(dateStr?: string | null): string {
+  if (!dateStr) return "Scheduled"
+  const diff = new Date(dateStr).getTime() - Date.now()
+  if (diff <= 0) return "Overdue"
+  const minutes = Math.floor(diff / (1000 * 60))
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  if (days > 1) return `in ${days}d`
+  if (days === 1) return "Tomorrow"
+  if (hours > 1) return `in ${hours}h`
+  if (minutes > 0) return `in ${minutes}m`
+  return "Due now"
+}
 
 function NotificationDropdown({ onClose }: { onClose: () => void }) {
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default")
