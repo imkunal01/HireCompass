@@ -9,77 +9,6 @@ import { JobDrawer } from "@/components/features/kanban/job-drawer"
 import { AddJobModal } from "@/components/features/kanban/add-job-modal"
 import { ToastProvider } from "@/components/ui/toast"
 
-// Rich mock data shown before API is populated
-const MOCK_OPPORTUNITIES: Opportunity[] = [
-  {
-    id: "m1", userId: "", company: "Google", title: "Software Engineer Intern",
-    status: "INTERVIEW", priority: "HIGH",
-    deadline: new Date(Date.now() + 2 * 86400000).toISOString(),
-    skills: ["Python", "Algorithms"], tags: ["big tech", "dream company"],
-    notes: "Prep DS&A",
-    createdAt: new Date(Date.now() - 5 * 86400000).toISOString(),
-  },
-  {
-    id: "m2", userId: "", company: "Vercel", title: "Frontend Engineer",
-    status: "SAVED", priority: "HIGH",
-    deadline: new Date(Date.now() + 10 * 86400000).toISOString(),
-    skills: ["React", "TypeScript", "Next.js"], tags: ["remote", "frontend"],
-    createdAt: new Date(Date.now() - 4 * 86400000).toISOString(),
-  },
-  {
-    id: "m3", userId: "", company: "Stripe", title: "Fullstack Developer",
-    status: "APPLIED", priority: "MEDIUM",
-    deadline: new Date(Date.now() + 7 * 86400000).toISOString(),
-    skills: ["Node.js", "React"], tags: ["fintech"],
-    notes: "Applied via referral",
-    createdAt: new Date(Date.now() - 7 * 86400000).toISOString(),
-  },
-  {
-    id: "m4", userId: "", company: "Linear", title: "Senior Product Engineer",
-    status: "OFFER", priority: "HIGH",
-    skills: ["TypeScript", "Design Systems"], tags: ["dream company", "remote"],
-    notes: "Negotiating base salary",
-    createdAt: new Date(Date.now() - 15 * 86400000).toISOString(),
-  },
-  {
-    id: "m5", userId: "", company: "Notion", title: "React Developer",
-    status: "INTERESTED", priority: "MEDIUM",
-    deadline: new Date(Date.now() + 14 * 86400000).toISOString(),
-    skills: ["React", "Electron"], tags: ["productivity"],
-    createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
-  },
-  {
-    id: "m6", userId: "", company: "Figma", title: "Platform Engineer",
-    status: "ASSESSMENT", priority: "MEDIUM",
-    skills: ["C++", "WebAssembly"], tags: ["design-tech"],
-    deadline: new Date(Date.now() + 4 * 86400000).toISOString(),
-    oaDetails: { platform: "HackerRank", totalRounds: 1, currentRound: 1, status: "PENDING", topics: ["Algorithms", "Data Structures"] },
-    createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
-  },
-  {
-    id: "m7", userId: "", company: "Amazon", title: "SDE-1 (Backend)",
-    status: "REJECTED", priority: "HIGH",
-    skills: ["Java", "Distributed Systems", "AWS"], tags: ["big tech"],
-    rejectionDetails: {
-      stage: "Technical Round 1 (DSA / Coding)",
-      reasonCategory: "DSA & Problem-Solving Speed Gaps",
-      whatWasAsked: "LRU Cache in O(1) time + Subarray sum equals K",
-      whyRejected: "Struggled with doubly linked list edge cases under time pressure",
-      whereFumbled: "Forgot null check on head/tail deletion in the LRU eviction method",
-      lessonsLearned: "Practice 15 more linked list & sliding window questions with 20min timers",
-      rejectionDate: new Date(Date.now() - 10 * 86400000).toISOString(),
-    },
-    createdAt: new Date(Date.now() - 12 * 86400000).toISOString(),
-  },
-  {
-    id: "m8", userId: "", company: "Airbnb", title: "Frontend Engineer",
-    status: "GHOSTED", priority: "MEDIUM",
-    skills: ["React", "TypeScript", "GraphQL"], tags: ["design-tech", "remote"],
-    notes: "Applied 3 weeks ago; no response or OA shortlist received.",
-    createdAt: new Date(Date.now() - 21 * 86400000).toISOString(),
-  },
-]
-
 export default function ApplicationsPage() {
   const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null)
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -94,9 +23,7 @@ export default function ApplicationsPage() {
     },
   })
 
-  const opportunities = (apiOpportunities && apiOpportunities.length > 0)
-    ? apiOpportunities
-    : MOCK_OPPORTUNITIES
+  const opportunities = apiOpportunities ?? []
 
   const handleAddJob = (status?: OpportunityStatus) => {
     setAddDefaultStatus(status || "SAVED")

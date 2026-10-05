@@ -400,3 +400,36 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
     * Protected meta-questions from being flagged as bypasses.
     * Added `IMPLEMENTATION_PROMPT` stage coverage to `buildFallbackResponse`.
   - **Verification**: Verified clean `npx tsc --noEmit` (0 errors).
+- **2026-10-05 (Phase 19 Complete — Kanban Pipeline Reliability & Mock Data Elimination)**:
+  - **User Problem Addressed**:
+    * Kanban board reported as "not working on some users" (cards not draggable, mutations failing or silently reverting, job drawer not saving changes).
+    * Requested complete removal of mock data for new users across Kanban pipeline (`/applications`), opportunities list (`/opportunities`), and dashboard smart suggestions, starting accounts completely clean and empty initially.
+  - **Identified Root Causes**:
+    1. **Mock Data Injection & Hardcoded ID Bypasses**: `app/(dashboard)/applications/page.tsx` and `app/(dashboard)/opportunities/page.tsx` injected 8 dummy opportunities (`id: "m1"` through `"m8"`) whenever API count was 0. In `kanban-board.tsx` and `job-drawer.tsx`, mutations had hardcoded `if (id.startsWith("m")) return;` no-op blocks that silently blocked drag transitions, deletions, and detail drawer updates.
+    2. **Unmapped Status Vanishing**: `KANBAN_COLUMNS` only supports 7 canonical statuses (`SAVED`, `APPLIED`, `ASSESSMENT`, `INTERVIEW`, `OFFER`, `GHOSTED`, `REJECTED`). Opportunities with `status: "INTERESTED"` or `"WISHLIST"` or lowercase values had no column match, causing cards to vanish and `@dnd-kit`'s `findContainer` to return `undefined`.
+    3. **Drag Affordance Restriction**: In `kanban-card.tsx`, `@dnd-kit` listeners were attached solely to a tiny 16px `GripVertical` icon with `opacity-0 group-hover:opacity-100`, making drag impossible on touch/tablet screens and for users dragging the card body.
+    4. **Silent Dropping & Lack of Mutation Error Rollback**: If a card was dropped outside valid columns or if a network/server PATCH failed, client state desynchronized without error feedback or rollback.
+    5. **Unvalidated ObjectId 500s**: In `/api/opportunities/[id]`, passing an invalid or non-hex ID threw an unhandled BSONError 500.
+  - **Implementations**:
+    * **Mock Data Purge**: Completely removed `MOCK_OPPORTUNITIES` and `MOCK_OPPS` from `/applications`, `/opportunities`, and `components/features/dashboard/smart-suggestions.tsx`. New users start with a clean empty board and list with tailored empty-state actions (`+ Add Job`).
+    * **Full Card Drag & Drop**: Moved `@dnd-kit` attributes and listeners to the card container with 5px distance constraint; isolated hover quick-action buttons with `onPointerDown={(e) => e.stopPropagation()}` to prevent accidental drag triggers; kept visual grip icon affordance.
+    * **Status Normalization**: Updated `normalizeStatus` in `types/opportunity.ts` and `/api/opportunities` routes to canonically map `INTERESTED` & `WISHLIST` to `SAVED`, handle case insensitivity, and default safely to `SAVED`.
+    * **Safe Drag Lifecycle & Optimistic Rollback**: Enhanced `KanbanBoard` with `onError` rollbacks and toast notifications; reverted items state if dropped outside droppable columns.
+    * **Safe ObjectId Guard**: In `app/api/opportunities/[id]/route.ts`, added `ObjectId.isValid(params.id)` validation returning clean 400 responses on invalid IDs.
+  - **Verification**: Verified clean `npx tsc --noEmit` (0 errors).
+- **2026-10-05 (Phase 20 Complete — Kanban Empty-Column Hover & Drop Persistence Fix)**:
+  - **User Problem Addressed**:
+    * Hovering any job card over OA (`ASSESSMENT`), Interview, Offer, or any column other than Rejected or Applied failed to allow placing the card into those fields.
+    * For new users, when a user was able to place a card, the new column status was not saving or updating in the database.
+  - **Identified Root Causes**:
+    1. **`closestCorners` Geometric Starvation of Empty Columns**: Populated columns (Applied, Rejected) contained small card bounding boxes whose corners were mathematically closer to the cursor than the far corners of tall (440px) empty columns. As a result, `@dnd-kit`'s `closestCorners` consistently snapped back to Applied or Rejected.
+    2. **Stale Asynchronous State in `handleDragEnd`**: `activeOriginalStatus` was stored in React state (`useState`). Because `handleDragOver` updated `items` asynchronously, by the time `handleDragEnd` fired, `destinationColumn === originalStatus` or `activeOriginalStatus` was lost in stale closures, causing `updateStatusMutation.mutate` to never fire.
+    3. **Missing `pointer-events-none` on Dragging Elements**: Dragged card containers and DragOverlay wrappers lacked `pointer-events-none`, causing the cursor to intercept pointer events and block droppable target collision below.
+    4. **String vs. ObjectId Mismatch in DB Querying**: In `/api/opportunities` and `/api/opportunities/[id]`, querying `userId: session.user.id` failed for users whose IDs were stored as Mongo `ObjectId`s.
+  - **Implementations**:
+    * **Pointer-Priority Multi-Tier Collision Strategy (`kanban-board.tsx`)**: Replaced `closestCorners` with a custom collision detection strategy prioritizing `pointerWithin` -> `rectIntersection` -> `closestCenter`. Hovering directly over any empty column (OA, Interview, Offer, Ghosted) immediately triggers that column's droppable zone.
+    * **Synchronous Drag Tracking via Refs (`kanban-board.tsx`)**: Introduced `startStatusRef` and `itemsRef` to record exact initial status synchronously upon `onDragStart`. In `onDragEnd`, if destination differs from `startStatusRef.current`, it immediately invokes `updateStatusMutation.mutate({ id, status: destinationColumn })`.
+    * **Isolated Event Pointers (`kanban-card.tsx` & `kanban-column.tsx`)**: Attached `data: { type: "card", opportunity, status }` to `useSortable` and `data: { type: "column", status }` to `useDroppable`. Set `pointer-events-none` on dragging cards, empty-column placeholders, and `DragOverlay`.
+    * **Dual ID Matching in DB Queries (`app/api/opportunities/route.ts` & `[id]/route.ts`)**: Used `userMatch = ObjectId.isValid(session.user.id) ? { $in: [session.user.id, new ObjectId(session.user.id)] } : session.user.id` so all updates and queries match both string and ObjectId user references.
+  - **Verification**: Clean `npx tsc --noEmit` (0 errors) and clean `npm run lint`.
+

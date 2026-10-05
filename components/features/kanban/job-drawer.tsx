@@ -179,7 +179,7 @@ export function JobDrawer({ opportunityId, onClose, initialData }: JobDrawerProp
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      if (opportunityId?.startsWith("m")) return; // Mock data bypass
+      if (!opportunityId) return
       const res = await fetch(`/api/opportunities/${opportunityId}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete")
     },
@@ -1089,11 +1089,9 @@ function FormKitTab({ opportunity }: { opportunity: Opportunity }) {
       if (!res.ok) throw new Error("Failed to load Form Kit")
       return res.json()
     },
-    enabled: !!opportunity.id && !opportunity.id.startsWith("m"),
+    enabled: !!opportunity.id,
     staleTime: 30000,
   })
-
-  const isMockOpportunity = opportunity.id.startsWith("m")
 
   const getLengthForProject = (projectId: string): SnippetLength =>
     activeLength[projectId] || "medium"
@@ -1140,7 +1138,7 @@ function FormKitTab({ opportunity }: { opportunity: Opportunity }) {
     }
   }
 
-  if (isMockOpportunity) {
+  if (!opportunity.id) {
     return (
       <div className="py-10 text-center space-y-3">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-400">

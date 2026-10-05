@@ -15,18 +15,6 @@ import { AddJobModal } from "@/components/features/kanban/add-job-modal"
 import { JobDrawer } from "@/components/features/kanban/job-drawer"
 import { ToastProvider } from "@/components/ui/toast"
 
-// Mock data for initial display before API data loads
-const MOCK_OPPS: Opportunity[] = [
-  { id: "o1", userId: "", company: "Google",   title: "Software Engineer Intern", status: "INTERVIEW",  priority: "HIGH",   location: "Mountain View, CA", salary: "$8,000/mo",   skills: ["Python", "Algorithms"], tags: ["big tech", "dream company"], deadline: new Date(Date.now() + 2 * 86400000).toISOString(), createdAt: new Date(Date.now() - 5 * 86400000).toISOString(), sourcePlatform: "LINKEDIN", employmentType: "INTERNSHIP" },
-  { id: "o2", userId: "", company: "Vercel",   title: "Frontend Engineer",        status: "SAVED",      priority: "HIGH",   location: "Remote",            salary: "$130k–$170k", skills: ["React", "TypeScript", "Next.js"], tags: ["remote", "frontend"], deadline: new Date(Date.now() + 10 * 86400000).toISOString(), createdAt: new Date(Date.now() - 4 * 86400000).toISOString(), sourcePlatform: "COMPANY_SITE", employmentType: "FULL_TIME" },
-  { id: "o3", userId: "", company: "Stripe",   title: "Fullstack Developer",      status: "APPLIED",    priority: "MEDIUM", location: "San Francisco, CA", salary: "$150k–$200k", skills: ["Node.js", "React"], tags: ["fintech"], deadline: new Date(Date.now() + 7 * 86400000).toISOString(), createdAt: new Date(Date.now() - 7 * 86400000).toISOString(), sourcePlatform: "REFERRAL", employmentType: "FULL_TIME" },
-  { id: "o4", userId: "", company: "Linear",   title: "Senior Product Engineer",  status: "OFFER",      priority: "HIGH",   location: "Remote (Global)",   salary: "$160k–$210k", skills: ["TypeScript", "Design Systems"], tags: ["dream company", "remote"], createdAt: new Date(Date.now() - 15 * 86400000).toISOString(), sourcePlatform: "ANGELLIST", employmentType: "FULL_TIME" },
-  { id: "o5", userId: "", company: "Notion",   title: "React Developer",          status: "INTERESTED", priority: "MEDIUM", location: "Remote",            salary: "$120k",       skills: ["React", "Electron"], tags: ["remote", "backend"], deadline: new Date(Date.now() + 14 * 86400000).toISOString(), createdAt: new Date(Date.now() - 2 * 86400000).toISOString(), sourcePlatform: "LINKEDIN", employmentType: "FULL_TIME" },
-  { id: "o6", userId: "", company: "Figma",    title: "Platform Engineer",        status: "ASSESSMENT", priority: "MEDIUM", location: "New York, NY",      salary: "$140k",       skills: ["C++", "WebAssembly"], tags: ["design-tech"], deadline: new Date(Date.now() + 3 * 86400000).toISOString(), createdAt: new Date(Date.now() - 3 * 86400000).toISOString(), sourcePlatform: "GLASSDOOR", employmentType: "FULL_TIME" },
-  { id: "o7", userId: "", company: "Meta",     title: "React Native Developer",   status: "REJECTED",   priority: "LOW",    location: "Seattle, WA",       salary: "$145k",       skills: ["React Native", "iOS"], tags: ["big tech"], createdAt: new Date(Date.now() - 20 * 86400000).toISOString(), sourcePlatform: "LINKEDIN", employmentType: "FULL_TIME" },
-  { id: "o8", userId: "", company: "Shopify",  title: "Backend Engineer",         status: "APPLIED",    priority: "MEDIUM", location: "Remote (Canada)",   salary: "₹45 LPA",     skills: ["Ruby", "Rails", "Golang"], tags: ["remote", "backend"], deadline: new Date(Date.now() + 5 * 86400000).toISOString(), createdAt: new Date(Date.now() - 1 * 86400000).toISOString(), sourcePlatform: "INTERNSHALA", employmentType: "FULL_TIME" },
-]
-
 type SortField = "deadline" | "createdAt" | "priority" | "company" | "salary"
 type ViewMode = "grid" | "list"
 
@@ -76,7 +64,7 @@ export default function OpportunitiesPage() {
     },
   })
 
-  const allOpps = (apiOpps && apiOpps.length > 0) ? apiOpps : MOCK_OPPS
+  const allOpps = useMemo(() => apiOpps ?? [], [apiOpps])
 
   // Client-side filtering
   const filtered = useMemo(() => {
@@ -329,18 +317,28 @@ export default function OpportunitiesPage() {
             {!isLoading && filtered.length === 0 && (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary/30 mb-4">
-                  <Search className="h-8 w-8 text-muted-foreground" />
+                  {allOpps.length === 0 ? (
+                    <Briefcase className="h-8 w-8 text-muted-foreground" />
+                  ) : (
+                    <Search className="h-8 w-8 text-muted-foreground" />
+                  )}
                 </div>
-                <h3 className="text-base font-bold text-foreground mb-1">No results found</h3>
+                <h3 className="text-base font-bold text-foreground mb-1">
+                  {allOpps.length === 0 ? "No opportunities yet" : "No results found"}
+                </h3>
                 <p className="text-sm text-muted-foreground max-w-xs mb-5">
-                  {search
+                  {allOpps.length === 0
+                    ? "Start tracking your job applications by adding your first opportunity."
+                    : search
                     ? `No jobs match "${search}". Try different keywords or clear your filters.`
                     : "No jobs match your current filters."}
                 </p>
                 <div className="flex gap-3">
-                  <button onClick={resetFilters} className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-all">
-                    Clear Filters
-                  </button>
+                  {allOpps.length > 0 && (
+                    <button onClick={resetFilters} className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-all">
+                      Clear Filters
+                    </button>
+                  )}
                   <button onClick={() => setAddModalOpen(true)} className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all">
                     <Plus className="h-4 w-4" /> Add Job
                   </button>

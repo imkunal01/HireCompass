@@ -5,7 +5,7 @@ import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { Clock, Edit2, Send, Trash2, GripVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Opportunity } from "@/types/opportunity"
+import { Opportunity, normalizeStatus } from "@/types/opportunity"
 import { PriorityBadge, CompanyAvatar } from "@/components/ui/badge"
 
 interface KanbanCardProps {
@@ -45,7 +45,14 @@ export function KanbanCard({
     transform,
     transition,
     isDragging: isSortableDragging,
-  } = useSortable({ id: opportunity.id })
+  } = useSortable({
+    id: opportunity.id,
+    data: {
+      type: "card",
+      opportunity,
+      status: normalizeStatus(opportunity.status),
+    },
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -58,24 +65,23 @@ export function KanbanCard({
     <div
       ref={setNodeRef}
       style={style}
+      {...attributes}
+      {...listeners}
       className={cn(
-        "group relative rounded-xl border bg-white dark:bg-slate-800/90 p-3.5 cursor-pointer",
+        "group relative rounded-xl border bg-white dark:bg-slate-800/90 p-3.5 cursor-grab active:cursor-grabbing",
         "hover:border-indigo-200 dark:hover:border-indigo-500/40 hover:shadow-card-hover",
-        "transition-all duration-200",
+        "transition-all duration-200 select-none",
         isBeingDragged
-          ? "opacity-50 shadow-xl shadow-indigo-200/40 dark:shadow-black/60 rotate-1 border-indigo-300 dark:border-indigo-500 scale-105 z-50"
+          ? "opacity-50 shadow-xl shadow-indigo-200/40 dark:shadow-black/60 rotate-1 border-indigo-300 dark:border-indigo-500 scale-105 z-50 cursor-grabbing pointer-events-none"
           : "opacity-100 border-slate-200/80 dark:border-slate-700/60"
       )}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
       onClick={() => onClick?.(opportunity)}
     >
-      {/* Drag handle */}
+      {/* Drag handle visual affordance */}
       <div
-        {...attributes}
-        {...listeners}
-        className="absolute right-2.5 top-2.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-300"
-        onClick={(e) => e.stopPropagation()}
+        className="absolute right-2.5 top-2.5 opacity-40 group-hover:opacity-100 transition-opacity text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-300 pointer-events-none"
       >
         <GripVertical className="h-4 w-4" />
       </div>
@@ -152,25 +158,38 @@ export function KanbanCard({
           "transition-all duration-200",
           showActions ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1 pointer-events-none"
         )}
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          onClick={() => onEdit?.(opportunity)}
-          className="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            onEdit?.(opportunity)
+          }}
+          className="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors cursor-pointer"
           title="Edit"
         >
           <Edit2 className="h-3 w-3" />
         </button>
         <button
-          onClick={() => onApply?.(opportunity)}
-          className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-indigo-500 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/80 transition-colors"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            onApply?.(opportunity)
+          }}
+          className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-indigo-500 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/80 transition-colors cursor-pointer"
           title="Mark Applied"
         >
           <Send className="h-3 w-3" />
         </button>
         <button
-          onClick={() => onDelete?.(opportunity.id)}
-          className="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-50 dark:bg-rose-950/80 text-rose-500 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/80 transition-colors"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete?.(opportunity.id)
+          }}
+          className="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-50 dark:bg-rose-950/80 text-rose-500 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/80 transition-colors cursor-pointer"
           title="Delete"
         >
           <Trash2 className="h-3 w-3" />

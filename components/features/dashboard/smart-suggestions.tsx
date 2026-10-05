@@ -17,12 +17,6 @@ interface Suggestion {
   action?: { label: string; href: string }
 }
 
-const MOCK_OPPS: Opportunity[] = [
-  { id: "m1", userId: "", company: "Google",  title: "Software Engineer Intern", status: "SAVED",    priority: "HIGH",   deadline: new Date(Date.now() + 1 * 86400000).toISOString(), createdAt: new Date(Date.now() - 5 * 86400000).toISOString() },
-  { id: "m2", userId: "", company: "Stripe",  title: "Fullstack Developer",      status: "APPLIED",  priority: "MEDIUM", deadline: new Date(Date.now() + 4 * 86400000).toISOString(), createdAt: new Date(Date.now() - 8 * 86400000).toISOString() },
-  { id: "m3", userId: "", company: "Vercel",  title: "Frontend Engineer",        status: "SAVED",    priority: "HIGH",   deadline: new Date(Date.now() + 6 * 86400000).toISOString(), createdAt: new Date(Date.now() - 3 * 86400000).toISOString() },
-]
-
 function generateSuggestions(opps: Opportunity[], dismissed: Set<string>): Suggestion[] {
   const suggestions: Suggestion[] = []
   const now = Date.now()
@@ -106,7 +100,7 @@ export function SmartSuggestions() {
     },
   })
 
-  const opps = (apiOpps && apiOpps.length > 0) ? apiOpps : MOCK_OPPS
+  const opps = apiOpps ?? []
   const suggestions = generateSuggestions(opps, dismissed)
 
   const dismiss = (id: string) => {

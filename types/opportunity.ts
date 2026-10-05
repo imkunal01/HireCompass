@@ -155,11 +155,33 @@ export interface ActivityItem {
   company?: string
 }
 
-// Normalize legacy statuses to new ones for display
-export function normalizeStatus(status: string): OpportunityStatus {
-  if (status === "WISHLIST") return "SAVED"
-  if (status === "INTERVIEWING") return "INTERVIEW"
-  return status as OpportunityStatus
+// Normalize legacy or alias statuses to the canonical Kanban pipeline statuses
+export function normalizeStatus(status?: string | null): OpportunityStatus {
+  if (!status) return "SAVED"
+  const upper = String(status).trim().toUpperCase()
+  if (upper === "WISHLIST" || upper === "INTERESTED" || upper === "SAVE") return "SAVED"
+  if (upper === "APPLY") return "APPLIED"
+  if (upper === "OA" || upper === "OA / ASSESSMENT" || upper === "ASSESSMENT") return "ASSESSMENT"
+  if (upper === "INTERVIEWING" || upper === "INTERVIEWS") return "INTERVIEW"
+  if (upper === "OFFERS") return "OFFER"
+  if (upper === "GHOST") return "GHOSTED"
+  if (upper === "REJECT") return "REJECTED"
+
+  const validStatuses: OpportunityStatus[] = [
+    "SAVED",
+    "APPLIED",
+    "ASSESSMENT",
+    "INTERVIEW",
+    "OFFER",
+    "GHOSTED",
+    "REJECTED",
+  ]
+
+  if (validStatuses.includes(upper as OpportunityStatus)) {
+    return upper as OpportunityStatus
+  }
+
+  return "SAVED"
 }
 
 export const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string; textColor: string; borderColor: string }> = {

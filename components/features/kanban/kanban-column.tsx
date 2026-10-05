@@ -22,12 +22,18 @@ interface KanbanColumnProps {
 export function KanbanColumn({
   status, label, opportunities, onCardClick, onEdit, onDelete, onApply, onAddJob,
 }: KanbanColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: status })
+  const { setNodeRef, isOver } = useDroppable({
+    id: status,
+    data: {
+      type: "column",
+      status,
+    },
+  })
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.SAVED
   const ids = opportunities.map((o) => o.id)
 
   return (
-    <div className="flex flex-col min-w-[248px] max-w-[280px] flex-shrink-0">
+    <div className="flex flex-col min-w-[248px] max-w-[280px] flex-shrink-0 select-none">
       {/* Column Header */}
       <div
         className={cn(
@@ -46,8 +52,9 @@ export function KanbanColumn({
             </span>
           </div>
           <button
+            type="button"
             onClick={() => onAddJob?.(status)}
-            className="flex h-6 w-6 items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 transition-all duration-150"
+            className="flex h-6 w-6 items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 transition-all duration-150 cursor-pointer"
             title={`Add to ${label}`}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -58,16 +65,17 @@ export function KanbanColumn({
       {/* Drop Zone */}
       <div
         ref={setNodeRef}
+        data-droppable-column={status}
         className={cn(
-          "flex-1 rounded-b-xl border border-t-0 border-slate-200/80 dark:border-slate-800/80 p-2",
-          "transition-colors duration-200 min-h-[420px]",
+          "flex-1 flex flex-col rounded-b-xl border border-t-0 border-slate-200/80 dark:border-slate-800/80 p-2",
+          "transition-colors duration-200 min-h-[440px]",
           isOver
-            ? "bg-indigo-50/60 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800"
+            ? "bg-indigo-50/70 dark:bg-indigo-950/50 border-indigo-300 dark:border-indigo-700 ring-2 ring-indigo-400/20"
             : "bg-slate-50/60 dark:bg-slate-950/40"
         )}
       >
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 flex-1 min-h-[380px]">
             {opportunities.map((opp) => (
               <KanbanCard
                 key={opp.id}
@@ -79,22 +87,23 @@ export function KanbanColumn({
               />
             ))}
             {opportunities.length === 0 && !isOver && (
-              <div className="flex flex-col items-center justify-center py-12 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 text-center">
+              <div className="flex flex-col items-center justify-center py-12 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 text-center pointer-events-none select-none">
                 <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-2">
                   <Plus className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                 </div>
                 <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Drop cards here</p>
                 <button
+                  type="button"
                   onClick={() => onAddJob?.(status)}
-                  className="mt-2 text-[10px] text-indigo-500 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-semibold"
+                  className="mt-2 text-[10px] text-indigo-500 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-semibold pointer-events-auto cursor-pointer"
                 >
                   + Add {label}
                 </button>
               </div>
             )}
             {isOver && (
-              <div className="h-16 rounded-xl border-2 border-dashed border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center">
-                <p className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold">Drop here</p>
+              <div className="h-16 rounded-xl border-2 border-dashed border-indigo-400 dark:border-indigo-600 bg-indigo-50/80 dark:bg-indigo-950/80 flex items-center justify-center pointer-events-none select-none animate-pulse">
+                <p className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold">Drop in {label}</p>
               </div>
             )}
           </div>

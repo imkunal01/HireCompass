@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
 import clientPromise from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
+import { normalizeStatus } from "@/types/opportunity"
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,8 +26,12 @@ export async function GET(request: NextRequest) {
     const db = client.db()
     const col = db.collection("opportunities")
 
+    const userMatch = ObjectId.isValid(session.user.id)
+      ? { $in: [session.user.id, new ObjectId(session.user.id)] }
+      : session.user.id
+
     // Build query
-    const query: Record<string, any> = { userId: session.user.id }
+    const query: Record<string, any> = { userId: userMatch }
 
     if (status && status !== "ALL") {
       // Handle legacy status aliases
@@ -101,6 +106,7 @@ export async function GET(request: NextRequest) {
       ...opp,
       id: opp._id.toString(),
       _id: opp._id.toString(),
+      status: normalizeStatus(opp.status),
       createdAt: opp.createdAt?.toISOString?.() ?? opp.createdAt,
       updatedAt: opp.updatedAt?.toISOString?.() ?? opp.updatedAt,
       deadline: opp.deadline?.toISOString?.() ?? opp.deadline,
@@ -154,7 +160,7 @@ export async function POST(request: NextRequest) {
       salary: salary || null,
       url: url || null,
       sourcePlatform: sourcePlatform || null,
-      status: status || "SAVED",
+      status: normalizeStatus(status),
       priority: priority || "MEDIUM",
       deadline: safeDeadline,
       skills: skills || [],

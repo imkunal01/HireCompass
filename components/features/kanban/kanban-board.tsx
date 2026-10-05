@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useCallback } from "react"
+import React, { useState, useCallback, useRef } from "react"
 import {
   DndContext,
   DragEndEvent,
@@ -11,14 +11,17 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
-  closestCorners,
+  CollisionDetection,
+  pointerWithin,
+  rectIntersection,
+  closestCenter,
 } from "@dnd-kit/core"
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Opportunity, OpportunityStatus, KANBAN_COLUMNS, normalizeStatus } from "@/types/opportunity"
 import { KanbanColumn } from "./kanban-column"
 import { KanbanCard } from "./kanban-card"
-import { cn } from "@/lib/utils"
+import { useToast } from "@/components/ui/toast"
 
 interface KanbanBoardProps {
   opportunities: Opportunity[]
@@ -29,16 +32,25 @@ interface KanbanBoardProps {
 
 export function KanbanBoard({ opportunities: initialOpps, onCardClick, onEdit, onAddJob }: KanbanBoardProps) {
   const queryClient = useQueryClient()
+  const { toast } = useToast()
+
   const [items, setItems] = useState<Opportunity[]>(() =>
     initialOpps.map((o) => ({ ...o, status: normalizeStatus(o.status) as OpportunityStatus }))
   )
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [activeOriginalStatus, setActiveOriginalStatus] = useState<OpportunityStatus | null>(null)
 
-  // Keep items in sync with external data changes
+  // Keep synchronous refs for immediate access during drag event cycles
+  const itemsRef = useRef<Opportunity[]>(items)
+  itemsRef.current = items
+
+  const startStatusRef = useRef<OpportunityStatus | null>(null)
+
+  // Keep items in sync with external data changes (only when not actively dragging)
   React.useEffect(() => {
-    setItems(initialOpps.map((o) => ({ ...o, status: normalizeStatus(o.status) as OpportunityStatus })))
-  }, [initialOpps])
+    if (!activeId) {
+      setItems(initialOpps.map((o) => ({ ...o, status: normalizeStatus(o.status) as OpportunityStatus })))
+    }
+  }, [initialOpps, activeId])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -47,28 +59,52 @@ export function KanbanBoard({ opportunities: initialOpps, onCardClick, onEdit, o
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: OpportunityStatus }) => {
-      if (id.startsWith("m")) return; // Mock data bypass
       const res = await fetch(`/api/opportunities/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       })
-      if (!res.ok) throw new Error("Failed to update status")
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to update status")
+      }
       return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["opportunities"] })
     },
+    onError: (error: Error) => {
+      // Rollback to original items
+      setItems(initialOpps.map((o) => ({ ...o, status: normalizeStatus(o.status) as OpportunityStatus })))
+      queryClient.invalidateQueries({ queryKey: ["opportunities"] })
+      toast({
+        type: "error",
+        title: "Could not update status",
+        message: error.message || "Failed to update application status.",
+      })
+    },
   })
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      if (id.startsWith("m")) return; // Mock data bypass
       const res = await fetch(`/api/opportunities/${id}`, { method: "DELETE" })
-      if (!res.ok) throw new Error("Failed to delete")
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to delete")
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["opportunities"] })
+      toast({ type: "success", title: "Job removed from pipeline" })
+    },
+    onError: (error: Error) => {
+      setItems(initialOpps.map((o) => ({ ...o, status: normalizeStatus(o.status) as OpportunityStatus })))
+      queryClient.invalidateQueries({ queryKey: ["opportunities"] })
+      toast({
+        type: "error",
+        title: "Failed to delete",
+        message: error.message || "Could not delete application.",
+      })
     },
   })
 
@@ -81,78 +117,166 @@ export function KanbanBoard({ opportunities: initialOpps, onCardClick, onEdit, o
     [items]
   )
 
-  function findContainer(id: string): OpportunityStatus | undefined {
-    // id can be an opportunity id or a column status string
-    const item = items.find((i) => i.id === id)
-    if (item) return normalizeStatus(item.status) as OpportunityStatus
-    if (KANBAN_COLUMNS.some((c) => c.status === id)) return id as OpportunityStatus
+  /**
+   * Resolve column status for any droppable identifier (column ID or card ID)
+   */
+  const getTargetColumn = useCallback((id: string, overData?: any): OpportunityStatus | undefined => {
+    // 1. Direct column ID match (e.g. "SAVED", "APPLIED", "ASSESSMENT", etc.)
+    if (KANBAN_COLUMNS.some((c) => c.status === id)) {
+      return id as OpportunityStatus
+    }
+
+    // 2. Data payload attached to droppable / sortable
+    if (overData?.type === "column" && overData?.status) {
+      return normalizeStatus(overData.status) as OpportunityStatus
+    }
+    if (overData?.type === "card" && overData?.status) {
+      return normalizeStatus(overData.status) as OpportunityStatus
+    }
+
+    // 3. Search in current items
+    const item = itemsRef.current.find((i) => i.id === id)
+    if (item) {
+      return normalizeStatus(item.status) as OpportunityStatus
+    }
+
     return undefined
-  }
+  }, [])
 
-  function handleDragStart(event: DragStartEvent) {
-    setActiveId(event.active.id as string)
-    setActiveOriginalStatus(findContainer(event.active.id as string) || null)
-  }
+  /**
+   * Collision detection strategy:
+   * Prioritize pointer coordinates directly inside droppables (columns or cards).
+   * This is critical so empty columns (OA, Interview, Offer, Ghosted) are cleanly detected
+   * when hovered, rather than closestCorners snapping to cards in adjacent columns.
+   */
+  const collisionDetectionStrategy: CollisionDetection = useCallback((args) => {
+    // 1. Pointer inside container or card (highest priority)
+    const pointerCollisions = pointerWithin(args)
+    if (pointerCollisions.length > 0) {
+      return pointerCollisions
+    }
 
-  function handleDragOver(event: DragOverEvent) {
+    // 2. Rect intersection (fallback if pointer slightly out of bounds)
+    const rectCollisions = rectIntersection(args)
+    if (rectCollisions.length > 0) {
+      return rectCollisions
+    }
+
+    // 3. Closest center fallback
+    return closestCenter(args)
+  }, [])
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const activeOpportunityId = event.active.id as string
+    setActiveId(activeOpportunityId)
+
+    // Synchronously capture origin status before any movement
+    const initialStatus =
+      (event.active.data.current?.status as OpportunityStatus) ||
+      getTargetColumn(activeOpportunityId) ||
+      null
+
+    startStatusRef.current = initialStatus
+  }, [getTargetColumn])
+
+  const handleDragOver = useCallback((event: DragOverEvent) => {
     const { active, over } = event
     if (!over) return
 
-    const activeContainer = findContainer(active.id as string)
-    const overContainer = findContainer(over.id as string) ?? (over.id as OpportunityStatus)
+    const activeOpportunityId = active.id as string
+    const overId = over.id as string
+
+    if (activeOpportunityId === overId) return
+
+    const activeContainer = getTargetColumn(activeOpportunityId, active.data.current)
+    const overContainer = getTargetColumn(overId, over.data.current)
 
     if (!activeContainer || !overContainer || activeContainer === overContainer) return
 
     setItems((prev) => {
-      const activeIndex = prev.findIndex((i) => i.id === active.id)
-      const overIndex = prev.findIndex((i) => i.id === over.id)
-      
+      const activeIndex = prev.findIndex((i) => i.id === activeOpportunityId)
+      if (activeIndex === -1) return prev
+
+      const overIndex = prev.findIndex((i) => i.id === overId)
       const newItems = [...prev]
       const [movedItem] = newItems.splice(activeIndex, 1)
-      
+
+      // If hovering over another card, insert at that card's index; if over column, append to end
       const insertIndex = overIndex >= 0 ? overIndex : newItems.length
       newItems.splice(insertIndex, 0, { ...movedItem, status: overContainer })
-      
+
       return newItems
     })
-  }
+  }, [getTargetColumn])
 
-  function handleDragEnd(event: DragEndEvent) {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event
+    const activeOpportunityId = active.id as string
+
     setActiveId(null)
-    const originalStatus = activeOriginalStatus
-    setActiveOriginalStatus(null)
 
-    if (!over) return
+    const originStatus = startStatusRef.current
+    startStatusRef.current = null
 
-    const overContainer = findContainer(over.id as string) ?? (over.id as OpportunityStatus)
-    if (!overContainer) return
-
-    if (originalStatus && originalStatus !== overContainer) {
-      // Status changed — persist to DB
-      updateStatusMutation.mutate({ id: active.id as string, status: overContainer })
+    // If dropped outside any container, revert
+    if (!over) {
+      if (originStatus) {
+        setItems(initialOpps.map((o) => ({ ...o, status: normalizeStatus(o.status) as OpportunityStatus })))
+      }
+      return
     }
 
-    // Reorder within the same column
-    const colItems = getColumnItems(overContainer)
-    const oldIndex = colItems.findIndex((i) => i.id === active.id)
-    const newIndex = colItems.findIndex((i) => i.id === over.id)
-    
-    if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-      const reordered = arrayMove(colItems, oldIndex, newIndex)
-      setItems((prev) => {
-        const others = prev.filter((i) => normalizeStatus(i.status) !== overContainer)
-        return [...others, ...reordered]
-      })
+    const overId = over.id as string
+
+    // Determine target column
+    let destinationColumn: OpportunityStatus | undefined
+    if (overId === activeOpportunityId) {
+      const current = itemsRef.current.find((i) => i.id === activeOpportunityId)
+      if (current) destinationColumn = normalizeStatus(current.status) as OpportunityStatus
+    } else {
+      destinationColumn = getTargetColumn(overId, over.data.current)
     }
-  }
+
+    if (!destinationColumn) {
+      const current = itemsRef.current.find((i) => i.id === activeOpportunityId)
+      if (current) destinationColumn = normalizeStatus(current.status) as OpportunityStatus
+    }
+
+    if (!destinationColumn) {
+      setItems(initialOpps.map((o) => ({ ...o, status: normalizeStatus(o.status) as OpportunityStatus })))
+      return
+    }
+
+    // Persist to MongoDB if column changed from original status
+    if (originStatus && destinationColumn !== originStatus) {
+      setItems((prev) =>
+        prev.map((i) => (i.id === activeOpportunityId ? { ...i, status: destinationColumn! } : i))
+      )
+      updateStatusMutation.mutate({ id: activeOpportunityId, status: destinationColumn })
+    }
+
+    // Reorder within column if dropped over another card
+    if (overId !== activeOpportunityId) {
+      const colItems = itemsRef.current.filter((o) => normalizeStatus(o.status) === destinationColumn)
+      const oldIndex = colItems.findIndex((i) => i.id === activeOpportunityId)
+      const newIndex = colItems.findIndex((i) => i.id === overId)
+
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        const reordered = arrayMove(colItems, oldIndex, newIndex)
+        setItems((prev) => {
+          const others = prev.filter((i) => normalizeStatus(i.status) !== destinationColumn)
+          return [...others, ...reordered]
+        })
+      }
+    }
+  }, [initialOpps, getTargetColumn, updateStatusMutation])
 
   const activeItem = items.find((i) => i.id === activeId)
 
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={collisionDetectionStrategy}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
@@ -172,7 +296,7 @@ export function KanbanBoard({ opportunities: initialOpps, onCardClick, onEdit, o
             }}
             onApply={(opp) => {
               setItems((prev) =>
-                prev.map((i) => i.id === opp.id ? { ...i, status: "APPLIED" } : i)
+                prev.map((i) => (i.id === opp.id ? { ...i, status: "APPLIED" } : i))
               )
               updateStatusMutation.mutate({ id: opp.id, status: "APPLIED" })
             }}
@@ -181,9 +305,9 @@ export function KanbanBoard({ opportunities: initialOpps, onCardClick, onEdit, o
         ))}
       </div>
 
-      <DragOverlay>
+      <DragOverlay dropAnimation={null}>
         {activeItem ? (
-          <div className="rotate-2 scale-105 opacity-90 shadow-2xl">
+          <div className="rotate-2 scale-105 opacity-90 shadow-2xl pointer-events-none select-none">
             <KanbanCard opportunity={activeItem} isDragging />
           </div>
         ) : null}

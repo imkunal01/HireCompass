@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
 import clientPromise from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
+import { normalizeStatus } from "@/types/opportunity"
 
 interface RouteParams {
   params: { id: string }
 }
-
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
@@ -15,13 +15,21 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    if (!params.id || !ObjectId.isValid(params.id)) {
+      return NextResponse.json({ error: "Invalid opportunity ID" }, { status: 400 })
+    }
+
     const client = await clientPromise
     const db = client.db()
     const col = db.collection("opportunities")
 
+    const userMatch = ObjectId.isValid(session.user.id)
+      ? { $in: [session.user.id, new ObjectId(session.user.id)] }
+      : session.user.id
+
     const opp = await col.findOne({
       _id: new ObjectId(params.id),
-      userId: session.user.id,
+      userId: userMatch,
     })
 
     if (!opp) {
@@ -49,8 +57,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    if (!params.id || !ObjectId.isValid(params.id)) {
+      return NextResponse.json({ error: "Invalid opportunity ID" }, { status: 400 })
+    }
+
     const body = await request.json()
     const { status, ...rest } = body
+    const normalizedStatus = status ? normalizeStatus(status) : undefined
 
     const client = await clientPromise
     const db = client.db()
@@ -61,16 +74,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const pushOps: Record<string, any> = {}
 
-    if (status) {
-      updateFields.status = status
-      let desc = `Status updated to ${status}`
-      if (status === "REJECTED" && rest.rejectionDetails?.stage) {
+    if (normalizedStatus) {
+      updateFields.status = normalizedStatus
+      let desc = `Status updated to ${normalizedStatus}`
+      if (normalizedStatus === "REJECTED" && rest.rejectionDetails?.stage) {
         desc = `Rejected at: ${rest.rejectionDetails.stage}${rest.rejectionDetails.whereFumbled ? ` (Note: ${rest.rejectionDetails.whereFumbled.slice(0, 50)}...)` : ""}`
-      } else if (status === "OFFER" && rest.offerDetails?.totalAmount) {
+      } else if (normalizedStatus === "OFFER" && rest.offerDetails?.totalAmount) {
         desc = `Received offer: ${rest.offerDetails.totalAmount}`
       }
       pushOps.timeline = {
-        event: status === "REJECTED" ? "Application Rejected" : status === "OFFER" ? "Offer Received 🎉" : "Status changed",
+        event: normalizedStatus === "REJECTED" ? "Application Rejected" : normalizedStatus === "OFFER" ? "Offer Received 🎉" : "Status changed",
         description: desc,
         timestamp: now,
       }
@@ -90,8 +103,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       updateDoc.$push = pushOps
     }
 
+    const userMatch = ObjectId.isValid(session.user.id)
+      ? { $in: [session.user.id, new ObjectId(session.user.id)] }
+      : session.user.id
+
     const result = await col.findOneAndUpdate(
-      { _id: new ObjectId(params.id), userId: session.user.id },
+      { _id: new ObjectId(params.id), userId: userMatch },
       updateDoc,
       { returnDocument: "after" }
     )
@@ -100,11 +117,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Not found" }, { status: 404 })
     }
 
-    if (status && (status === "APPLIED" || status === "INTERVIEW")) {
+    if (normalizedStatus && (normalizedStatus === "APPLIED" || normalizedStatus === "INTERVIEW")) {
       const reminderCol = db.collection("reminders")
-      const dueDays = status === "APPLIED" ? 7 : 1
-      const type = status === "APPLIED" ? "FOLLOWUP" : "INTERVIEW"
-      const message = status === "APPLIED" ? "Follow up on application" : "Prepare for interview"
+      const dueDays = normalizedStatus === "APPLIED" ? 7 : 1
+      const type = normalizedStatus === "APPLIED" ? "FOLLOWUP" : "INTERVIEW"
+      const message = normalizedStatus === "APPLIED" ? "Follow up on application" : "Prepare for interview"
       
       const dueAt = new Date(now.getTime() + dueDays * 86400000)
       
@@ -158,13 +175,21 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    if (!params.id || !ObjectId.isValid(params.id)) {
+      return NextResponse.json({ error: "Invalid opportunity ID" }, { status: 400 })
+    }
+
     const client = await clientPromise
     const db = client.db()
     const col = db.collection("opportunities")
 
+    const userMatch = ObjectId.isValid(session.user.id)
+      ? { $in: [session.user.id, new ObjectId(session.user.id)] }
+      : session.user.id
+
     const result = await col.deleteOne({
       _id: new ObjectId(params.id),
-      userId: session.user.id,
+      userId: userMatch,
     })
 
     if (result.deletedCount === 0) {
