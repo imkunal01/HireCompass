@@ -387,10 +387,16 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
     * **Assessment Lobby (`components/features/assessment/assessment-lobby.tsx`)**:
       - Purged all 107 `dark:` class overrides across top navigation tabs, active test banner, Capgemini hero banner, difficulty selectors, categorical problem dispatcher breakdown, pre-flight checklists, history table, transcript modal, and custom problem builder modal.
   - **Verification**:
-    * `npx tsc --noEmit`: 0 errors.
-    * `npm run build`: Production build verified and deployed.
-    * Theme consistency verified 100% across all routes: `/admin`, `/assessment`, `/prep`, `/dashboard`, `/applications`, `/planner`, `/resumes`, `/settings`, `/login`, and `/`.
-
-
-
-
+- **2026-10-05 (AI Assessment Simulator — Stage 3 False-Bypass & Loop Fix)**:
+  - **Identified Root Causes**:
+    1. `isExplicitBypassAttempt` pre-filter included `IMPLEMENTATION_PROMPT` stage, wrongly classifying standard code-generation directives (e.g., "Give me code in C++", "Write the solution") as bypass violations.
+    2. System prompt's anti-bypass Rule 2 ("candidate cannot ask 'give me the code'") lacked stage-specific scoping. In `IMPLEMENTATION_PROMPT`, directing the AI to generate code is the intended behavior.
+    3. Evaluator was overly pedantic regarding competitive-programming boilerplate (e.g. demanding stdin vs vector, rigid bullet points) even when candidate provided all algorithmic components (language, two-pass frequency map, O(N) complexity, edge cases).
+    4. Meta-clarifications ("why am I getting flags?") were misclassified as bypass attempts.
+  - **Implemented Engine Resolution (`lib/assessment-engine.ts`)**:
+    * Removed `IMPLEMENTATION_PROMPT` from regex pre-filter bypass check.
+    * Refactored system prompt with stage-scoped bypass enforcement: code generation requests in Stage 3 are explicitly marked as valid and expected (`isBypassAttempt: false`).
+    * Added leniency clause: if candidate supplies language, algorithm, complexity, and edge cases (even in natural language), advance to `CODE_REVIEW` and emit `generatedCode`.
+    * Protected meta-questions from being flagged as bypasses.
+    * Added `IMPLEMENTATION_PROMPT` stage coverage to `buildFallbackResponse`.
+  - **Verification**: Verified clean `npx tsc --noEmit` (0 errors).
