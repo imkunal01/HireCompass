@@ -374,3 +374,10 @@ body.exam-mode-active #mobile-bottom-nav {
   opacity: 0 !important;
 }
 
+/* ══════════════════════════════════════════════════════════
+   HANDWRITING ACCENTS (Doodles & Arrows)
+   ══════════════════════════════════════════════════════════ */
+.font-handwriting {
+  font-family: var(--font-handwriting), "Caveat", "Comic Sans MS", cursive, sans-serif;
+}
+

@@ -21,11 +21,14 @@ import {
   Settings,
   ChevronRight,
   Sparkles,
+  ShieldCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useUser } from "@/hooks/useUser"
 
 export default function BottomNav() {
   const pathname = usePathname()
+  const { user } = useUser()
   const [toolsSheetOpen, setToolsSheetOpen] = useState(false)
   const [inExam, setInExam] = useState(false)
 
@@ -62,7 +65,8 @@ export default function BottomNav() {
     pathname.startsWith("/projects") ||
     pathname.startsWith("/resumes") ||
     pathname.startsWith("/rejected") ||
-    pathname.startsWith("/settings")
+    pathname.startsWith("/settings") ||
+    pathname.startsWith("/admin")
 
   return (
     <>
@@ -164,8 +168,11 @@ export default function BottomNav() {
                   : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/20"
               )}
             >
-              <div className={cn("p-1 rounded-full transition-all", (isTools || toolsSheetOpen) ? "bg-white/60 dark:bg-white/10 shadow-sm border border-white/80" : "bg-transparent")}>
+              <div className={cn("p-1 rounded-full transition-all relative", (isTools || toolsSheetOpen) ? "bg-white/60 dark:bg-white/10 shadow-sm border border-white/80" : "bg-transparent")}>
                 <LayoutGrid className="h-5 w-5" />
+                {user?.role === "admin" && (
+                  <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-rose-500 ring-1 ring-white" />
+                )}
               </div>
               <span className="text-[10px] mt-0.5 leading-none font-medium">Tools</span>
               {(isTools || toolsSheetOpen) && (
@@ -202,6 +209,28 @@ export default function BottomNav() {
                 <X className="h-5 w-5" />
               </button>
             </div>
+
+            {/* Admin Control Center (Top Priority for Admins) */}
+            {user?.role === "admin" && (
+              <Link
+                href="/admin"
+                onClick={() => setToolsSheetOpen(false)}
+                className="flex items-center justify-between p-3 mb-4 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/80 dark:bg-rose-950/40 text-xs font-bold text-rose-700 dark:text-rose-300 shadow-xs hover:bg-rose-100 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-200/70 dark:bg-rose-900/80 text-rose-700 dark:text-rose-200">
+                    <ShieldCheck className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-rose-800 dark:text-rose-200 block">Admin Control Center</span>
+                    <p className="text-[9px] text-slate-500 dark:text-slate-400">Users, resumes & quotas</p>
+                  </div>
+                </div>
+                <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-200 dark:bg-rose-900 text-rose-800 dark:text-rose-200">
+                  ADMIN
+                </span>
+              </Link>
+            )}
 
             {/* Group 1: Interview & Testing */}
             <div className="space-y-2 mb-4">

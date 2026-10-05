@@ -5,59 +5,59 @@
    ============================================================= */
 
 :root {
-  /* ─── Canvas / Background surfaces ─────────────────────────── */
-  --bg-canvas:        #0A0F1C;   /* main page background */
-  --bg-surface:       #111827;   /* card / panel surface */
-  --bg-surface-2:     #1A2235;   /* elevated modals, dropdowns */
-  --bg-surface-3:     #243048;   /* hover highlight, input bg */
-  --bg-overlay:       rgba(10, 15, 28, 0.75); /* modal backdrop */
+  /* ─── Canvas / Background surfaces (Light Theme) ───────────── */
+  --bg-canvas:        #F8FAFC;   /* main page background */
+  --bg-surface:       #FFFFFF;   /* card / panel surface */
+  --bg-surface-2:     #F8FAFC;   /* elevated modals, dropdowns */
+  --bg-surface-3:     #F1F5F9;   /* hover highlight, input bg */
+  --bg-overlay:       rgba(15, 23, 42, 0.6); /* modal backdrop */
 
   /* ─── Primary Brand: Violet / Indigo ────────────────────────── */
-  --brand-700:        #6D28D9;
-  --brand-600:        #7C3AED;
-  --brand-500:        #8B5CF6;
-  --brand-400:        #A78BFA;
-  --brand-300:        #C4B5FD;
-  --brand-glow:       rgba(124, 58, 237, 0.35);
-  --brand-gradient:   linear-gradient(135deg, #6D28D9 0%, #7C3AED 50%, #6366F1 100%);
-  --brand-gradient-subtle: linear-gradient(135deg, rgba(109,40,217,0.15) 0%, rgba(99,102,241,0.10) 100%);
+  --brand-700:        #4338CA;
+  --brand-600:        #4F46E5;
+  --brand-500:        #6366F1;
+  --brand-400:        #818CF8;
+  --brand-300:        #A5B4FC;
+  --brand-glow:       rgba(99, 102, 241, 0.25);
+  --brand-gradient:   linear-gradient(135deg, #4F46E5 0%, #6366F1 50%, #8B5CF6 100%);
+  --brand-gradient-subtle: linear-gradient(135deg, rgba(79,70,229,0.08) 0%, rgba(99,102,241,0.05) 100%);
 
   /* ─── Status / Semantic Colours ─────────────────────────────── */
-  --clr-saved:          #3B82F6;   /* blue-500  */
-  --clr-saved-bg:       rgba(59, 130, 246, 0.12);
-  --clr-applied:        #F59E0B;   /* amber-500 */
-  --clr-applied-bg:     rgba(245, 158, 11, 0.12);
-  --clr-assessment:     #06B6D4;   /* cyan-500  */
-  --clr-assessment-bg:  rgba(6, 182, 212, 0.12);
-  --clr-interview:      #A855F7;   /* purple-500*/
-  --clr-interview-bg:   rgba(168, 85, 247, 0.12);
-  --clr-offer:          #10B981;   /* emerald-500 */
-  --clr-offer-bg:       rgba(16, 185, 129, 0.12);
-  --clr-rejected:       #EF4444;   /* rose-500  */
-  --clr-rejected-bg:    rgba(239, 68, 68, 0.12);
-  --clr-success:        #10B981;
-  --clr-success-bg:     rgba(16, 185, 129, 0.12);
-  --clr-warning:        #F59E0B;
-  --clr-warning-bg:     rgba(245, 158, 11, 0.12);
-  --clr-danger:         #EF4444;
-  --clr-danger-bg:      rgba(239, 68, 68, 0.12);
+  --clr-saved:          #2563EB;   /* blue-600 */
+  --clr-saved-bg:       rgba(37, 99, 235, 0.08);
+  --clr-applied:        #D97706;   /* amber-600 */
+  --clr-applied-bg:     rgba(217, 119, 6, 0.08);
+  --clr-assessment:     #0891B2;   /* cyan-600 */
+  --clr-assessment-bg:  rgba(8, 145, 178, 0.08);
+  --clr-interview:      #9333EA;   /* purple-600 */
+  --clr-interview-bg:   rgba(147, 51, 234, 0.08);
+  --clr-offer:          #059669;   /* emerald-600 */
+  --clr-offer-bg:       rgba(5, 150, 105, 0.08);
+  --clr-rejected:       #E11D48;   /* rose-600 */
+  --clr-rejected-bg:    rgba(225, 29, 72, 0.08);
+  --clr-success:        #059669;
+  --clr-success-bg:     rgba(5, 150, 105, 0.08);
+  --clr-warning:        #D97706;
+  --clr-warning-bg:     rgba(217, 119, 6, 0.08);
+  --clr-danger:         #E11D48;
+  --clr-danger-bg:      rgba(225, 29, 72, 0.08);
 
-  /* ─── Text ───────────────────────────────────────────────────── */
-  --txt-primary:      #F1F5F9;   /* slate-100 */
-  --txt-secondary:    #94A3B8;   /* slate-400 */
-  --txt-muted:        #475569;   /* slate-600 */
-  --txt-disabled:     #334155;   /* slate-700 */
-  --txt-inverse:      #0A0F1C;   /* on light elements */
-  --txt-brand:        #A78BFA;   /* violet-400 */
-  --txt-link:         #8B5CF6;
+  /* ─── Text (High Contrast Slate) ─────────────────────────────── */
+  --txt-primary:      #0F172A;   /* slate-900 (ultra legible) */
+  --txt-secondary:    #475569;   /* slate-600 */
+  --txt-muted:        #94A3B8;   /* slate-400 */
+  --txt-disabled:     #CBD5E1;   /* slate-300 */
+  --txt-inverse:      #FFFFFF;   /* on dark elements */
+  --txt-brand:        #4F46E5;   /* indigo-600 */
+  --txt-link:         #4F46E5;
 
   /* ─── Borders ────────────────────────────────────────────────── */
-  --border-subtle:    rgba(148, 163, 184, 0.08);
-  --border-default:   rgba(148, 163, 184, 0.15);
-  --border-strong:    rgba(148, 163, 184, 0.28);
-  --border-brand:     rgba(124, 58, 237, 0.45);
-  --border-success:   rgba(16, 185, 129, 0.35);
-  --border-danger:    rgba(239, 68, 68, 0.35);
+  --border-subtle:    rgba(241, 245, 249, 0.9);
+  --border-default:   rgba(226, 232, 240, 0.9);
+  --border-strong:    rgba(203, 213, 225, 0.9);
+  --border-brand:     rgba(99, 102, 241, 0.4);
+  --border-success:   rgba(5, 150, 105, 0.4);
+  --border-danger:    rgba(225, 29, 72, 0.4);
 
   /* ─── Spacing (8-pt grid) ────────────────────────────────────── */
   --space-0:  0px;

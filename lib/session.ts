@@ -56,15 +56,28 @@ export async function signToken(user: SessionUser): Promise<string> {
     .sign(getSecret())
 }
 
+const KNOWN_ADMIN_EMAILS = [
+  "kunaldhangar184@gmail.com",
+  "kunal@gmail.com",
+  "demo@jobshunt.com",
+  "kunal12@gmail.com",
+  "kun@gmail.com",
+  "kunalsharmakunu09@gmail.com",
+  "kuchhnahihe184@gmail.com",
+]
+
 export async function verifyToken(token: string): Promise<SessionUser | null> {
   try {
     const { payload } = await jwtVerify(token, getSecret())
     if (!payload.sub || !payload.email) return null
+    const email = (payload.email as string).toLowerCase().trim()
+    const rawRole = (payload.role as string) || "user"
+    const isAdmin = rawRole === "admin" || isEmailAdmin(email)
     return {
       id: payload.sub,
       name: (payload.name as string) || "",
-      email: payload.email as string,
-      role: (payload.role as string) || "user",
+      email,
+      role: isAdmin ? "admin" : rawRole,
     }
   } catch {
     // Token expired, invalid signature, malformed — all treated as unauthenticated
@@ -74,7 +87,7 @@ export async function verifyToken(token: string): Promise<SessionUser | null> {
 
 /**
  * Checks if a given email is designated as an administrator
- * via ADMIN_EMAIL, ADMIN_EMAILS, or GMAIL_USER env vars.
+ * via ADMIN_EMAIL, ADMIN_EMAILS, GMAIL_USER env vars, or known admin list.
  */
 export function isEmailAdmin(email?: string): boolean {
   if (!email) return false
@@ -83,6 +96,7 @@ export function isEmailAdmin(email?: string): boolean {
     process.env.ADMIN_EMAIL,
     process.env.ADMIN_EMAILS,
     process.env.GMAIL_USER,
+    ...KNOWN_ADMIN_EMAILS,
   ]
     .filter(Boolean)
     .flatMap((v) => (v as string).split(","))

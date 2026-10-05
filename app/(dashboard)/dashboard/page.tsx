@@ -25,6 +25,7 @@ import {
   ChevronDown,
   Clock,
   Sparkles,
+  ShieldCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/hooks/useUser"
@@ -160,6 +161,18 @@ export default function DashboardPage() {
                 <span>{userName}</span>
                 <span className="text-2xl sm:text-3xl">👋</span>
               </div>
+              {user?.role === "admin" && (
+                <div className="pt-1.5">
+                  <Link
+                    href="/admin"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold shadow-xs transition-colors group"
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5 text-rose-600" />
+                    <span>Admin Control Center</span>
+                    <ArrowRight className="h-3 w-3 text-rose-500 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </div>
+              )}
             </div>
 
             <p className="relative z-10 text-xs text-slate-400 dark:text-slate-500 italic mt-4 max-w-[65%]">
@@ -722,6 +735,34 @@ export default function DashboardPage() {
                     Track your progress
                   </span>
                 </Link>
+
+                {/* 5. Admin Panel (For Admins) */}
+                {user?.role === "admin" && (
+                  <Link
+                    href="/admin"
+                    className="col-span-2 flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-rose-50/90 via-rose-50/60 to-indigo-50/60 hover:from-rose-100 hover:to-indigo-100 border border-rose-200/80 transition-all group text-left shadow-xs"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-indigo-600 text-white text-xs font-bold shadow-xs">
+                        <ShieldCheck className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-rose-700 group-hover:text-rose-800">
+                            Admin Control Center
+                          </span>
+                          <span className="rounded bg-rose-200/80 px-1 text-[8px] font-black text-rose-700">
+                            ADMIN
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 leading-tight">
+                          Manage platform users, resumes & AI quotas
+                        </span>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-3.5 w-3.5 text-rose-500 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                )}
               </div>
             </div>
 

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Caveat } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 import InstallPrompt from "@/components/ui/install-prompt";
@@ -7,6 +7,12 @@ import InstallPrompt from "@/components/ui/install-prompt";
 const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
+});
+
+const caveat = Caveat({
+  variable: "--font-handwriting",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
 });
 
 // All meta tags go through Next.js exports — never a raw <head> in App Router
@@ -41,7 +47,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${inter.variable} h-full antialiased`}>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${caveat.variable} h-full antialiased`}>
       <body className="min-h-[100dvh] flex flex-col bg-background text-foreground transition-colors duration-200">
         <Providers>
           {children}

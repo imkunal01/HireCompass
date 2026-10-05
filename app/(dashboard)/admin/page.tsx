@@ -14,6 +14,7 @@ import {
 import "@/styles/variables.css"
 import "@/styles/components.css"
 import "@/styles/animations.css"
+import { cn } from "@/lib/utils"
 
 interface UserRecord {
   id: string
@@ -326,26 +327,15 @@ export default function AdminDashboardPage() {
   // Access check
   if (!user || user.role !== "admin") {
     return (
-      <div
-        className="v2-card"
-        style={{
-          maxWidth: "500px",
-          margin: "80px auto",
-          padding: "40px",
-          textAlign: "center",
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border-danger)",
-          borderRadius: "var(--radius-xl)",
-        }}
-      >
-        <ShieldAlert size={48} color="var(--clr-danger)" style={{ margin: "0 auto 16px" }} />
-        <h2 style={{ fontSize: "20px", fontWeight: 800, color: "var(--txt-primary)", marginBottom: "8px" }}>
+      <div className="max-w-md mx-auto my-20 p-8 text-center bg-white rounded-3xl border border-rose-200 shadow-xl">
+        <ShieldAlert size={48} className="text-rose-500 mx-auto mb-4" />
+        <h2 className="text-xl font-bold text-slate-900 mb-2">
           Access Restricted
         </h2>
-        <p style={{ fontSize: "14px", color: "var(--txt-secondary)", marginBottom: "24px" }}>
+        <p className="text-sm text-slate-600 mb-6">
           This control center requires the <strong>admin</strong> role. Your account ({user?.email}) currently has standard user permissions.
         </p>
-        <button onClick={() => router.push("/dashboard")} className="v2-btn v2-btn--secondary">
+        <button onClick={() => router.push("/dashboard")} className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm font-semibold transition-colors">
           Return to Dashboard
         </button>
       </div>
@@ -361,32 +351,18 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div style={{ maxWidth: "1280px", margin: "0 auto", paddingBottom: "64px" }}>
+    <div className="max-w-7xl mx-auto pb-16 space-y-6">
       {/* ── Top Header ── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "32px", flexWrap: "wrap", gap: "16px" }}>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "4px 12px",
-              borderRadius: "var(--radius-full)",
-              background: "rgba(139, 92, 246, 0.15)",
-              border: "1px solid var(--border-brand)",
-              color: "var(--brand-300)",
-              fontSize: "12px",
-              fontWeight: 800,
-              marginBottom: "10px",
-            }}
-          >
-            <ShieldCheck size={14} />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-xs font-black tracking-wide mb-2.5 shadow-xs">
+            <ShieldCheck size={14} className="text-rose-600" />
             ADMIN PRIVILEGE ACTIVE · UNRESTRICTED AI
           </div>
-          <h1 style={{ fontSize: "30px", fontWeight: 900, color: "var(--txt-primary)", letterSpacing: "-0.03em" }}>
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
             Admin Control Center
           </h1>
-          <p style={{ fontSize: "14px", color: "var(--txt-secondary)", marginTop: "4px" }}>
+          <p className="text-sm text-slate-600 mt-1">
             Manage platform users, control AI quotas and permissions, inspect resumes, and monitor system metrics.
           </p>
         </div>
@@ -396,39 +372,34 @@ export default function AdminDashboardPage() {
             setFormData({ name: "", email: "", password: "", role: "user", aiAccess: "DEFAULT", aiLimit: "" })
             setIsAddUserOpen(true)
           }}
-          className="v2-btn v2-btn--primary"
-          style={{ display: "flex", alignItems: "center", gap: "8px", borderRadius: "var(--radius-md)" }}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-500/25 transition-all"
         >
           <Plus size={16} /> Add New User
         </button>
       </div>
 
       {/* ── KPI Metric Cards ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "32px" }}>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
         {[
-          { label: "Total Users", val: stats?.totalUsers ?? "...", icon: Users, color: "var(--brand-400)" },
-          { label: "Active Admins", val: stats?.totalAdmins ?? "...", icon: ShieldCheck, color: "var(--clr-assessment)" },
-          { label: "Opportunities", val: stats?.totalOpportunities ?? "...", icon: Activity, color: "var(--clr-saved)" },
-          { label: "Uploaded Resumes", val: stats?.totalResumes ?? "...", icon: FileText, color: "var(--clr-offer)" },
-          { label: "Platform AI Calls", val: stats?.totalAiRequests ?? "...", icon: Cpu, color: "var(--clr-warning)" },
+          { label: "Total Users", val: stats?.totalUsers ?? "...", icon: Users, color: "#6366F1", bg: "bg-indigo-50 text-indigo-600" },
+          { label: "Active Admins", val: stats?.totalAdmins ?? "...", icon: ShieldCheck, color: "#E11D48", bg: "bg-rose-50 text-rose-600" },
+          { label: "Opportunities", val: stats?.totalOpportunities ?? "...", icon: Activity, color: "#2563EB", bg: "bg-blue-50 text-blue-600" },
+          { label: "Uploaded Resumes", val: stats?.totalResumes ?? "...", icon: FileText, color: "#059669", bg: "bg-emerald-50 text-emerald-600" },
+          { label: "Platform AI Calls", val: stats?.totalAiRequests ?? "...", icon: Cpu, color: "#D97706", bg: "bg-amber-50 text-amber-600" },
         ].map((item, idx) => (
           <div
             key={idx}
-            className="v2-card"
-            style={{
-              padding: "18px 20px",
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-default)",
-              borderRadius: "var(--radius-lg)",
-            }}
+            className="rounded-3xl border border-slate-200/80 bg-white/95 backdrop-blur-xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-              <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--txt-secondary)", textTransform: "uppercase" }}>
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 {item.label}
               </span>
-              <item.icon size={18} color={item.color} />
+              <div className={cn("p-1.5 rounded-xl", item.bg)}>
+                <item.icon size={16} />
+              </div>
             </div>
-            <div style={{ fontSize: "26px", fontWeight: 900, color: "var(--txt-primary)" }}>
+            <div className="text-3xl font-black text-slate-900 tracking-tight">
               {item.val}
             </div>
           </div>
@@ -436,14 +407,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* ── Navigation Tabs ── */}
-      <div
-        style={{
-          display: "flex",
-          gap: "8px",
-          borderBottom: "1px solid var(--border-default)",
-          marginBottom: "24px",
-        }}
-      >
+      <div className="flex gap-2 border-b border-slate-200/80 pt-2">
         {[
           { id: "users", label: "User Management & AI Quotas", icon: Users },
           { id: "resumes", label: "Resumes Oversight", icon: FileText },
@@ -452,22 +416,14 @@ export default function AdminDashboardPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "12px 20px",
-              border: "none",
-              borderBottom: activeTab === tab.id ? "2px solid var(--brand-500)" : "2px solid transparent",
-              background: "transparent",
-              color: activeTab === tab.id ? "var(--txt-primary)" : "var(--txt-secondary)",
-              fontWeight: activeTab === tab.id ? 800 : 600,
-              fontSize: "14px",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
+            className={cn(
+              "flex items-center gap-2 px-4 py-3 border-b-2 text-xs sm:text-sm font-bold transition-all -mb-px",
+              activeTab === tab.id
+                ? "border-indigo-600 text-indigo-600 font-black"
+                : "border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300"
+            )}
           >
-            <tab.icon size={16} color={activeTab === tab.id ? "var(--brand-400)" : "currentColor"} />
+            <tab.icon size={16} />
             {tab.label}
           </button>
         ))}

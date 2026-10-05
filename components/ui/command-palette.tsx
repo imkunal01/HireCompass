@@ -92,6 +92,15 @@ export default function CommandPalette({ isOpen, onClose, onAddJob }: CommandPal
       href: "/analytics",
       icon: BarChart3,
     },
+    {
+      id: "admin",
+      name: "Admin Control Center",
+      description: "User management, inspect resumes & AI quota configuration",
+      category: "Navigation",
+      href: "/admin",
+      icon: ShieldCheck,
+      badge: "ADMIN",
+    },
 
     // Prep & Testing
     {
