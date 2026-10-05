@@ -5,18 +5,25 @@ import { ObjectId } from "mongodb"
 import Groq from "groq-sdk"
 import nodemailer from "nodemailer"
 import { scrapeJobUrl } from "@/lib/job-scraper"
-import { getUserAiConfig, saveUserApiKey, incrementUserAiUsage } from "@/lib/ai-quota"
+import {
+  getUserAiConfig,
+  saveUserApiKey,
+  incrementUserAiUsage,
+  getGuestAiUsage,
+  incrementGuestAiUsage,
+  GUEST_AI_REQUEST_LIMIT,
+} from "@/lib/ai-quota"
 import { verifyAiRequestSecurity, AI_MAX_TOKENS } from "@/lib/ai-security"
 
-async function getGroqClientForUser(userId: string) {
-  const config = await getUserAiConfig(userId)
-  const apiKey = config.apiKey || process.env.GROQ_API_KEY
+async function getGroqClientForUser(userId?: string | null) {
+  const config = userId ? await getUserAiConfig(userId) : null
+  const apiKey = config?.apiKey || process.env.GROQ_API_KEY
   if (!apiKey || apiKey === "your_groq_api_key_here") {
     throw new Error("GROQ_API_KEY is not configured.")
   }
   return {
     client: new Groq({ apiKey }),
-    model: config.model || process.env.GROQ_MODEL || "openai/gpt-oss-120b",
+    model: config?.model || process.env.GROQ_MODEL || "openai/gpt-oss-120b",
   }
 }
 
@@ -392,7 +399,22 @@ type ToolResult = {
   navigateTo?: string
 }
 
-async function executeTool(name: string, args: any, userId: string): Promise<ToolResult> {
+async function executeTool(name: string, args: any, userId?: string | null): Promise<ToolResult> {
+  if (!userId) {
+    if (name === "navigate") {
+      return {
+        success: true,
+        message: `Navigating to ${args.page}`,
+        navigateTo: args.page,
+      }
+    }
+    return {
+      success: true,
+      data: { isGuestPreview: true, ...args },
+      message: `You're exploring HireCompass in Guest Mode! In your full account, this action (${name.replace(/_/g, " ")}) tracks real data across your pipeline. Sign up for free to save your data permanently!`,
+    }
+  }
+
   const client = await clientPromise
   const db = client.db()
 
@@ -1335,15 +1357,35 @@ CRITICAL TOOL CALLING RULES
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession(request)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
+    const isGuest = !session?.user?.id
     const body = await request.json()
-    const { messages } = body as { messages: Groq.Chat.ChatCompletionMessageParam[] }
+    const { messages, visitorId: bodyVisitorId } = body as {
+      messages: Groq.Chat.ChatCompletionMessageParam[]
+      visitorId?: string
+    }
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: "messages array required" }, { status: 400 })
+    }
+
+    const visitorId = (
+      request.headers.get("x-visitor-id") ||
+      bodyVisitorId ||
+      "guest_anonymous"
+    ).trim()
+
+    // ── 0. Guest Quota Guard (10 Free AI Tokens Limit) ──────────────────────────
+    if (isGuest) {
+      const guestUsage = await getGuestAiUsage(visitorId)
+      if (guestUsage.isLimitReached) {
+        return NextResponse.json({
+          role: "assistant",
+          content: "You've used all 10 free AI tokens! 🎉 To keep chatting with me, save your personalized job search progress, and unlock unlimited features, please create your free HireCompass account.",
+          isGuestLimitReached: true,
+          guestUsage: { count: GUEST_AI_REQUEST_LIMIT, limit: GUEST_AI_REQUEST_LIMIT },
+          requiresAuth: true,
+        })
+      }
     }
 
     // ── 1. Check for Direct API Key Paste in Latest Message ───────────────────
@@ -1351,7 +1393,15 @@ export async function POST(request: NextRequest) {
     const userText = typeof lastUserMsg?.content === "string" ? lastUserMsg.content : ""
     const gskMatch = userText.match(/\b(gsk_[a-zA-Z0-9_-]{30,})\b/)
 
-    if (gskMatch) {
+    if (gskMatch && isGuest) {
+      return NextResponse.json({
+        role: "assistant",
+        content: `I see you have a Groq API key! Please create a free account or sign in first, so I can safely encrypt and save your key to your personal profile for unlimited access.`,
+        requiresAuth: true,
+      })
+    }
+
+    if (gskMatch && !isGuest && session?.user?.id) {
       const keyToSave = gskMatch[1]
       try {
         const saveRes = await saveUserApiKey(session.user.id, keyToSave)
@@ -1376,7 +1426,7 @@ export async function POST(request: NextRequest) {
 
     // ── 2. Run Global AI Security & Anti-Token-Drainage Guard ───────────────
     const securityCheck = await verifyAiRequestSecurity({
-      userId: session.user.id,
+      userId: isGuest ? `guest_${visitorId}` : session.user.id,
       userInput: userText,
       messages,
       maxRequestsPerMinute: 12,
@@ -1403,34 +1453,48 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // ── 3. Resolve User's AI Configuration & Quota ───────────────────────────
-      const aiConfig = await getUserAiConfig(session.user.id)
+      // ── 3. Resolve AI Configuration & Quota ─────────────────────────────────
+      let client: Groq
+      let activeModel: string
+      let userName = ""
+      let isCustomKey = false
 
-      // Free-tier quota guard
-      if (!aiConfig.isCustom && aiConfig.usage.isLimitReached) {
-        return NextResponse.json({
-          role: "assistant",
-          content: `You hit your limit of ${aiConfig.usage.limit} free requests. Seriously? If you want to keep using this, get your own free Groq API key at **[console.groq.com/keys](https://console.groq.com/keys)** and paste it here or in **[Settings](/settings)** so we can actually get back to work.`,
-          isQuotaLimit: true,
-        })
+      if (isGuest) {
+        const apiKey = process.env.GROQ_API_KEY
+        if (!apiKey || apiKey === "your_groq_api_key_here") {
+          return NextResponse.json({
+            role: "assistant",
+            content: "AI service is currently initializing. Please check back shortly or create an account.",
+          })
+        }
+        client = new Groq({ apiKey })
+        activeModel = process.env.GROQ_MODEL || "openai/gpt-oss-120b"
+        userName = "Guest Explorer"
+      } else {
+        const aiConfig = await getUserAiConfig(session.user.id)
+        isCustomKey = aiConfig.isCustom
+
+        // Free-tier quota guard
+        if (!aiConfig.isCustom && aiConfig.usage.isLimitReached) {
+          return NextResponse.json({
+            role: "assistant",
+            content: `You hit your limit of ${aiConfig.usage.limit} free requests. Seriously? If you want to keep using this, get your own free Groq API key at **[console.groq.com/keys](https://console.groq.com/keys)** and paste it here or in **[Settings](/settings)** so we can actually get back to work.`,
+            isQuotaLimit: true,
+          })
+        }
+
+        if (!aiConfig.apiKey || aiConfig.apiKey === "your_groq_api_key_here") {
+          return NextResponse.json({
+            role: "assistant",
+            content: `You haven't even configured an API key yet. Go to https://console.groq.com/keys, grab a free key, and paste it here or in **[Settings](/settings)** so I can actually do things for you.`,
+          })
+        }
+
+        client = new Groq({ apiKey: aiConfig.apiKey })
+        activeModel = aiConfig.model || "openai/gpt-oss-120b"
+        userName = session.user.name || ""
       }
-
-      if (!aiConfig.apiKey || aiConfig.apiKey === "your_groq_api_key_here") {
-        return NextResponse.json({
-          role: "assistant",
-          content: `You haven't even configured an API key yet. Go to https://console.groq.com/keys, grab a free key, and paste it here or in **[Settings](/settings)** so I can actually do things for you.`,
-        })
-      }
-
-      const now = new Date().toLocaleString("en-IN", {
-        timeZone: "Asia/Kolkata",
-        dateStyle: "full",
-        timeStyle: "short",
-      })
-
-      const client = new Groq({ apiKey: aiConfig.apiKey })
-      const activeModel = aiConfig.model || "openai/gpt-oss-120b"
-      const userName = session.user.name || ""
+      const now = new Date().toISOString()
       const systemMessage: Groq.Chat.ChatCompletionMessageParam = {
         role: "system",
         content: buildSystemPrompt(now, userName),
@@ -1476,7 +1540,7 @@ export async function POST(request: NextRequest) {
           }
         } catch {}
 
-        const result = await executeTool(toolCall.function.name, args, session.user.id)
+        const result = await executeTool(toolCall.function.name, args, isGuest ? null : session.user.id)
         toolResults.push({ toolName: toolCall.function.name, result })
 
         toolCallResults.push({
@@ -1501,8 +1565,11 @@ export async function POST(request: NextRequest) {
       break
     }
 
-    // Increment free-tier request usage if not using custom key
-    if (!aiConfig.isCustom) {
+    // Increment request usage (guest vs member)
+    let updatedGuestUsage: any = null
+    if (isGuest) {
+      updatedGuestUsage = await incrementGuestAiUsage(visitorId)
+    } else if (!isCustomKey && session?.user?.id) {
       await incrementUserAiUsage(session.user.id)
     }
 
@@ -1527,6 +1594,8 @@ export async function POST(request: NextRequest) {
       content: finalContent,
       actions,
       navigateTo,
+      isGuest,
+      guestUsage: isGuest ? updatedGuestUsage : undefined,
     })
     } finally {
       securityCheck.releaseLock?.()

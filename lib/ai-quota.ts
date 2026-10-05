@@ -211,3 +211,57 @@ export async function removeUserApiKey(userId: string): Promise<void> {
     }
   )
 }
+
+export const GUEST_AI_REQUEST_LIMIT = 10
+
+/**
+ * Returns current guest token consumption (out of 10 free tokens)
+ */
+export async function getGuestAiUsage(visitorId: string): Promise<{
+  count: number
+  limit: number
+  isLimitReached: boolean
+}> {
+  const client = await clientPromise
+  const db = client.db()
+  const cleanId = (visitorId || "").trim() || "guest_anonymous"
+  const doc = await db.collection("guest_ai_usage").findOne({ visitorId: cleanId })
+  const count = doc?.count ?? 0
+  return {
+    count,
+    limit: GUEST_AI_REQUEST_LIMIT,
+    isLimitReached: count >= GUEST_AI_REQUEST_LIMIT,
+  }
+}
+
+/**
+ * Increments guest AI token usage and returns updated state
+ */
+export async function incrementGuestAiUsage(visitorId: string): Promise<{
+  count: number
+  limit: number
+  isLimitReached: boolean
+}> {
+  const client = await clientPromise
+  const db = client.db()
+  const cleanId = (visitorId || "").trim() || "guest_anonymous"
+  const now = new Date()
+
+  const res = await db.collection("guest_ai_usage").findOneAndUpdate(
+    { visitorId: cleanId },
+    {
+      $inc: { count: 1 },
+      $set: { lastUsedAt: now },
+      $setOnInsert: { createdAt: now },
+    },
+    { upsert: true, returnDocument: "after" }
+  )
+
+  const newCount = res?.count ?? 1
+  return {
+    count: newCount,
+    limit: GUEST_AI_REQUEST_LIMIT,
+    isLimitReached: newCount >= GUEST_AI_REQUEST_LIMIT,
+  }
+}
+

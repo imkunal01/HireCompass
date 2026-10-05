@@ -233,9 +233,9 @@ export default function CampaignAnalyticsPage({ params }: { params: { id: string
                   </p>
                 </div>
                 {r.sentAt && (
-                  <div className="hidden md:flex items-center gap-1 text-xs text-slate-400 shrink-0">
+                  <div className="hidden md:flex items-center gap-1 text-xs text-slate-400 shrink-0" suppressHydrationWarning>
                     <Clock className="h-3 w-3" />
-                    {new Date(r.sentAt).toLocaleDateString()}
+                    {new Date(r.sentAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                   </div>
                 )}
                 <span className={cn("shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold", cfg.bgColor, cfg.textColor)}>

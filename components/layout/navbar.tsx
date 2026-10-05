@@ -37,6 +37,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/hooks/useUser"
+import { useAuthModal } from "@/components/features/auth/auth-modal"
 import { useStore } from "@/hooks/useStore"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
@@ -260,7 +261,8 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
 export default function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
-  const { user } = useUser()
+  const { user, isAuthenticated, isLoading } = useUser()
+  const { openAuthModal } = useAuthModal()
   const queryClient = useQueryClient()
 
   const [notifOpen, setNotifOpen] = useState(false)
@@ -682,91 +684,113 @@ export default function Navbar() {
               {notifOpen && <NotificationDropdown onClose={() => setNotifOpen(false)} />}
             </div>
 
-            {/* User Capsule */}
-            <div className="relative" ref={userMenuRef}>
-              <button
-                onClick={() => setUserMenuOpen((v) => !v)}
-                className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 font-bold text-white text-xs shadow-sm ring-2 ring-white dark:ring-slate-800">
-                  {user?.name?.[0]?.toUpperCase() || "K"}
-                </div>
-                <div className="hidden sm:flex flex-col items-start leading-none text-left">
-                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                    {user?.name || "kunal"}
-                  </span>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 flex items-center gap-1">
-                    {user?.role === "admin" ? (
-                      <span className="text-rose-600 dark:text-rose-400 font-bold flex items-center gap-0.5">
-                        <ShieldCheck className="h-2.5 w-2.5 inline" /> Administrator
-                      </span>
-                    ) : (
-                      "Job Seeker"
-                    )}
-                  </span>
-                </div>
-                <ChevronDown className="h-3 w-3 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-colors" />
-              </button>
-
-              {/* User Dropdown */}
-              {userMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl p-2 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
-                  <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                      <span>{user?.name || "kunal"}</span>
-                      {user?.role === "admin" && (
-                        <span className="rounded bg-rose-100 dark:bg-rose-900/60 px-1 py-0.5 text-[8px] font-black text-rose-600 dark:text-rose-300">
-                          ADMIN
+            {/* User Capsule or Guest Auth Action */}
+            {isAuthenticated && user ? (
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen((v) => !v)}
+                  className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 font-bold text-white text-xs shadow-sm ring-2 ring-white dark:ring-slate-800">
+                    {user?.name?.[0]?.toUpperCase() || "K"}
+                  </div>
+                  <div className="hidden sm:flex flex-col items-start leading-none text-left">
+                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      {user?.name || "User"}
+                    </span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 flex items-center gap-1">
+                      {user?.role === "admin" ? (
+                        <span className="text-rose-600 dark:text-rose-400 font-bold flex items-center gap-0.5">
+                          <ShieldCheck className="h-2.5 w-2.5 inline" /> Administrator
                         </span>
+                      ) : (
+                        "Job Seeker"
                       )}
-                    </p>
-                    <p className="text-[10px] text-slate-400 truncate">{user?.email || "seeker@hirecompass.io"}</p>
+                    </span>
                   </div>
-                  <div className="py-1">
-                    {user?.role === "admin" && (
+                  <ChevronDown className="h-3 w-3 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-colors" />
+                </button>
+
+                {/* User Dropdown */}
+                {userMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl p-2 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
+                        <span>{user?.name || "User"}</span>
+                        {user?.role === "admin" && (
+                          <span className="rounded bg-rose-100 dark:bg-rose-900/60 px-1 py-0.5 text-[8px] font-black text-rose-600 dark:text-rose-300">
+                            ADMIN
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-[10px] text-slate-400 truncate">{user?.email || ""}</p>
+                    </div>
+                    <div className="py-1">
+                      {user?.role === "admin" && (
+                        <Link
+                          href="/admin"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center justify-between px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors mb-1 bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/40"
+                        >
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
+                            <span>Admin Control Center</span>
+                          </div>
+                          <span className="text-[8px] font-black uppercase px-1 py-0.2 rounded bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300">
+                            ADMIN
+                          </span>
+                        </Link>
+                      )}
                       <Link
-                        href="/admin"
+                        href="/settings"
                         onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center justify-between px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors mb-1 bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/40"
+                        className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
                       >
-                        <div className="flex items-center gap-2">
-                          <ShieldCheck className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
-                          <span>Admin Control Center</span>
-                        </div>
-                        <span className="text-[8px] font-black uppercase px-1 py-0.2 rounded bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300">
-                          ADMIN
-                        </span>
+                        <Settings className="h-3.5 w-3.5 text-slate-400" />
+                        Settings & Profile
                       </Link>
-                    )}
-                    <Link
-                      href="/settings"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-                    >
-                      <Settings className="h-3.5 w-3.5 text-slate-400" />
-                      Settings & Profile
-                    </Link>
-                    <Link
-                      href="/planner"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-                    >
-                      <CalendarCheck className="h-3.5 w-3.5 text-slate-400" />
-                      Daily Schedule
-                    </Link>
+                      <Link
+                        href="/planner"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                      >
+                        <CalendarCheck className="h-3.5 w-3.5 text-slate-400" />
+                        Daily Schedule
+                      </Link>
+                    </div>
+                    <div className="border-t border-slate-100 dark:border-slate-800 pt-1">
+                      <button
+                        onClick={handleSignOut}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition-colors"
+                      >
+                        <LogOut className="h-3.5 w-3.5" />
+                        Sign Out
+                      </button>
+                    </div>
                   </div>
-                  <div className="border-t border-slate-100 dark:border-slate-800 pt-1">
-                    <button
-                      onClick={handleSignOut}
-                      className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition-colors"
-                    >
-                      <LogOut className="h-3.5 w-3.5" />
-                      Sign Out
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            ) : !isLoading ? (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openAuthModal({ mode: "login" })}
+                  className="hidden sm:inline-flex items-center px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openAuthModal({ mode: "signup", reason: "Create your free account to unlock your personalized job search workspace." })}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02]"
+                >
+                  <span>Sign Up</span>
+                  <ArrowRight className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 animate-pulse" />
+            )}
 
             {/* Mobile Hamburger Menu Toggle */}
             <button
@@ -875,6 +899,31 @@ export default function Navbar() {
                 )}
               </div>
             </div>
+
+            {!isAuthenticated && !isLoading && (
+              <div className="flex flex-col gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false)
+                    openAuthModal({ mode: "login" })
+                  }}
+                  className="w-full py-2.5 text-center text-xs font-bold text-slate-700 dark:text-slate-200 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200"
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false)
+                    openAuthModal({ mode: "signup", reason: "Create your free account to unlock your personalized job search workspace." })
+                  }}
+                  className="w-full py-2.5 text-center text-xs font-bold text-white rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 shadow-sm"
+                >
+                  Create Free Account
+                </button>
+              </div>
+            )}
           </div>
         )}
       </header>

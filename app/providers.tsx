@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { ThemeProvider } from "next-themes"
 import { ToastProvider } from "@/components/ui/toast"
+import { AuthModalProvider } from "@/components/features/auth/auth-modal"
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = React.useState(
@@ -23,7 +24,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light" enableSystem={false}>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          {children}
+          <AuthModalProvider>
+            {children}
+          </AuthModalProvider>
         </ToastProvider>
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>

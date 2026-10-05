@@ -35,7 +35,7 @@ import {
   AssessmentSession,
   AssessmentDifficulty,
 } from "@/types/assessment"
-import { cn } from "@/lib/utils"
+import { cn, formatFullDate } from "@/lib/utils"
 
 interface AssessmentLobbyProps {
   onStartExam: (session: AssessmentSession) => void
@@ -619,13 +619,9 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                         {sess.problem.title}
                       </h4>
 
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-slate-500" suppressHydrationWarning>
                         {sess.problem.category} • Attempted on{" "}
-                        {new Date(sess.startedAt).toLocaleDateString()} at{" "}
-                        {new Date(sess.startedAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {formatFullDate(sess.startedAt)}
                       </p>
                     </div>
 

@@ -3,6 +3,7 @@ import { Inter, Caveat } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 import InstallPrompt from "@/components/ui/install-prompt";
+import TelemetryTracker from "@/components/layout/telemetry-tracker";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -50,6 +51,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${caveat.variable} h-full antialiased`}>
       <body className="min-h-[100dvh] flex flex-col bg-background text-foreground transition-colors duration-200">
         <Providers>
+          <TelemetryTracker />
           {children}
           <InstallPrompt />
         </Providers>

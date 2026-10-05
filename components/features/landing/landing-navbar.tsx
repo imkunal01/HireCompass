@@ -4,9 +4,11 @@ import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import { ChevronDown, ArrowRight, Menu, X, Sparkles, BookOpen, Layers, Target, Shield, HelpCircle, ShieldCheck } from "lucide-react"
 import { useUser } from "@/hooks/useUser"
+import { useAuthModal } from "@/components/features/auth/auth-modal"
 
 export default function LandingNavbar() {
   const { user } = useUser()
+  const { openAuthModal } = useAuthModal()
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [resourcesOpen, setResourcesOpen] = useState(false)
@@ -190,14 +192,15 @@ export default function LandingNavbar() {
             </Link>
           ) : (
             <>
-              <Link
-                href="/login"
+              <button
+                type="button"
+                onClick={() => openAuthModal({ mode: "login" })}
                 className="px-4 py-2 text-xs sm:text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:text-slate-900 rounded-xl border border-slate-200/90 shadow-sm transition-all duration-200"
               >
                 Log in
-              </Link>
+              </button>
               <Link
-                href="/signup"
+                href="/dashboard"
                 className="px-4 sm:px-5 py-2 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/35 hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-1.5"
               >
                 <span>Get started</span>
@@ -281,15 +284,18 @@ export default function LandingNavbar() {
           </nav>
 
           <div className="pt-3 border-t border-slate-100 flex flex-col gap-2.5">
-            <Link
-              href="/login"
-              onClick={() => setMobileMenuOpen(false)}
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false)
+                openAuthModal({ mode: "login" })
+              }}
               className="w-full text-center py-2.5 text-sm font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors"
             >
               Log in
-            </Link>
+            </button>
             <Link
-              href="/signup"
+              href="/dashboard"
               onClick={() => setMobileMenuOpen(false)}
               className="w-full text-center py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 rounded-xl shadow-md shadow-indigo-500/25 flex items-center justify-center gap-2"
             >

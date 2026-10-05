@@ -209,7 +209,34 @@ export async function getSession(request: NextRequest): Promise<Session | null> 
   if (!token) return null
   const user = await verifyToken(token)
   if (!user) return null
+
+  if (user?.id) {
+    touchUserActive(user.id)
+  }
+
   return { user }
+}
+
+const lastTouchMap = new Map<string, number>()
+
+function touchUserActive(userId: string) {
+  const now = Date.now()
+  const last = lastTouchMap.get(userId) || 0
+  if (now - last < 120000) return // Throttle to once every 2 mins
+  lastTouchMap.set(userId, now)
+
+  import("@/lib/mongodb")
+    .then(async ({ default: clientPromise }) => {
+      const { ObjectId } = await import("mongodb")
+      if (!ObjectId.isValid(userId)) return
+      const client = await clientPromise
+      client
+        .db()
+        .collection("users")
+        .updateOne({ _id: new ObjectId(userId) }, { $set: { lastActiveAt: new Date() } })
+        .catch(() => {})
+    })
+    .catch(() => {})
 }
 
 /**

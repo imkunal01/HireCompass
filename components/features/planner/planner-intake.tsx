@@ -51,12 +51,18 @@ export default function PlannerIntake({ onGenerate, isLoading }: Props) {
         if (data.interviews?.length) {
           details.push(`Interviews: ${data.interviews.map((i: any) => `${i.company} (${i.time || "Scheduled"})`).join(", ")}`)
         }
+        if (data.followUps?.length) {
+          details.push(`Follow-ups: ${data.followUps.map((f: any) => f.company).join(", ")}`)
+        }
+        if (data.dsaGoal) {
+          details.push(`DSA: ${data.dsaGoal}`)
+        }
         if (data.reminders?.length) {
           details.push(`Reminders: ${data.reminders.map((r: any) => r.message).join(", ")}`)
         }
         if (details.length > 0) {
           setRawInput((prev) =>
-            prev ? `${prev}\n\n[Synced Commitments]: ${details.join("; ")}` : `Today: ${details.join("; ")}`
+            prev ? `${prev}\n\n[Synced Commitments & Goals]: ${details.join("; ")}` : `Today's priorities: ${details.join("; ")}`
           )
         }
       }

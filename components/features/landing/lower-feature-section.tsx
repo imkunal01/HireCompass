@@ -98,7 +98,7 @@ export default function LowerFeatureSection() {
 
             {/* CTA button */}
             <Link
-              href="/signup"
+              href="/dashboard"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-indigo-200/90 text-indigo-600 hover:text-indigo-700 bg-white hover:bg-indigo-50/50 font-semibold text-xs sm:text-sm shadow-sm transition-all duration-200 hover:shadow"
             >
               <span>Explore all features</span>
@@ -142,7 +142,7 @@ export default function LowerFeatureSection() {
                 <p className="text-xs font-semibold text-slate-700 mb-0.5">No interviews scheduled</p>
                 <p className="text-[11px] text-slate-400 mb-3">Your upcoming interviews will appear here.</p>
                 <Link
-                  href="/signup"
+                  href="/applications"
                   className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
                 >
                   Browse Opportunities <ArrowRight className="h-3 w-3" />

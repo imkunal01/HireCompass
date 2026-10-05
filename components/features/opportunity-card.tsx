@@ -1,8 +1,7 @@
 "use client"
 
-import React from "react"
 import { Calendar, MapPin, DollarSign, ExternalLink, ArrowRight, Clock } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, formatFullDate, formatShortDate } from "@/lib/utils"
 
 export type OpportunityStatus = "WISHLIST" | "SAVED" | "APPLIED" | "ASSESSMENT" | "INTERVIEW" | "INTERVIEWING" | "OFFER" | "GHOSTED" | "REJECTED"
 
@@ -38,11 +37,7 @@ const statusThemes: Record<string, { label: string; bg: string; text: string; do
 
 export default function OpportunityCard({ opportunity, onStatusChange }: OpportunityCardProps) {
   const theme = statusThemes[opportunity.status] || statusThemes.WISHLIST
-  const formattedDate = new Date(opportunity.createdAt).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  })
+  const formattedDate = formatFullDate(opportunity.createdAt)
 
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-border bg-card/40 backdrop-blur-md p-5 hover:bg-card/70 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300">
@@ -103,7 +98,7 @@ export default function OpportunityCard({ opportunity, onStatusChange }: Opportu
         <div className="mt-4 flex items-center gap-2 rounded-xl bg-purple-500/5 border border-purple-500/10 p-2.5 text-xs text-purple-300">
           <Calendar className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate font-medium">
-            Interview: {new Date(opportunity.interviews[0].date).toLocaleDateString()}
+            Interview: {formatShortDate(opportunity.interviews[0].date)}
           </span>
         </div>
       )}

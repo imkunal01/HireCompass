@@ -7,46 +7,48 @@ import { ObjectId } from "mongodb"
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession(request)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const userId = session.user.id
-    const userObjectId = toObjectId(userId)
+    const userId = session?.user?.id || null
+    const userObjectId = userId ? toObjectId(userId) : null
 
     const db = await getSheetsDb()
     const sheetsCol = db.collection("sheets")
     const progressCol = db.collection("item_progress")
 
     // Find sheets owned by user or built-in templates
+    const query = userId
+      ? {
+          $or: [
+            { owner: userId },
+            ...(userObjectId ? [{ owner: userObjectId }] : []),
+            { isTemplate: true },
+          ],
+        }
+      : { isTemplate: true }
+
     const sheets = await sheetsCol
-      .find({
-        $or: [
-          { owner: userId },
-          ...(userObjectId ? [{ owner: userObjectId }] : []),
-          { isTemplate: true },
-        ],
-      })
+      .find(query)
       .sort({ isTemplate: 1, updatedAt: -1, createdAt: -1 })
       .toArray()
 
     // Single aggregation for all done counts of this user (prevents N+1 query problem)
-    const doneCounts = await progressCol
-      .aggregate([
-        {
-          $match: {
-            $or: [{ user: userId }, ...(userObjectId ? [{ user: userObjectId }] : [])],
-            status: "done",
-          },
-        },
-        {
-          $group: {
-            _id: "$sheet",
-            done: { $sum: 1 },
-          },
-        },
-      ])
-      .toArray()
+    const doneCounts = userId
+      ? await progressCol
+          .aggregate([
+            {
+              $match: {
+                $or: [{ user: userId }, ...(userObjectId ? [{ user: userObjectId }] : [])],
+                status: "done",
+              },
+            },
+            {
+              $group: {
+                _id: "$sheet",
+                done: { $sum: 1 },
+              },
+            },
+          ])
+          .toArray()
+      : []
 
     const doneMap = new Map<string, number>()
     for (const d of doneCounts) {

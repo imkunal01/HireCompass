@@ -7,14 +7,34 @@ import BottomNav from "./bottom-nav"
 import NotificationInitializer from "@/components/ui/notification-initializer"
 import AgentChat from "@/components/features/agent/agent-chat"
 
+import Link from "next/link"
+import ProductTourModal from "@/components/features/tour/product-tour"
+import { useAuthModal } from "@/components/features/auth/auth-modal"
+
 interface DashboardShellProps {
   children: React.ReactNode
+  isGuest?: boolean
 }
 
-export default function DashboardShell({ children }: DashboardShellProps) {
+export default function DashboardShell({ children, isGuest = false }: DashboardShellProps) {
   const pathname = usePathname()
+  const { openAuthModal } = useAuthModal()
   const isAssessmentRoute = pathname?.startsWith("/assessment")
   const [isExamActive, setIsExamActive] = useState(false)
+  const [tourOpen, setTourOpen] = useState(false)
+
+  // Check tour status on initial guest load
+  useEffect(() => {
+    if (isGuest && typeof window !== "undefined") {
+      const seen = localStorage.getItem("hirecompass_tour_seen")
+      if (!seen) {
+        const timer = setTimeout(() => {
+          setTourOpen(true)
+        }, 600)
+        return () => clearTimeout(timer)
+      }
+    }
+  }, [isGuest])
 
   // Listen to exam mode events to suppress website chrome during active tests
   useEffect(() => {
@@ -108,6 +128,35 @@ export default function DashboardShell({ children }: DashboardShellProps) {
 
       </div>
 
+      {/* ── Guest Exploration Announcement Banner (Hidden in Exam Mode) ── */}
+      {isGuest && !isExamActive && (
+        <div className="relative z-40 w-full bg-gradient-to-r from-indigo-700 via-indigo-600 to-violet-700 text-white px-4 py-2 sm:py-2.5 text-xs font-medium shadow-sm transition-all flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+            <span className="leading-snug">
+              <strong className="font-extrabold tracking-wide">Guest Exploration Mode:</strong> You have full access to explore the platform & <strong>10 free AI copilot tokens</strong> without signing in.
+            </span>
+          </div>
+          <div className="flex items-center gap-2.5 shrink-0 ml-auto sm:ml-0">
+            <button
+              onClick={() => setTourOpen(true)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold tracking-tight transition-colors border border-white/20"
+            >
+              <span>Take Tour</span>
+              <span>🎯</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openAuthModal({ mode: "signup", reason: "Create an account to save your applications permanently and access all features." })}
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-white text-indigo-700 hover:bg-indigo-50 font-bold text-[11px] tracking-tight transition-colors shadow-xs"
+            >
+              <span>Create Account</span>
+              <span>→</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Top Navigation Bar Header (Hidden in Exam Mode) ── */}
       {!isExamActive && <Navbar />}
 
@@ -132,6 +181,9 @@ export default function DashboardShell({ children }: DashboardShellProps) {
 
       {/* AI Agent Chatbot — strictly hidden on assessment routes & during exams */}
       {!isAssessmentRoute && !isExamActive && <AgentChat />}
+
+      {/* Product Tour Modal */}
+      <ProductTourModal isOpen={tourOpen} onClose={() => setTourOpen(false)} />
     </div>
   )
 }

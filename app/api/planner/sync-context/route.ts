@@ -15,32 +15,50 @@ export async function GET(request: NextRequest) {
     const db = client.db()
     const interviewsCol = db.collection("interviews")
     const remindersCol = db.collection("reminders")
+    const oppsCol = db.collection("opportunities")
+    const sheetsCol = db.collection("sheets")
 
-    const now = new Date()
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
-
-    // Pull interviews scheduled for today
+    // 1. Pull upcoming interviews
     const interviews = await interviewsCol
       .find({
         userId: session.user.id,
       })
+      .sort({ date: 1 })
+      .limit(3)
       .toArray()
 
-    // Pull pending reminders
+    // 2. Pull pending reminders
     const reminders = await remindersCol
       .find({
         userId: session.user.id,
         done: { $ne: true },
       })
-      .limit(5)
+      .sort({ dueAt: 1 })
+      .limit(4)
       .toArray()
+
+    // 3. Pull overdue follow-ups (>7 days in APPLIED)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000)
+    const overdueOpps = await oppsCol
+      .find({
+        userId: session.user.id,
+        status: "APPLIED",
+        updatedAt: { $lte: sevenDaysAgo },
+      })
+      .limit(3)
+      .toArray()
+
+    // 4. Pull active coding sheet topic recommendation
+    const activeSheet = await sheetsCol.findOne({ isTemplate: true })
+    const dsaGoal = activeSheet
+      ? `Solve 2 problems from ${activeSheet.title || "Blind 75"}`
+      : "Complete daily DSA problem set"
 
     const formattedInterviews = interviews.map((i) => ({
       company: i.company,
       role: i.role,
-      time: i.time || (i.date ? new Date(i.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Scheduled"),
-      type: i.type,
+      time: i.time || (i.date ? new Date(i.date).toLocaleDateString([], { month: "short", day: "numeric" }) : "Scheduled"),
+      type: i.type || "Technical Round",
     }))
 
     const formattedReminders = reminders.map((r) => ({
@@ -49,9 +67,16 @@ export async function GET(request: NextRequest) {
       company: r.company,
     }))
 
+    const followUps = overdueOpps.map((o) => ({
+      company: o.company,
+      title: o.title,
+    }))
+
     return NextResponse.json({
       interviews: formattedInterviews,
       reminders: formattedReminders,
+      followUps,
+      dsaGoal,
     })
   } catch (error) {
     console.error("[GET /api/planner/sync-context]", error)

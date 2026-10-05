@@ -2,8 +2,10 @@
 
 import React from "react"
 import Link from "next/link"
+import { useAuthModal } from "@/components/features/auth/auth-modal"
 
 export default function LandingFooter() {
+  const { openAuthModal } = useAuthModal()
   return (
     <footer className="bg-white border-t border-slate-100 text-slate-500 text-xs sm:text-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-16">
@@ -46,17 +48,17 @@ export default function LandingFooter() {
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Product</h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <Link href="/login" className="hover:text-indigo-600 transition-colors">
+                <Link href="/dashboard" className="hover:text-indigo-600 transition-colors">
                   Dashboard
                 </Link>
               </li>
               <li>
-                <Link href="/login" className="hover:text-indigo-600 transition-colors">
+                <Link href="/applications" className="hover:text-indigo-600 transition-colors">
                   Application Pipeline
                 </Link>
               </li>
               <li>
-                <Link href="/login" className="hover:text-indigo-600 transition-colors">
+                <Link href="/dashboard" className="hover:text-indigo-600 transition-colors">
                   Interviews & Calendar
                 </Link>
               </li>
@@ -120,7 +122,7 @@ export default function LandingFooter() {
                 </Link>
               </li>
               <li>
-                <Link href="/login" className="hover:text-indigo-600 transition-colors">
+                <Link href="/planner" className="hover:text-indigo-600 transition-colors">
                   Day Planner
                 </Link>
               </li>
@@ -131,9 +133,13 @@ export default function LandingFooter() {
                 </Link>
               </li>
               <li>
-                <Link href="/signup" className="hover:text-indigo-600 transition-colors font-semibold text-indigo-600">
+                <button
+                  type="button"
+                  onClick={() => openAuthModal({ mode: "signup", reason: "Create your free HireCompass account to unlock permanent application syncing and custom AI insights." })}
+                  className="hover:text-indigo-600 transition-colors font-semibold text-indigo-600 text-left"
+                >
                   Create free account →
-                </Link>
+                </button>
               </li>
             </ul>
           </div>

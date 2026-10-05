@@ -27,7 +27,26 @@ import {
   ArrowUpRight,
   Zap,
   RotateCcw,
+  Lock,
+  UserPlus,
+  LogIn,
 } from "lucide-react"
+import { useUser } from "@/hooks/useUser"
+import { useAuthModal } from "@/components/features/auth/auth-modal"
+
+function getVisitorId(): string {
+  if (typeof window === "undefined") return "guest"
+  try {
+    let id = localStorage.getItem("hirecompass_visitor_id")
+    if (!id) {
+      id = "v_" + Math.random().toString(36).substring(2, 12) + "_" + Date.now().toString(36)
+      localStorage.setItem("hirecompass_visitor_id", id)
+    }
+    return id
+  } catch {
+    return "guest_" + Date.now()
+  }
+}
 
 const SWEETY_STYLE = `
   @keyframes sweet-float {
@@ -258,6 +277,9 @@ const INTRO_MSG: ChatMessage = {
 export default function AgentChat() {
   const router = useRouter()
   const pathname = usePathname()
+  const { user } = useUser()
+  const { openAuthModal } = useAuthModal()
+  const isGuest = !user
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [inExamMode, setInExamMode] = useState(false)
@@ -266,9 +288,25 @@ export default function AgentChat() {
   const [loading, setLoading] = useState(false)
   const [hasNewMessage, setHasNewMessage] = useState(false)
   const [welcomePopup, setWelcomePopup] = useState<string | null>(null)
+  const [guestUsage, setGuestUsage] = useState<{ count: number; limit: number } | null>(null)
+  const [isGuestLimitReached, setIsGuestLimitReached] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+
+  // ── Load Guest Usage on Mount ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!user) {
+      try {
+        const saved = localStorage.getItem("hirecompass_guest_ai_count")
+        if (saved) {
+          const count = parseInt(saved, 10)
+          setGuestUsage({ count, limit: 10 })
+          if (count >= 10) setIsGuestLimitReached(true)
+        }
+      } catch {}
+    }
+  }, [user])
 
   // ── Assessment / Exam Mode Guard ──────────────────────────────────────────
   useEffect(() => {
@@ -406,13 +444,34 @@ export default function AgentChat() {
         })
 
       try {
+        const vid = getVisitorId()
         const res = await fetch("/api/agent/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: history }),
+          headers: {
+            "Content-Type": "application/json",
+            "x-visitor-id": vid,
+          },
+          body: JSON.stringify({
+            messages: history,
+            visitorId: vid,
+          }),
         })
 
         const data = await res.json()
+
+        if (data.guestUsage) {
+          setGuestUsage(data.guestUsage)
+          try {
+            localStorage.setItem("hirecompass_guest_ai_count", String(data.guestUsage.count))
+          } catch {}
+          if (data.guestUsage.count >= data.guestUsage.limit) {
+            setIsGuestLimitReached(true)
+          }
+        }
+
+        if (data.isGuestLimitReached || data.requiresAuth) {
+          setIsGuestLimitReached(true)
+        }
 
         if (!res.ok) {
           setMessages((prev) => [
@@ -498,12 +557,18 @@ export default function AgentChat() {
         <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-200/70 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-800/60 shrink-0">
           <SweetyAvatar className="w-10 h-10 rounded-[14px] shadow-sm shadow-indigo-900/10" />
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Sweety</span>
               <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 rounded-full px-2 py-0.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Online
               </span>
+              {isGuest && (
+                <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/80 rounded-full px-2 py-0.5">
+                  <Sparkles size={10} className="text-amber-500" />
+                  {guestUsage ? Math.max(0, guestUsage.limit - guestUsage.count) : 10}/10 tokens left
+                </span>
+              )}
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
               Personal Assistant
@@ -558,41 +623,91 @@ export default function AgentChat() {
           </div>
         )}
 
-        {/* Input */}
-        <div className="px-3.5 pb-3.5 shrink-0 border-t border-slate-200/70 dark:border-slate-800/80 bg-white dark:bg-slate-900 pt-3.5">
-          <div className="flex items-end gap-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 shadow-inner-sm focus-within:border-indigo-400 dark:focus-within:border-indigo-500 focus-within:bg-white dark:focus-within:bg-slate-800 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all duration-200">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="What do you want now..."
-              rows={1}
-              disabled={loading}
-              className="flex-1 resize-none bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none min-h-[20px] max-h-[100px] overflow-y-auto leading-5 pt-0.5 disabled:opacity-50"
-              style={{ scrollbarWidth: "none" }}
-            />
-            <button
-              onClick={() => sendMessage()}
-              disabled={loading || !input.trim()}
-              className={cn(
-                "shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200",
-                input.trim() && !loading
-                  ? "bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/20 hover:shadow-lg hover:shadow-indigo-500/30 hover:scale-105 active:scale-95"
-                  : "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed"
-              )}
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </button>
+        {/* Input or Auth Barrier */}
+        {isGuest && isGuestLimitReached ? (
+          <div className="p-4 bg-gradient-to-br from-indigo-50/90 via-violet-50/90 to-purple-50/90 dark:from-slate-800 dark:to-slate-850 border-t border-indigo-100 dark:border-slate-700/80 text-center space-y-3">
+            <div className="flex items-center justify-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400">
+                <Lock size={16} />
+              </span>
+              <span className="text-xs font-black text-slate-900 dark:text-slate-100">
+                10 Free Guest Tokens Used
+              </span>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              You&apos;ve experienced Sweety AI! Create your free account to unlock unlimited job search coaching, custom ATS resume analysis, and interview simulations.
+            </p>
+            <div className="flex items-center justify-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  openAuthModal({
+                    mode: "signup",
+                    reason: "10 free guest tokens used. Create an account to unlock unlimited AI chats & personalized coaching.",
+                    onSuccess: () => {
+                      setIsGuestLimitReached(false)
+                    },
+                  })
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs shadow-md shadow-indigo-500/20 transition-all"
+              >
+                <UserPlus size={14} />
+                <span>Create Free Account</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  openAuthModal({
+                    mode: "login",
+                    reason: "Sign in to your HireCompass account to continue your conversation.",
+                    onSuccess: () => {
+                      setIsGuestLimitReached(false)
+                    },
+                  })
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors"
+              >
+                <LogIn size={14} />
+                <span>Log In</span>
+              </button>
+            </div>
           </div>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-2.5 font-medium">
-            Enter to send · Shift+Enter for newline
-          </p>
-        </div>
+        ) : (
+          <div className="px-3.5 pb-3.5 shrink-0 border-t border-slate-200/70 dark:border-slate-800/80 bg-white dark:bg-slate-900 pt-3.5">
+            <div className="flex items-end gap-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 shadow-inner-sm focus-within:border-indigo-400 dark:focus-within:border-indigo-500 focus-within:bg-white dark:focus-within:bg-slate-800 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all duration-200">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={isGuest ? "Ask Sweety anything (10 free tokens)..." : "What do you want now..."}
+                rows={1}
+                disabled={loading}
+                className="flex-1 resize-none bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none min-h-[20px] max-h-[100px] overflow-y-auto leading-5 pt-0.5 disabled:opacity-50"
+                style={{ scrollbarWidth: "none" }}
+              />
+              <button
+                onClick={() => sendMessage()}
+                disabled={loading || !input.trim()}
+                className={cn(
+                  "shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200",
+                  input.trim() && !loading
+                    ? "bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/20 hover:shadow-lg hover:shadow-indigo-500/30 hover:scale-105 active:scale-95"
+                    : "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+                )}
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-2.5 font-medium">
+              Enter to send · Shift+Enter for newline
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ── Floating Trigger Button (Circular FAB placed above mobile bottom nav) ── */}

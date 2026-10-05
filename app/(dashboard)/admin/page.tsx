@@ -9,10 +9,26 @@ import {
   ShieldCheck, Users, FileText, Cpu, Sparkles, AlertTriangle,
   Search, Plus, RotateCcw, Trash2, Edit3, CheckCircle2, XCircle,
   Download, Eye, Key, ShieldAlert, ChevronRight, Activity, Ban,
-  Lock, RefreshCw, X, Loader2
+  Lock, RefreshCw, X, Loader2, Globe, Wifi, Radio, Laptop, Smartphone,
+  ExternalLink, Compass, ArrowUpRight
 } from "lucide-react"
 import "@/styles/animations.css"
 import { cn } from "@/lib/utils"
+import type { TrafficSummary } from "@/types/telemetry"
+
+function formatTimeAgo(dateStr?: string | Date | null): string {
+  if (!dateStr) return "Never"
+  const diff = Date.now() - new Date(dateStr).getTime()
+  if (diff < 0) return "Just now"
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return "Just now"
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days}d ago`
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
 
 interface UserRecord {
   id: string
@@ -30,6 +46,9 @@ interface UserRecord {
   hasCustomKey: boolean
   opportunitiesCount: number
   resumesCount: number
+  lastActiveAt?: string | null
+  lastPath?: string | null
+  isOnline?: boolean
   createdAt: string | null
 }
 
@@ -73,11 +92,23 @@ export default function AdminDashboardPage() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
-  const [activeTab, setActiveTab] = useState<"users" | "resumes" | "system">("users")
+  const [activeTab, setActiveTab] = useState<"users" | "traffic" | "resumes" | "system">("users")
   const [userSearch, setUserSearch] = useState("")
   const [roleFilter, setRoleFilter] = useState("ALL")
   const [aiAccessFilter, setAiAccessFilter] = useState("ALL")
   const [userPage, setUserPage] = useState(1)
+
+  // 0. Fetch Real-Time Traffic & User Interactivity
+  const { data: trafficData, isLoading: trafficLoading, refetch: refetchTraffic } = useQuery<TrafficSummary>({
+    queryKey: ["admin-traffic"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/traffic")
+      if (!res.ok) throw new Error("Failed to load traffic stats")
+      return res.json()
+    },
+    enabled: user?.role === "admin",
+    refetchInterval: 15000, // Live presence poll every 15s
+  })
 
   // Resumes states
   const [resumeSearch, setResumeSearch] = useState("")
@@ -377,37 +408,75 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* ── KPI Metric Cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-3.5">
         {[
           { label: "Total Users", val: stats?.totalUsers ?? "...", icon: Users, color: "#6366F1", bg: "bg-indigo-50 text-indigo-600" },
-          { label: "Active Admins", val: stats?.totalAdmins ?? "...", icon: ShieldCheck, color: "#E11D48", bg: "bg-rose-50 text-rose-600" },
-          { label: "Opportunities", val: stats?.totalOpportunities ?? "...", icon: Activity, color: "#2563EB", bg: "bg-blue-50 text-blue-600" },
-          { label: "Uploaded Resumes", val: stats?.totalResumes ?? "...", icon: FileText, color: "#059669", bg: "bg-emerald-50 text-emerald-600" },
-          { label: "Platform AI Calls", val: stats?.totalAiRequests ?? "...", icon: Cpu, color: "#D97706", bg: "bg-amber-50 text-amber-600" },
+          {
+            label: "Online Now",
+            val: (
+              <div className="flex items-center gap-2">
+                <span>{trafficData?.onlineUsersCount ?? 0}</span>
+                {(trafficData?.onlineUsersCount ?? 0) > 0 && (
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </span>
+                )}
+              </div>
+            ),
+            icon: Wifi,
+            color: "#10B981",
+            bg: "bg-emerald-50 text-emerald-600",
+            sub: "Active in last 5m",
+          },
+          {
+            label: "24h Traffic",
+            val: trafficData?.totalPageviewsToday ?? 0,
+            icon: Globe,
+            color: "#3B82F6",
+            bg: "bg-blue-50 text-blue-600",
+            sub: `${trafficData?.uniqueVisitorsToday ?? 0} unique visitors`,
+          },
+          { label: "Opportunities", val: stats?.totalOpportunities ?? "...", icon: Activity, color: "#2563EB", bg: "bg-indigo-50 text-indigo-600" },
+          { label: "Resumes", val: stats?.totalResumes ?? "...", icon: FileText, color: "#059669", bg: "bg-teal-50 text-teal-600" },
+          { label: "AI Requests", val: stats?.totalAiRequests ?? "...", icon: Cpu, color: "#D97706", bg: "bg-amber-50 text-amber-600" },
         ].map((item, idx) => (
           <div
             key={idx}
-            className="rounded-3xl border border-slate-200/80 bg-white/95 backdrop-blur-xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+            className="rounded-3xl border border-slate-200/80 bg-white/95 backdrop-blur-xl p-4 sm:p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
           >
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
                 {item.label}
               </span>
-              <div className={cn("p-1.5 rounded-xl", item.bg)}>
-                <item.icon size={16} />
+              <div className={cn("p-1.5 rounded-xl shrink-0", item.bg)}>
+                <item.icon size={15} />
               </div>
             </div>
-            <div className="text-3xl font-black text-slate-900 tracking-tight">
-              {item.val}
+            <div>
+              <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                {item.val}
+              </div>
+              {item.sub && (
+                <div className="text-[10px] font-medium text-slate-400 mt-0.5 truncate">
+                  {item.sub}
+                </div>
+              )}
             </div>
           </div>
         ))}
       </div>
 
       {/* ── Navigation Tabs ── */}
-      <div className="flex gap-2 border-b border-slate-200/80 pt-2">
+      <div className="flex gap-2 border-b border-slate-200/80 pt-2 overflow-x-auto">
         {[
           { id: "users", label: "User Management & AI Quotas", icon: Users },
+          {
+            id: "traffic",
+            label: "Traffic & User Activity",
+            icon: Globe,
+            badge: (trafficData?.onlineUsersCount ?? 0) > 0 ? `${trafficData?.onlineUsersCount} online` : null,
+          },
           { id: "resumes", label: "Resumes Oversight", icon: FileText },
           { id: "system", label: "System & AI Settings", icon: Cpu },
         ].map((tab) => (
@@ -415,14 +484,19 @@ export default function AdminDashboardPage() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
             className={cn(
-              "flex items-center gap-2 px-4 py-3 border-b-2 text-xs sm:text-sm font-bold transition-all -mb-px",
+              "flex items-center gap-2 px-4 py-3 border-b-2 text-xs sm:text-sm font-bold transition-all -mb-px shrink-0",
               activeTab === tab.id
                 ? "border-indigo-600 text-indigo-600 font-black"
                 : "border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300"
             )}
           >
             <tab.icon size={16} />
-            {tab.label}
+            <span>{tab.label}</span>
+            {tab.badge && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-700 animate-pulse">
+                {tab.badge}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -493,6 +567,7 @@ export default function AdminDashboardPage() {
                   <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                     <th className="py-3.5 px-4 sm:px-6">User</th>
                     <th className="py-3.5 px-4 sm:px-6">Role</th>
+                    <th className="py-3.5 px-4 sm:px-6">Last Active</th>
                     <th className="py-3.5 px-4 sm:px-6">AI Privilege</th>
                     <th className="py-3.5 px-4 sm:px-6">AI Usage</th>
                     <th className="py-3.5 px-4 sm:px-6">Records</th>
@@ -502,14 +577,14 @@ export default function AdminDashboardPage() {
                 <tbody className="divide-y divide-slate-100 text-slate-700">
                   {usersLoading ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-500">
+                      <td colSpan={7} className="py-12 text-center text-slate-500">
                         <Loader2 size={24} className="animate-spin text-indigo-600 mx-auto mb-2" />
                         <span>Loading users...</span>
                       </td>
                     </tr>
                   ) : usersData?.users?.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-500">
+                      <td colSpan={7} className="py-12 text-center text-slate-500">
                         No users found matching your filters.
                       </td>
                     </tr>
@@ -560,6 +635,28 @@ export default function AdminDashboardPage() {
                             {u.role === "admin" ? <ShieldCheck size={12} className="text-rose-600" /> : <Users size={12} />}
                             {u.role.toUpperCase()}
                           </button>
+                        </td>
+
+                        {/* Last Active */}
+                        <td className="py-3.5 px-4 sm:px-6">
+                          {u.isOnline ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                              </span>
+                              <span className="font-bold text-emerald-700 text-xs">Online Now</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col">
+                              <span className="font-medium text-slate-700 text-xs">{formatTimeAgo(u.lastActiveAt)}</span>
+                              {u.lastPath && (
+                                <span className="text-[10px] text-slate-400 font-mono truncate max-w-[120px]" title={u.lastPath}>
+                                  {u.lastPath}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </td>
 
                         {/* AI Privilege Mode */}
@@ -701,7 +798,347 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* ════════════════════ TAB 2: RESUMES ════════════════════ */}
+      {/* ════════════════════ TAB: TRAFFIC & USER ACTIVITY ════════════════════ */}
+      {activeTab === "traffic" && (
+        <div className="space-y-6">
+          {/* Header Controls */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-3xl p-5 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 shrink-0">
+                <Radio size={20} className="animate-pulse" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                  <span>Live Telemetry & User Interactivity</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+                    LIVE
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Tracking active candidate sessions, route history, and real-time website traffic.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => refetchTraffic()}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition-all shrink-0"
+            >
+              <RefreshCw size={13} className={trafficLoading ? "animate-spin text-indigo-600" : ""} />
+              <span>Refresh Telemetry</span>
+            </button>
+          </div>
+
+          {/* 1. Active Users Roster ("Which user was active last time") */}
+          <div className="rounded-3xl border border-slate-200/80 bg-white/95 backdrop-blur-xl shadow-xs overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200/80 bg-slate-50/80 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users size={16} className="text-indigo-600" />
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  User Interactivity & Last Active Roster
+                </h4>
+              </div>
+              <span className="text-xs text-slate-500 font-medium">
+                {trafficData?.activeUsersList?.length || 0} candidates tracked
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs sm:text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200/80 bg-slate-50/40 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="py-3 px-4 sm:px-6">Candidate</th>
+                    <th className="py-3 px-4 sm:px-6">Presence Status</th>
+                    <th className="py-3 px-4 sm:px-6">Last Active</th>
+                    <th className="py-3 px-4 sm:px-6">Last Route Visited</th>
+                    <th className="py-3 px-4 sm:px-6">AI Usage</th>
+                    <th className="py-3 px-4 sm:px-6 text-right">Role</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {trafficLoading ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-500">
+                        <Loader2 size={24} className="animate-spin text-indigo-600 mx-auto mb-2" />
+                        <span>Loading user activity telemetry...</span>
+                      </td>
+                    </tr>
+                  ) : !trafficData?.activeUsersList || trafficData.activeUsersList.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-500">
+                        No user activity recorded yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    trafficData.activeUsersList.map((usr) => (
+                      <tr key={usr.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3 px-4 sm:px-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                              {usr.name?.[0]?.toUpperCase() || "U"}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-bold text-slate-900 truncate">{usr.name}</div>
+                              <div className="text-xs text-slate-500 truncate">{usr.email}</div>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-4 sm:px-6">
+                          {usr.isOnline ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                              </span>
+                              Online Now
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                              Offline
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-4 sm:px-6">
+                          <div className="text-xs text-slate-700 font-semibold">
+                            {formatTimeAgo(usr.lastActiveAt)}
+                          </div>
+                          {usr.lastActiveAt && (
+                            <div className="text-[10px] text-slate-400">
+                              {new Date(usr.lastActiveAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-4 sm:px-6">
+                          <span className="inline-flex items-center gap-1 font-mono text-xs px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 max-w-[160px] truncate" title={usr.lastPath}>
+                            {usr.lastPath || "/dashboard"}
+                          </span>
+                        </td>
+
+                        <td className="py-3 px-4 sm:px-6 font-semibold text-slate-800">
+                          {usr.aiUsageCount} requests
+                        </td>
+
+                        <td className="py-3 px-4 sm:px-6 text-right">
+                          <span className={cn(
+                            "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider",
+                            usr.role === "admin"
+                              ? "bg-rose-50 text-rose-700 border border-rose-200"
+                              : "bg-slate-100 text-slate-700 border border-slate-200"
+                          )}>
+                            {usr.role}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 2. Grid: Traffic Composition & Top Visited Pages */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* Left: Overall Audience Breakdown */}
+            <div className="rounded-3xl border border-slate-200/80 bg-white/95 backdrop-blur-xl p-6 shadow-xs space-y-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-2xl bg-blue-50 text-blue-600">
+                    <Globe size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">Traffic & Audience Split</h4>
+                    <p className="text-[11px] text-slate-500">Last 24 hours visitor composition</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-black text-slate-900">
+                    {trafficData?.uniqueVisitorsToday ?? 0}
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase">Total Visitors</span>
+                </div>
+              </div>
+
+              {/* Progress split bar */}
+              <div className="space-y-2">
+                <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                  <div
+                    className="bg-indigo-600 h-full transition-all duration-500"
+                    style={{
+                      width: `${
+                        (trafficData?.uniqueVisitorsToday ?? 0) > 0
+                          ? Math.round(((trafficData?.registeredVisitorsToday ?? 0) / (trafficData?.uniqueVisitorsToday ?? 1)) * 100)
+                          : 50
+                      }%`,
+                    }}
+                    title="Registered Users"
+                  />
+                  <div
+                    className="bg-amber-400 h-full transition-all duration-500"
+                    style={{
+                      width: `${
+                        (trafficData?.uniqueVisitorsToday ?? 0) > 0
+                          ? Math.round(((trafficData?.guestVisitorsToday ?? 0) / (trafficData?.uniqueVisitorsToday ?? 1)) * 100)
+                          : 50
+                      }%`,
+                    }}
+                    title="Guest Explorers"
+                  />
+                </div>
+
+                <div className="flex justify-between items-center text-xs text-slate-600 font-semibold pt-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full bg-indigo-600" />
+                    <span>Registered Members: <strong>{trafficData?.registeredVisitorsToday ?? 0}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+                    <span>Guest Explorers: <strong>{trafficData?.guestVisitorsToday ?? 0}</strong></span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Device Category Pills */}
+              <div className="pt-3 border-t border-slate-100">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-3">
+                  Device Distribution
+                </span>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+                    <Laptop size={18} className="text-slate-600" />
+                    <div>
+                      <div className="font-bold text-slate-900 text-xs">
+                        {trafficData?.deviceBreakdown?.desktop ?? 0}
+                      </div>
+                      <div className="text-[10px] text-slate-400">Desktop</div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+                    <Smartphone size={18} className="text-slate-600" />
+                    <div>
+                      <div className="font-bold text-slate-900 text-xs">
+                        {trafficData?.deviceBreakdown?.mobile ?? 0}
+                      </div>
+                      <div className="text-[10px] text-slate-400">Mobile</div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+                    <Compass size={18} className="text-slate-600" />
+                    <div>
+                      <div className="font-bold text-slate-900 text-xs">
+                        {trafficData?.deviceBreakdown?.tablet ?? 0}
+                      </div>
+                      <div className="text-[10px] text-slate-400">Tablet</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Top Visited Pages & Features */}
+            <div className="rounded-3xl border border-slate-200/80 bg-white/95 backdrop-blur-xl p-6 shadow-xs space-y-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-2xl bg-violet-50 text-violet-600">
+                  <Activity size={18} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">Top Visited Features & Routes</h4>
+                  <p className="text-[11px] text-slate-500">Most engaged platform modules (last 7 days)</p>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                {!trafficData?.topPages || trafficData.topPages.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-400">
+                    No route visits recorded yet.
+                  </div>
+                ) : (
+                  trafficData.topPages.map((page, index) => (
+                    <div
+                      key={page.path}
+                      className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50/70 border border-slate-100 hover:border-slate-200 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-slate-700 text-[10px] font-black shrink-0">
+                          {index + 1}
+                        </span>
+                        <span className="font-mono text-xs font-semibold text-slate-800 truncate">
+                          {page.path}
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full shrink-0">
+                        {page.count} {page.count === 1 ? "hit" : "hits"}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Live Real-Time Event Stream Ticker */}
+          <div className="rounded-3xl border border-slate-200/80 bg-white/95 backdrop-blur-xl p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-2xl bg-amber-50 text-amber-600">
+                  <Radio size={18} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">Live Traffic & Activity Stream</h4>
+                  <p className="text-[11px] text-slate-500">Real-time chronologic pulse across all visitors</p>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-slate-500">
+                {trafficData?.recentLogs?.length || 0} recent events
+              </span>
+            </div>
+
+            <div className="space-y-2 max-h-[360px] overflow-y-auto divide-y divide-slate-100 pr-1">
+              {!trafficData?.recentLogs || trafficData.recentLogs.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  No live events logged yet.
+                </div>
+              ) : (
+                trafficData.recentLogs.map((log, i) => (
+                  <div key={log.id || i} className="pt-2 pb-2 flex items-center justify-between gap-4 text-xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={cn(
+                        "h-2 w-2 rounded-full shrink-0",
+                        log.action === "pageview" ? "bg-indigo-500" : "bg-emerald-500"
+                      )} />
+                      <div className="min-w-0">
+                        <span className="font-bold text-slate-900 truncate">
+                          {log.userName || log.userEmail || `Guest (${log.visitorId.slice(0, 8)})`}
+                        </span>
+                        <span className="text-slate-500 ml-1.5 font-normal">
+                          {log.action === "pageview" ? "visited" : "pinged"}
+                        </span>
+                        <span className="font-mono text-indigo-600 ml-1 font-semibold truncate">
+                          {log.path}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 text-slate-400 text-[11px]">
+                      <span className="capitalize">{log.device || "desktop"}</span>
+                      <span>·</span>
+                      <span>{formatTimeAgo(log.timestamp)}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════ TAB: RESUMES ════════════════════ */}
       {activeTab === "resumes" && (
         <div className="space-y-4">
           {/* Resumes Filter Bar */}
@@ -784,8 +1221,8 @@ export default function AdminDashboardPage() {
                         <td className="py-3.5 px-4 sm:px-6 text-slate-500 font-mono text-xs">
                           {formatBytes(r.sizeBytes)}
                         </td>
-                        <td className="py-3.5 px-4 sm:px-6 text-slate-500">
-                          {new Date(r.uploadedAt).toLocaleDateString()}
+                        <td className="py-3.5 px-4 sm:px-6 text-slate-500" suppressHydrationWarning>
+                          {new Date(r.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                         </td>
                         <td className="py-3.5 px-4 sm:px-6 text-right">
                           <div className="inline-flex items-center gap-1.5">

@@ -50,7 +50,7 @@ export default function HeroSection({ onOpenDemo }: HeroSectionProps) {
             {/* CTA Buttons */}
             <div className="flex flex-wrap items-center gap-3.5 mb-8">
               <Link
-                href="/signup"
+                href="/dashboard"
                 className="px-6 py-3.5 text-sm sm:text-base font-semibold text-white bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-2xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/35 hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2"
               >
                 <span>Get started for free</span>

@@ -201,7 +201,7 @@ export default function DemoModal({ isOpen, onClose }: DemoModalProps) {
               Close
             </button>
             <Link
-              href="/signup"
+              href="/dashboard"
               onClick={onClose}
               className="px-5 py-2.5 text-xs font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl shadow-md shadow-indigo-500/25 flex items-center gap-2"
             >

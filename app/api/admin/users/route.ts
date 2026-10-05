@@ -68,6 +68,9 @@ export async function GET(request: NextRequest) {
       const id = u._id.toString()
       const isAdmin = u.role === "admin" || isEmailAdmin(u.email)
       const hasCustomLimit = typeof u.aiLimit === "number" && u.aiLimit > 0
+      const lastActiveTime = u.lastActiveAt ? new Date(u.lastActiveAt).getTime() : 0
+      const isOnline = Date.now() - lastActiveTime <= 5 * 60 * 1000
+
       return {
         id,
         _id: id,
@@ -85,6 +88,9 @@ export async function GET(request: NextRequest) {
         hasCustomKey: Boolean(u.groqKey?.tag),
         opportunitiesCount: oppMap.get(id) || 0,
         resumesCount: cvMap.get(id) || 0,
+        lastActiveAt: u.lastActiveAt ? (u.lastActiveAt instanceof Date ? u.lastActiveAt.toISOString() : String(u.lastActiveAt)) : null,
+        lastPath: u.lastPath || null,
+        isOnline,
         createdAt: u.createdAt?.toISOString?.() ?? u.createdAt ?? null,
         updatedAt: u.updatedAt?.toISOString?.() ?? u.updatedAt ?? null,
       }

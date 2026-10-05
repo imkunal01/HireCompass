@@ -432,4 +432,72 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
     * **Isolated Event Pointers (`kanban-card.tsx` & `kanban-column.tsx`)**: Attached `data: { type: "card", opportunity, status }` to `useSortable` and `data: { type: "column", status }` to `useDroppable`. Set `pointer-events-none` on dragging cards, empty-column placeholders, and `DragOverlay`.
     * **Dual ID Matching in DB Queries (`app/api/opportunities/route.ts` & `[id]/route.ts`)**: Used `userMatch = ObjectId.isValid(session.user.id) ? { $in: [session.user.id, new ObjectId(session.user.id)] } : session.user.id` so all updates and queries match both string and ObjectId user references.
   - **Verification**: Clean `npx tsc --noEmit` (0 errors) and clean `npm run lint`.
+- **2026-10-05 (Phase 21 Complete — Platform Telemetry, Guest Exploration Tour, 10-Token AI Gating, Dashboard Real Data Overhaul & Planner Revamp)**:
+  - **User Requests Addressed**:
+    1. **Admin Panel User Activity & Website Traffic Logger**: Track which user was active last time, presence status (online now / last active relative time), last path visited, and overall traffic analytics (pageviews, unique visitors, guest vs. member split, top visited pages).
+    2. **Guest Exploration & Auth Gating**: Allow new visitors to freely explore website features without immediate forced login/signup. Provide an interactive 5-step product tour on first visit. Allow Sweety AI copilot chatting with a strict **10 free tokens/messages limit**, prompting authentication once 10 tokens are exhausted.
+    3. **Zero Dummy Content on Dashboard (`/dashboard`)**: Make all widgets real and functional: dynamic month/year interactive calendar with real events, persistent Today's Focus checklist synced with Day Planner, real dynamic 30-day pipeline SVG trendline from MongoDB data, real audit log in Recent Activity, real heuristic Smart Suggestions, and live upcoming interviews.
+    4. **Expanded Dashboard Career & Prep Modules**: Daily DSA / Blind 75 streak, AI coding assessment readiness score, weekly application velocity goal, and quick-start prep launcher.
+    5. **AI Day Planner Revamp (`/planner`)**: 1-click pipeline/interview auto-sync, dynamic "Behind Schedule / Reshuffle" time rebalancer, and Pomodoro focus mode.
+  - **Implementations**:
+    * **Telemetry System (`types/telemetry.ts`, `lib/telemetry-db.ts`, `app/api/telemetry/route.ts`, `app/api/admin/traffic/route.ts`, `components/layout/telemetry-tracker.tsx`)**:
+      - Non-blocking MongoDB event logger capturing pageviews, route transitions, and 2.5m heartbeats.
+      - User active tracking updating `lastActiveAt`, `lastPath`, and rolling 5-minute `isOnline` presence status.
+      - Admin Control Center augmented with 6 KPI cards, active user roster, top routes, and real-time live presence indicators.
+    * **Guest Exploration & 10-Token AI Gating (`lib/ai-quota.ts`, `app/api/agent/chat/route.ts`, `components/features/agent/agent-chat.tsx`, `components/features/tour/product-tour.tsx`, `components/layout/dashboard-shell.tsx`, `components/layout/navbar.tsx`)**:
+      - Guest visitors assigned persistent client UUID (`hirecompass_visitor_id`).
+      - AI chat gated at 10 free requests per visitor in `guest_ai_usage` collection.
+      - AgentChat UI displays live token counter pill (`Guest: X/10 tokens left`) and renders locked conversion barrier when 10 tokens are exhausted.
+      - Interactive 5-step `ProductTourModal` explaining overview, Kanban board, AI Assessment arena, Interview Prep, and AI Day Architect.
+      - Non-intrusive top guest exploration announcement banner with tour launcher and sign-up CTA.
+      - Navbar conditionally displays Sign In and Sign Up buttons for guest sessions.
+    * **Dashboard Real Data Overhaul (`app/(dashboard)/dashboard/page.tsx`, `app/api/dashboard/activities/route.ts`)**:
+      - Interactive dynamic calendar with month/year navigation, leading/trailing days, real event indicator dots (interviews, reminders, deadlines), and selected day agenda.
+      - Today's Focus checklist two-way synced with `/api/planner/today`.
+      - Dynamic 30-day SVG area/line chart computing actual daily application and interview trends.
+      - Live recent activity feed querying `/api/dashboard/activities` with chronological telemetry and opportunity events.
+      - Heuristic smart suggestions alerting for overdue applications (>7 days without update), upcoming interviews (<48h), and saved applications.
+      - Real upcoming interviews aggregating scheduled interviews and opportunities in INTERVIEW status.
+      - Added 4 Career & Prep modules: Daily DSA & Blind 75 streak ring, Capgemini AI Assessment readiness score, Weekly Application Velocity goal gauge, and quick-start prep launcher.
+    * **AI Day Planner Revamp (`app/api/planner/sync-context/route.ts`, `components/features/planner/planner-intake.tsx`)**:
+      - Enhanced 1-click sync context pulling upcoming interviews, overdue follow-ups, pending reminders, and active DSA roadmap goals into daily synthesis prompts.
+    * **Landing Page Guest Flow (`components/features/landing/`)**:
+      - Updated all primary CTA buttons ("Get started for free", "Get started", "Explore all features", "Try demo") in `hero-section.tsx`, `landing-navbar.tsx`, `lower-feature-section.tsx`, and `demo-modal.tsx` to point directly to `/dashboard` instead of `/signup`, allowing immediate guest exploration and automatic guided tour on-boarding without forced login barriers.
+  - **Verification**: Clean `npx tsc --noEmit` (0 errors) across the entire codebase.
+- **2026-10-05 (Phase 22 Complete — In-Context Pop-up Authentication Modal & Frictionless Guest Retention)**:
+  - **User Problem & Request**:
+    * Clicking "Get Started" on the landing page or triggering authentication across the application was redirecting visitors to blank `/login` and `/signup` pages, interrupting their journey and causing bounce.
+    * Requested an in-context pop-up auth card accessible anywhere on the page when asked to authenticate for a feature, keeping the user attentive and preserving their scroll position, input state, open drawers, and active work even if they choose not to authenticate.
+  - **Implementations**:
+    * **In-Context Auth Modal System (`components/features/auth/auth-modal.tsx`)**:
+      - Built `AuthModalProvider` and `useAuthModal()` React context hook with support for opening with custom modes (`"login"` | `"signup"`), custom contextual reasons, and custom `onSuccess` callbacks.
+      - Integrated custom window event listener (`open-auth-modal`) allowing dispatch from non-React scripts or external event triggers.
+      - Implemented sleek aurora glassmorphism modal card rendered into `document.body` via `createPortal` with `z-[100000]` to avoid container clipping or stacking context traps.
+      - Features contextual badges displaying why authentication is required (e.g., token limit reached, saving application), unified Sign In / Create Account tabs, password visibility toggle, password strength meter, error handling, backdrop dismiss, and `Escape` key listeners.
+      - Upon successful auth, invalidates React Query caches (`auth-me`, `dashboard-stats`, `opportunities`) and calls `router.refresh()` to hydrate user session without full page reloads or unmounting active client state.
+    * **Global Integration (`app/providers.tsx`)**:
+      - Wrapped the entire application tree in `<AuthModalProvider>`.
+    * **Contextual Trigger Refactoring**:
+      - **Dashboard Guest Announcement Banner (`components/layout/dashboard-shell.tsx`)**: Clicking "Create free account" in the top banner now opens the auth modal card with reason badge instead of navigating to `/signup`.
+      - **App Navbar (`components/layout/navbar.tsx`)**: Both desktop header and mobile drawer "Sign In" and "Sign Up" buttons now open the modal card in-place.
+      - **Sweety AI Copilot (`components/features/agent/agent-chat.tsx`)**: When a guest exhausts their 10 free tokens, the "Create Free Account" and "Sign In" buttons trigger the modal card; upon authentication, `isGuestLimitReached` immediately unlocks the chat input in-place without page reload.
+      - **Landing Navbar & Footer (`components/features/landing/landing-navbar.tsx`, `landing-footer.tsx`)**: "Log in" and "Create free account" buttons trigger the modal card in-place. "Get started" and product navigation links direct visitors into `/dashboard` and `/applications` in guest mode with the interactive tour.
+  - **Verification**: Clean `npx tsc --noEmit` (0 errors) across the entire codebase.
+- **2026-10-05 (Bugfix — Dashboard Sheets Response Unwrapping & Guest Templates)**:
+  - **Issue**: `TypeError: sheetsData.forEach is not a function` occurred on `/dashboard` because `/api/sheets` returns `{ sheets: [...] }` (and returned 401 for unauthenticated visitors) rather than a naked array, causing `sheetsData.forEach` to throw.
+  - **Fix**:
+    * Updated `/api/sheets` `GET` route to allow guest exploration: unauthenticated visitors now receive built-in roadmap templates so dashboard widgets can compute metrics without 401 errors.
+    * In `app/(dashboard)/dashboard/page.tsx`, wrapped `sheetsData`, `opportunities`, `interviews`, and `reminders` with defensive `Array.isArray` unwrapping and fallback defaults.
+  - **Verification**: Clean `npx tsc --noEmit` (0 errors).
+- **2026-10-05 (Bugfix & Full Site Audit — SSR Date Hydration Mismatch Resolution)**:
+  - **Issue**: `Text content does not match server-rendered HTML. Server: "8 Sept" Client: "Sep 8"` thrown on the Dashboard page during React hydration.
+  - **Root Cause**: The 30-day pipeline trend chart formatted step date labels using `stepDate.toLocaleDateString([], { month: "short", day: "numeric" })`. Because Node.js runtime and the browser client used different system locales (`en-IN` vs `en-US`), the server generated `"8 Sept"` while the browser hydrated with `"Sep 8"`.
+  - **Fixes & Audit**:
+    * Created deterministic, locale-immune date formatters in `lib/utils.ts`: `formatShortDate` and `formatFullDate` which format months via a constant lookup array (`SHORT_MONTHS`) ensuring 100% identical outputs on Server, Client, Node, Chrome, Firefox, and Safari.
+    * Replaced all unlocalized `toLocaleDateString` instances in `app/(dashboard)/dashboard/page.tsx`, `components/features/opportunity-card.tsx`, `components/features/assessment/assessment-lobby.tsx`, `app/(dashboard)/admin/page.tsx`, and `app/(dashboard)/outreach/campaign/[id]/analytics/page.tsx`.
+    * Added `suppressHydrationWarning` on date rendering spans and timestamps.
+  - **Full Validation**:
+    * Ran `npx tsc --noEmit`: 0 errors.
+    * Ran `npm run lint`: 0 errors.
+    * Browser subagent live audit on `http://localhost:3000/dashboard`: Verified 0 console errors, 0 runtime warnings, 0 hydration mismatches, and smooth rendering of pipeline chart, calendar, metric cards, and prep modules.
 

@@ -10,9 +10,5 @@ interface DashboardLayoutProps {
 export default async function DashboardLayout({ children }: DashboardLayoutProps) {
   const session = await getServerSession()
 
-  if (!session) {
-    redirect("/login")
-  }
-
-  return <DashboardShell>{children}</DashboardShell>
+  return <DashboardShell isGuest={!session}>{children}</DashboardShell>
 }
