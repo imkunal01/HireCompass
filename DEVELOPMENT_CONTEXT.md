@@ -361,8 +361,35 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
     * Overhauled `styles/variables.css` to light-theme tokens (`--bg-canvas: #F8FAFC`, `--bg-surface: #FFFFFF`, `--txt-primary: #0F172A`, `--txt-secondary: #475569`).
     * Refactored `app/(dashboard)/admin/page.tsx` with clean light Tailwind cards, dark slate typography, and high-contrast KPI badges.
   - **Guaranteed Admin Role Resolution (`lib/session.ts`)**:
-    * Updated `verifyToken` and `isEmailAdmin` with built-in fallback admin emails ensuring all authorized accounts automatically evaluate `role: "admin"` even with legacy JWT cookies.
-  - **Verification**: Clean `npx tsc --noEmit` (0 errors), clean `npm run lint` (0 errors), and successful production compilation via `npm run build` (Exit code 0).
+- **2026-10-05 (Phase 18 Complete — Global Theme Unification across Admin Panel & AI Assessment Exam Console)**:
+  - **User Problem Addressed**:
+    * Theme inconsistency reported where the Admin Panel and AI Assessment Test appeared with dark backgrounds and uncoordinated styling compared to the unified light aurora theme across the rest of the SaaS application.
+  - **Identified Root Causes**:
+    1. `app/(dashboard)/admin/page.tsx`: Relied on legacy dark CSS variables (`var(--bg-canvas)`, `var(--bg-surface)`, `var(--border-subtle)`) and `v2-*` classes from an older prototype.
+    2. `components/features/assessment/exam-environment.tsx`: Fullscreen proctored exam environment had hardcoded `#070b12` dark background, `#0a0f1d` panels, and dark slate borders.
+    3. `components/features/assessment/assessment-lobby.tsx`: Contained 107 unused `dark:` class overrides creating potential tint anomalies.
+  - **Implementations**:
+    * **Admin Control Center (`app/(dashboard)/admin/page.tsx`)**:
+      - Removed legacy `variables.css` and `components.css` dependencies.
+      - Refactored Users Management Table into pure light Tailwind cards (`bg-white/95 backdrop-blur-xl border border-slate-200/80 shadow-xs`), with dark slate typography (`text-slate-900` / `text-slate-600`), polished role and AI privilege badges, and accessible pagination.
+      - Refactored Resumes oversight table, search bar, and actions to matching light design.
+      - Refactored System & AI Settings tab into a 2-column glassmorphism grid with live AI connectivity ping test.
+      - Overhauled all 5 modals (Add User, Edit User, Delete User, Delete Resume, Preview Resume) with clean light cards and `bg-slate-900/40 backdrop-blur-sm` backdrops.
+    * **AI Assessment Test Console (`components/features/assessment/exam-environment.tsx`)**:
+      - Converted root container to `#F8FAFC` light canvas with `text-slate-900`.
+      - Refactored top proctoring bar to `bg-white/95 backdrop-blur-xl border-b border-slate-200/80 shadow-xs` with Capgemini blue `#0070ad` accents, digital countdown timer, and exit controls.
+      - Updated 6-stage stepper pills: active (`bg-[#0070ad] text-white`), completed (`bg-emerald-50 text-emerald-700 border border-emerald-200`), upcoming (`bg-slate-100 text-slate-500 border border-slate-200`).
+      - Refactored left specifications pane (Problem Description, I/O formats, constraints, test cases, stage criteria, scratchpad) with clean light cards and high-contrast typography.
+      - Refactored right conversational stream: AI messages in pure white card with slate-800 text; candidate messages in `#0070ad` gradient with white text; prompt-bypass warnings in soft rose-50 card.
+      - Elevated code editor/viewer box into a crisp developer terminal (`bg-slate-950 text-slate-100 border border-slate-200 rounded-2xl shadow-md`) for optimal syntax readability inside the light page.
+      - Refactored pinned docked bottom composer (`bg-white/95 backdrop-blur-xl border-t border-slate-200/80 shadow-lg`), suggestion chips, and submit button.
+      - Refactored Exit Confirmation and Final 100-Pt Rubric Scorecard modals.
+    * **Assessment Lobby (`components/features/assessment/assessment-lobby.tsx`)**:
+      - Purged all 107 `dark:` class overrides across top navigation tabs, active test banner, Capgemini hero banner, difficulty selectors, categorical problem dispatcher breakdown, pre-flight checklists, history table, transcript modal, and custom problem builder modal.
+  - **Verification**:
+    * `npx tsc --noEmit`: 0 errors.
+    * `npm run build`: Production build verified and deployed.
+    * Theme consistency verified 100% across all routes: `/admin`, `/assessment`, `/prep`, `/dashboard`, `/applications`, `/planner`, `/resumes`, `/settings`, `/login`, and `/`.
 
 
 

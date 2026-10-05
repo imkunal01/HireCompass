@@ -368,44 +368,44 @@ export function ExamEnvironment({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] h-screen w-screen bg-[#070b12] text-slate-100 flex flex-col overflow-hidden font-sans select-none">
+    <div className="fixed inset-0 z-[100] h-screen w-screen bg-[#F8FAFC] text-slate-900 flex flex-col overflow-hidden font-sans select-none">
       {/* ── 1. Top Exam Navigation & Proctoring Status Bar ── */}
-      <header className="shrink-0 h-14 bg-[#0a0f1d] border-b border-slate-800/80 px-4 sm:px-6 flex items-center justify-between gap-4 z-30">
+      <header className="shrink-0 h-14 bg-white/95 backdrop-blur-xl border-b border-slate-200/80 px-4 sm:px-6 flex items-center justify-between gap-4 z-30 shadow-xs">
         {/* Left: Brand & Problem Title */}
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex items-center gap-2 shrink-0">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0070ad] to-[#00a3e0] text-white flex items-center justify-center font-black text-xs shadow-md shadow-[#0070ad]/30">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0070ad] to-[#00a3e0] text-white flex items-center justify-center font-black text-xs shadow-md shadow-[#0070ad]/25">
               C
             </div>
             <div className="hidden sm:flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#00a3e0]">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#0070ad]">
                 Capgemini
               </span>
-              <span className="text-xs font-bold text-slate-200 truncate">
+              <span className="text-xs font-bold text-slate-800 truncate">
                 AI Coding Assessment
               </span>
             </div>
           </div>
 
-          <div className="h-5 w-px bg-slate-800 hidden sm:block shrink-0" />
+          <div className="h-5 w-px bg-slate-200 hidden sm:block shrink-0" />
 
           {/* Active Proctoring Indicator */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-semibold shrink-0">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-semibold shrink-0">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="hidden md:inline">Proctored Session</span>
             <span className="md:hidden">Live</span>
           </div>
 
           {/* Problem Name Badge */}
-          <div className="hidden lg:flex items-center gap-2 truncate text-xs text-slate-300">
-            <span className="text-slate-500">•</span>
-            <span className="font-bold truncate max-w-xs">{session.problem.title}</span>
+          <div className="hidden lg:flex items-center gap-2 truncate text-xs text-slate-700">
+            <span className="text-slate-300">•</span>
+            <span className="font-bold truncate max-w-xs text-slate-900">{session.problem.title}</span>
             <span
               className={cn(
                 "text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md border",
-                session.problem.difficulty === "Easy" && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-                session.problem.difficulty === "Medium" && "bg-amber-500/10 text-amber-400 border-amber-500/20",
-                session.problem.difficulty === "Hard" && "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                session.problem.difficulty === "Easy" && "bg-emerald-50 text-emerald-700 border-emerald-200",
+                session.problem.difficulty === "Medium" && "bg-amber-50 text-amber-700 border-amber-200",
+                session.problem.difficulty === "Hard" && "bg-rose-50 text-rose-700 border-rose-200"
               )}
             >
               {session.problem.difficulty}
@@ -424,15 +424,15 @@ export function ExamEnvironment({
                 className={cn(
                   "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border",
                   isCurrent &&
-                    "bg-[#0070ad] text-white border-[#00a3e0]/60 shadow-md shadow-[#0070ad]/30 ring-1 ring-[#00a3e0]/40",
+                    "bg-[#0070ad] text-white border-[#0070ad] shadow-md shadow-[#0070ad]/20 ring-2 ring-[#0070ad]/20",
                   isCompleted &&
-                    "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+                    "bg-emerald-50 text-emerald-700 border-emerald-200",
                   idx > currentStepIdx &&
-                    "bg-slate-900/60 text-slate-500 border-slate-800/60"
+                    "bg-slate-100 text-slate-500 border-slate-200"
                 )}
               >
                 {isCompleted ? (
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                 ) : isCurrent ? (
                   <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
                 ) : (
@@ -447,14 +447,14 @@ export function ExamEnvironment({
         {/* Right: Timer, Fullscreen, Scorecard, and Exit Button */}
         <div className="flex items-center gap-2 shrink-0">
           {/* Exam Digital Clock */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 text-slate-200 text-xs font-mono font-bold border border-slate-800">
-            <Clock className="w-3.5 h-3.5 text-[#00a3e0]" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-mono font-bold border border-slate-200 shadow-xs">
+            <Clock className="w-3.5 h-3.5 text-[#0070ad]" />
             <span>{formatTimer(elapsedSeconds)}</span>
           </div>
 
           {/* Bypass Flags Warning */}
           {session.bypassAttemptsCount > 0 && (
-            <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs font-bold">
+            <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold">
               <ShieldAlert className="w-3.5 h-3.5" />
               <span>{session.bypassAttemptsCount} Bypass Flags</span>
             </div>
@@ -464,7 +464,7 @@ export function ExamEnvironment({
           {session.evaluation && (
             <button
               onClick={() => setShowScoreModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all hover:scale-[1.02]"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-sm shadow-blue-500/20 transition-all hover:scale-[1.02]"
             >
               <Award className="w-3.5 h-3.5 text-amber-300" />
               <span>Scorecard ({session.evaluation.totalScore}/100)</span>
@@ -474,7 +474,7 @@ export function ExamEnvironment({
           {/* Fullscreen Toggle */}
           <button
             onClick={toggleFullscreen}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors"
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
             title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -484,7 +484,7 @@ export function ExamEnvironment({
           <button
             onClick={handleResetSession}
             disabled={isLoading}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 transition-colors"
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
             title="Restart Assessment"
           >
             <RotateCcw className="w-4 h-4" />
@@ -493,7 +493,7 @@ export function ExamEnvironment({
           {/* Exit Exam */}
           <button
             onClick={() => setShowExitConfirm(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all"
           >
             <X className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">End Exam</span>
@@ -502,18 +502,18 @@ export function ExamEnvironment({
       </header>
 
       {/* ── 2. Dual-Pane Immersive Exam Workspace (Calculated 100% Height - Zero Outer Scroll) ── */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 overflow-hidden bg-[#070b12]">
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 overflow-hidden bg-[#F8FAFC]">
         {/* ── Left Pane: Specifications, Stage Objectives, Test Cases & Scratchpad (5 cols) ── */}
-        <section className="lg:col-span-5 h-full flex flex-col border-b lg:border-b-0 lg:border-r border-slate-800/80 bg-[#090e1a] overflow-hidden min-h-0">
+        <section className="lg:col-span-5 h-full flex flex-col border-b lg:border-b-0 lg:border-r border-slate-200/80 bg-white overflow-hidden min-h-0">
           {/* Sub-Tabs Navigation */}
-          <div className="shrink-0 flex items-center gap-1 p-2 bg-[#0c1222] border-b border-slate-800/80 text-xs">
+          <div className="shrink-0 flex items-center gap-1 p-2 bg-slate-50 border-b border-slate-200/80 text-xs">
             <button
               onClick={() => setActiveLeftTab("specs")}
               className={cn(
                 "flex-1 py-1.5 px-2 rounded-lg font-bold transition-all text-center truncate",
                 activeLeftTab === "specs"
                   ? "bg-[#0070ad] text-white shadow-xs"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               )}
             >
               Problem Spec
@@ -524,7 +524,7 @@ export function ExamEnvironment({
                 "flex-1 py-1.5 px-2 rounded-lg font-bold transition-all text-center truncate",
                 activeLeftTab === "criteria"
                   ? "bg-[#0070ad] text-white shadow-xs"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               )}
             >
               Stage Criteria
@@ -535,7 +535,7 @@ export function ExamEnvironment({
                 "flex-1 py-1.5 px-2 rounded-lg font-bold transition-all text-center truncate",
                 activeLeftTab === "rubric"
                   ? "bg-[#0070ad] text-white shadow-xs"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               )}
             >
               100-Pt Rubric
@@ -543,7 +543,7 @@ export function ExamEnvironment({
             <button
               onClick={() => setActiveLeftTab("scratchpad")}
               className={cn(
-                "py-1.5 px-2.5 rounded-lg font-bold transition-all text-center text-slate-400 hover:text-slate-200 hover:bg-slate-800/50",
+                "py-1.5 px-2.5 rounded-lg font-bold transition-all text-center text-slate-600 hover:text-slate-900 hover:bg-slate-200/60",
                 activeLeftTab === "scratchpad" && "bg-[#0070ad] text-white shadow-xs"
               )}
             >
@@ -557,44 +557,44 @@ export function ExamEnvironment({
               <div className="space-y-4">
                 {/* Title & Description */}
                 <div>
-                  <h3 className="text-base font-black text-white mb-2">
+                  <h3 className="text-base font-black text-slate-900 mb-2">
                     {session.problem.title}
                   </h3>
-                  <div className="text-slate-300 leading-relaxed font-sans bg-[#0c1222] p-3.5 rounded-2xl border border-slate-800 whitespace-pre-line">
+                  <div className="text-slate-700 leading-relaxed font-sans bg-slate-50 p-4 rounded-2xl border border-slate-200 whitespace-pre-line">
                     {session.problem.description}
                   </div>
                 </div>
 
                 {/* Input & Output Specs */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div className="bg-[#0c1222] p-3 rounded-xl border border-slate-800">
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
                       Input Format
                     </span>
-                    <p className="text-xs font-mono text-slate-200 mt-1">
+                    <p className="text-xs font-mono text-slate-800 mt-1 font-medium">
                       {session.problem.inputFormat}
                     </p>
                   </div>
-                  <div className="bg-[#0c1222] p-3 rounded-xl border border-slate-800">
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
                       Output Format
                     </span>
-                    <p className="text-xs font-mono text-slate-200 mt-1">
+                    <p className="text-xs font-mono text-slate-800 mt-1 font-medium">
                       {session.problem.outputFormat}
                     </p>
                   </div>
                 </div>
 
                 {/* Constraints */}
-                <div className="bg-[#0c1222] p-3.5 rounded-2xl border border-slate-800 space-y-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                    <Sliders className="w-3.5 h-3.5 text-[#00a3e0]" />
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                    <Sliders className="w-3.5 h-3.5 text-[#0070ad]" />
                     Constraints & Targets
                   </span>
-                  <ul className="space-y-1 font-mono text-[11px] text-slate-300">
+                  <ul className="space-y-1 font-mono text-[11px] text-slate-700">
                     {session.problem.constraints.map((c, i) => (
                       <li key={i} className="flex items-start gap-2">
-                        <span className="text-[#00a3e0]">•</span>
+                        <span className="text-[#0070ad] font-bold">•</span>
                         <span>{c}</span>
                       </li>
                     ))}
@@ -603,24 +603,24 @@ export function ExamEnvironment({
 
                 {/* Examples */}
                 <div className="space-y-2.5">
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-400">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-500">
                     Examples
                   </span>
                   {session.problem.examples.map((ex, idx) => (
                     <div
                       key={idx}
-                      className="p-3 rounded-xl bg-[#0c1222] border border-slate-800 font-mono text-xs space-y-1"
+                      className="p-3 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs space-y-1"
                     >
                       <div>
                         <span className="text-slate-500">Input: </span>
-                        <span className="text-white font-bold">{ex.input}</span>
+                        <span className="text-slate-900 font-bold">{ex.input}</span>
                       </div>
                       <div>
                         <span className="text-slate-500">Output: </span>
-                        <span className="text-[#00a3e0] font-bold">{ex.output}</span>
+                        <span className="text-[#0070ad] font-bold">{ex.output}</span>
                       </div>
                       {ex.explanation && (
-                        <div className="text-[11px] text-slate-400 font-sans border-t border-slate-800/80 pt-1 mt-1">
+                        <div className="text-[11px] text-slate-600 font-sans border-t border-slate-200 pt-1 mt-1">
                           {ex.explanation}
                         </div>
                       )}
@@ -629,15 +629,15 @@ export function ExamEnvironment({
                 </div>
 
                 {/* Key Edge Cases */}
-                <div className="bg-amber-500/10 p-3.5 rounded-2xl border border-amber-500/20 space-y-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                <div className="bg-amber-50/80 p-3.5 rounded-2xl border border-amber-200 space-y-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
                     Crucial Edge Cases Evaluator Checks
                   </span>
-                  <ul className="space-y-1 text-slate-300 text-[11px]">
+                  <ul className="space-y-1 text-slate-700 text-[11px]">
                     {session.problem.keyEdgeCases.map((ec, i) => (
                       <li key={i} className="flex items-start gap-1.5">
-                        <span className="text-amber-400">⚠️</span>
+                        <span className="text-amber-600">⚠️</span>
                         <span>{ec}</span>
                       </li>
                     ))}
@@ -648,41 +648,41 @@ export function ExamEnvironment({
 
             {activeLeftTab === "criteria" && (
               <div className="space-y-4">
-                <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/30 space-y-2">
-                  <div className="flex items-center gap-2 text-[#00a3e0] font-bold text-xs">
+                <div className="p-4 rounded-2xl bg-blue-50/80 border border-blue-200 space-y-2">
+                  <div className="flex items-center gap-2 text-[#0070ad] font-bold text-xs">
                     <Info className="w-4 h-4 shrink-0" />
                     <span>Current Active Stage Objective</span>
                   </div>
-                  <h4 className="text-sm font-black text-white">
+                  <h4 className="text-sm font-black text-slate-900">
                     {STAGE_STEPS[currentStepIdx]?.label}
                   </h4>
-                  <p className="text-xs text-slate-300 leading-relaxed">
+                  <p className="text-xs text-slate-700 leading-relaxed">
                     {STAGE_STEPS[currentStepIdx]?.description}
                   </p>
                 </div>
 
                 <div className="space-y-3">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-500">
                     Stage-by-Stage Rulebook
                   </h4>
 
                   {session.currentStage === "UNDERSTANDING" && (
-                    <div className="p-3.5 rounded-xl bg-[#0c1222] border border-slate-800 space-y-2 text-slate-300">
-                      <p className="font-bold text-white">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-slate-700">
+                      <p className="font-bold text-slate-900">
                         ✓ Explain Problem Understanding
                       </p>
                       <p>
                         State what the input represents, what output is required, and identify key boundary constraints.
                       </p>
-                      <p className="text-[11px] text-rose-400">
+                      <p className="text-[11px] text-rose-600 font-semibold">
                         ✕ Asking &quot;Give me the code&quot; or &quot;Solve this&quot; will be rejected.
                       </p>
                     </div>
                   )}
 
                   {session.currentStage === "APPROACH" && (
-                    <div className="p-3.5 rounded-xl bg-[#0c1222] border border-slate-800 space-y-2 text-slate-300">
-                      <p className="font-bold text-white">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-slate-700">
+                      <p className="font-bold text-slate-900">
                         ✓ Algorithm & Complexity Reasoning
                       </p>
                       <p>
@@ -692,8 +692,8 @@ export function ExamEnvironment({
                   )}
 
                   {session.currentStage === "IMPLEMENTATION_PROMPT" && (
-                    <div className="p-3.5 rounded-xl bg-[#0c1222] border border-slate-800 space-y-2 text-slate-300">
-                      <p className="font-bold text-white">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-slate-700">
+                      <p className="font-bold text-slate-900">
                         ✓ Structured Implementation Prompt
                       </p>
                       <p>
@@ -703,8 +703,8 @@ export function ExamEnvironment({
                   )}
 
                   {(session.currentStage === "CODE_REVIEW" || session.currentStage === "CODE_GENERATION") && (
-                    <div className="p-3.5 rounded-xl bg-[#0c1222] border border-slate-800 space-y-2 text-slate-300">
-                      <p className="font-bold text-white">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-slate-700">
+                      <p className="font-bold text-slate-900">
                         ✓ Critical Code Review
                       </p>
                       <p>
@@ -714,8 +714,8 @@ export function ExamEnvironment({
                   )}
 
                   {session.currentStage === "REFINEMENT" && (
-                    <div className="p-3.5 rounded-xl bg-[#0c1222] border border-slate-800 space-y-2 text-slate-300">
-                      <p className="font-bold text-white">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-slate-700">
+                      <p className="font-bold text-slate-900">
                         ✓ Targeted Code Refinement
                       </p>
                       <p>
@@ -725,12 +725,12 @@ export function ExamEnvironment({
                   )}
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-[#050810] border border-slate-800 text-slate-300 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
-                    <ShieldAlert className="w-3.5 h-3.5" />
+                <div className="p-3.5 rounded-2xl bg-slate-100 border border-slate-200 text-slate-700 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-amber-700 font-bold text-xs">
+                    <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
                     <span>Authoritative State Machine</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
                     The backend strictly validates candidate reasoning before unlocking each stage. You cannot jump stages by prompting shortcuts.
                   </p>
                 </div>
@@ -739,53 +739,53 @@ export function ExamEnvironment({
 
             {activeLeftTab === "rubric" && (
               <div className="space-y-4">
-                <div className="text-xs text-slate-400">
+                <div className="text-xs text-slate-600">
                   HireCompass Capgemini 100-Point Practice Evaluation Rubric:
                 </div>
 
                 <div className="grid grid-cols-1 gap-2.5">
-                  <div className="p-3 rounded-xl bg-[#0c1222] border border-slate-800 space-y-1">
-                    <div className="flex items-center justify-between font-bold text-white">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                    <div className="flex items-center justify-between font-bold text-slate-900">
                       <span>1. AI Literacy</span>
-                      <span className="text-[#00a3e0]">25 pts</span>
+                      <span className="text-[#0070ad]">25 pts</span>
                     </div>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-slate-600">
                       Problem interpretation, requirement awareness & semantic understanding of AI outputs.
                     </p>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-[#0c1222] border border-slate-800 space-y-1">
-                    <div className="flex items-center justify-between font-bold text-white">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                    <div className="flex items-center justify-between font-bold text-slate-900">
                       <span>2. Prompt Quality</span>
-                      <span className="text-[#00a3e0]">25 pts</span>
+                      <span className="text-[#0070ad]">25 pts</span>
                     </div>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-slate-600">
                       Context, objective, constraints, edge cases, language specificity & absence of blind bypasses.
                     </p>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-[#0c1222] border border-slate-800 space-y-1">
-                    <div className="flex items-center justify-between font-bold text-white">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                    <div className="flex items-center justify-between font-bold text-slate-900">
                       <span>3. Problem Solving</span>
-                      <span className="text-[#00a3e0]">25 pts</span>
+                      <span className="text-[#0070ad]">25 pts</span>
                     </div>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-slate-600">
                       Algorithm selection, data structures, complexity justification & constraint satisfaction.
                     </p>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-[#0c1222] border border-slate-800 space-y-1">
-                    <div className="flex items-center justify-between font-bold text-white">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                    <div className="flex items-center justify-between font-bold text-slate-900">
                       <span>4. Review & Adapt</span>
-                      <span className="text-[#00a3e0]">25 pts</span>
+                      <span className="text-[#0070ad]">25 pts</span>
                     </div>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-slate-600">
                       Line inspection, seeded bug detection, test-case tracing & targeted code refinement.
                     </p>
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs">
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs">
                   <span className="font-bold">Pass Criterion:</span> Overall score ≥ 70/100 and no persistent bypass failures.
                 </div>
               </div>
@@ -793,14 +793,14 @@ export function ExamEnvironment({
 
             {activeLeftTab === "scratchpad" && (
               <div className="space-y-3 h-full flex flex-col">
-                <span className="text-xs font-bold text-slate-400">
+                <span className="text-xs font-bold text-slate-600">
                   Candidate Scratchpad / Tracing Notes (Private):
                 </span>
                 <textarea
                   value={scratchpadText}
                   onChange={(e) => setScratchpadText(e.target.value)}
                   placeholder="Use this scratchpad to dry-run test cases, track variable states, or draft complexities..."
-                  className="flex-1 w-full p-3 rounded-xl bg-[#0c1222] border border-slate-800 text-slate-200 font-mono text-xs resize-none outline-none focus:ring-1 focus:ring-[#0070ad]"
+                  className="flex-1 w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-mono text-xs resize-none outline-none focus:bg-white focus:ring-2 focus:ring-[#0070ad]/20 focus:border-[#0070ad]"
                   rows={15}
                 />
               </div>
@@ -809,7 +809,7 @@ export function ExamEnvironment({
         </section>
 
         {/* ── Right Pane: AI Assistant Terminal, Generated Code & DOCKED FIXED Bottom Composer (7 cols) ── */}
-        <section className="lg:col-span-7 h-full flex flex-col bg-[#070b12] overflow-hidden min-h-0 relative">
+        <section className="lg:col-span-7 h-full flex flex-col bg-slate-50/50 overflow-hidden min-h-0 relative">
           {/* Scrollable Chat & Code Stream (Messages scroll INTERNALLY; Composer is PINNED at bottom!) */}
           <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4">
             {session.messages.map((msg, idx) => {
@@ -827,15 +827,15 @@ export function ExamEnvironment({
                   {/* Sender Header */}
                   <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium px-1">
                     {isAssistant ? (
-                      <span className="flex items-center gap-1 font-bold text-[#00a3e0]">
+                      <span className="flex items-center gap-1 font-bold text-[#0070ad]">
                         <Terminal className="w-3 h-3" />
                         Capgemini Assessment AI
                       </span>
                     ) : (
-                      <span className="font-bold text-slate-400">Candidate</span>
+                      <span className="font-bold text-slate-600">Candidate</span>
                     )}
                     <span>•</span>
-                    <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 uppercase font-mono text-[9px]">
+                    <span className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 uppercase font-mono text-[9px] text-slate-600">
                       {msg.stage}
                     </span>
                   </div>
@@ -843,16 +843,16 @@ export function ExamEnvironment({
                   {/* Message Bubble */}
                   <div
                     className={cn(
-                      "p-3.5 sm:p-4 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-md",
+                      "p-3.5 sm:p-4 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-xs",
                       isCandidate
                         ? "bg-gradient-to-r from-[#0070ad] to-[#005a8c] text-white rounded-tr-xs"
                         : msg.isBypassAttempt
-                        ? "bg-rose-500/10 text-rose-300 border border-rose-500/30 rounded-tl-xs"
-                        : "bg-[#0d1424] border border-slate-800 text-slate-200 rounded-tl-xs"
+                        ? "bg-rose-50 border border-rose-200 text-rose-800 rounded-tl-xs"
+                        : "bg-white border border-slate-200/90 text-slate-800 rounded-tl-xs"
                     )}
                   >
                     {msg.isBypassAttempt && (
-                      <div className="flex items-center gap-1.5 font-bold text-rose-400 text-xs mb-1.5">
+                      <div className="flex items-center gap-1.5 font-bold text-rose-600 text-xs mb-1.5">
                         <ShieldAlert className="w-4 h-4" />
                         <span>Prompt Bypass Rejected</span>
                       </div>
@@ -862,11 +862,11 @@ export function ExamEnvironment({
 
                     {/* Identified Gaps / Missing Requirements */}
                     {msg.missingRequirements && msg.missingRequirements.length > 0 && (
-                      <div className="mt-2.5 pt-2 border-t border-slate-800 space-y-1">
+                      <div className="mt-2.5 pt-2 border-t border-slate-200 space-y-1">
                         <span className="text-[10px] font-extrabold uppercase text-slate-500">
                           Missing Requirements:
                         </span>
-                        <ul className="space-y-0.5 text-xs text-rose-400">
+                        <ul className="space-y-0.5 text-xs text-rose-600">
                           {msg.missingRequirements.map((r, i) => (
                             <li key={i} className="flex items-center gap-1">
                               <span>•</span>
@@ -883,8 +883,8 @@ export function ExamEnvironment({
 
             {/* Generated Code Window in Stream */}
             {currentCode && (
-              <div className="rounded-2xl border border-slate-800 bg-[#090e1c] text-slate-200 shadow-xl overflow-hidden my-3">
-                <div className="flex items-center justify-between px-4 py-2 bg-[#0c1326] border-b border-slate-800">
+              <div className="rounded-2xl border border-slate-200 bg-slate-950 text-slate-100 shadow-md overflow-hidden my-3">
+                <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-800">
                   <div className="flex items-center gap-2">
                     <FileCode2 className="w-3.5 h-3.5 text-[#00a3e0]" />
                     <span className="text-xs font-mono font-bold text-slate-200">
@@ -920,7 +920,7 @@ export function ExamEnvironment({
                     <code>
                       {currentCode.split("\n").map((line, i) => (
                         <div key={i} className="flex gap-4 hover:bg-slate-800/40 px-1 rounded">
-                          <span className="text-slate-600 select-none w-6 text-right shrink-0">
+                          <span className="text-slate-500 select-none w-6 text-right shrink-0">
                             {i + 1}
                           </span>
                           <span className="flex-1">{line}</span>
@@ -930,7 +930,7 @@ export function ExamEnvironment({
                   </pre>
                 </div>
 
-                <div className="px-4 py-2 bg-[#0c1326] border-t border-slate-800 flex items-center justify-between text-xs text-amber-400 font-semibold">
+                <div className="px-4 py-2 bg-slate-900 border-t border-slate-800 flex items-center justify-between text-xs text-amber-300 font-semibold">
                   <span className="flex items-center gap-1.5">
                     <Eye className="w-3.5 h-3.5" />
                     Review Required: Inspect boundary conditions before approval.
@@ -941,7 +941,7 @@ export function ExamEnvironment({
 
             {/* Loading Indicator */}
             {isLoading && (
-              <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#0d1424] border border-slate-800 text-xs text-slate-400 max-w-sm">
+              <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-white border border-slate-200 text-xs text-slate-600 max-w-sm shadow-xs">
                 <div className="flex gap-1">
                   <span className="w-2 h-2 rounded-full bg-[#0070ad] animate-bounce" />
                   <span className="w-2 h-2 rounded-full bg-[#0070ad] animate-bounce [animation-delay:0.2s]" />
@@ -956,20 +956,20 @@ export function ExamEnvironment({
 
           {/* ── 3. DOCKED BOTTOM COMPOSER OR REVIEW MODE BANNER ── */}
           {session.status !== "ACTIVE" ? (
-            <div className="shrink-0 bg-[#0a0f1d] border-t border-slate-800/80 p-3 sm:p-4 z-20 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="shrink-0 bg-white/95 backdrop-blur-xl border-t border-slate-200/80 p-3 sm:p-4 z-20 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <span
                   className={cn(
                     "px-2.5 py-1 rounded-full text-xs font-extrabold uppercase border",
-                    session.status === "PASSED" && "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-                    session.status === "FAILED" && "bg-rose-500/10 text-rose-400 border-rose-500/30",
-                    session.status === "ABANDONED" && "bg-slate-500/10 text-slate-400 border-slate-500/30"
+                    session.status === "PASSED" && "bg-emerald-50 text-emerald-700 border-emerald-200",
+                    session.status === "FAILED" && "bg-rose-50 text-rose-700 border-rose-200",
+                    session.status === "ABANDONED" && "bg-slate-100 text-slate-600 border-slate-200"
                   )}
                 >
                   {session.status}
                 </span>
-                <div className="text-xs text-slate-300">
-                  <span className="font-bold text-white">Attempt Review Mode:</span> All candidate prompts and AI responses from this attempt are preserved above.
+                <div className="text-xs text-slate-600">
+                  <span className="font-bold text-slate-900">Attempt Review Mode:</span> All candidate prompts and AI responses from this attempt are preserved above.
                 </div>
               </div>
 
@@ -977,21 +977,21 @@ export function ExamEnvironment({
                 {session.evaluation && (
                   <button
                     onClick={() => setShowScoreModal(true)}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm hover:scale-105 transition-all"
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs hover:scale-105 transition-all"
                   >
                     View Scorecard ({session.evaluation.totalScore}/100)
                   </button>
                 )}
                 <button
                   onClick={onExit}
-                  className="px-4 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+                  className="px-4 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
                 >
                   Exit to Lobby
                 </button>
               </div>
             </div>
           ) : (
-            <div className="shrink-0 bg-[#0a0f1d] border-t border-slate-800/80 p-3 sm:p-4 z-20 space-y-2 shadow-2xl">
+            <div className="shrink-0 bg-white/95 backdrop-blur-xl border-t border-slate-200/80 p-3 sm:p-4 z-20 space-y-2 shadow-lg">
               {/* Quick Stage Prompts Chips */}
               <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
                 <span className="text-[10px] font-extrabold uppercase text-slate-500 shrink-0">
@@ -1002,7 +1002,7 @@ export function ExamEnvironment({
                     key={idx}
                     onClick={() => setUserInput(suggestion.text)}
                     disabled={isLoading}
-                    className="shrink-0 text-[11px] px-2.5 py-1 rounded-lg bg-[#0e162a] text-slate-300 hover:text-white hover:bg-[#131e3a] border border-slate-800 hover:border-[#0070ad]/50 transition-all font-medium"
+                    className="shrink-0 text-[11px] px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200 hover:border-[#0070ad]/50 transition-all font-medium"
                   >
                     {suggestion.label}
                   </button>
@@ -1010,7 +1010,7 @@ export function ExamEnvironment({
               </div>
 
               {/* Input Textarea Box */}
-              <div className="relative rounded-2xl border border-slate-700/80 bg-[#060a14] p-2 focus-within:ring-2 focus-within:ring-[#0070ad]/40 focus-within:border-[#0070ad] transition-all">
+              <div className="relative rounded-2xl border border-slate-300 bg-slate-50 p-2 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0070ad]/20 focus-within:border-[#0070ad] transition-all">
                 <textarea
                   ref={textareaRef}
                   value={userInput}
@@ -1036,18 +1036,18 @@ export function ExamEnvironment({
                       : "Type your response..."
                   }
                   rows={2}
-                  className="w-full bg-transparent resize-none outline-none text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 p-1"
+                  className="w-full bg-transparent resize-none outline-none text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 p-1"
                 />
 
-                <div className="flex items-center justify-between pt-1.5 border-t border-slate-800/80 px-1">
-                  <span className="text-[10px] text-slate-500">
-                    Press <kbd className="px-1.5 py-0.5 rounded bg-slate-800 font-mono text-[9px] text-slate-400">Ctrl+Enter</kbd> to submit
+                <div className="flex items-center justify-between pt-1.5 border-t border-slate-200 px-1">
+                  <span className="text-[10px] text-slate-400">
+                    Press <kbd className="px-1.5 py-0.5 rounded bg-slate-200/80 font-mono text-[9px] text-slate-600">Ctrl+Enter</kbd> to submit
                   </span>
 
                   <button
                     onClick={() => handleSendMessage()}
                     disabled={!userInput.trim() || isLoading}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#0070ad] hover:bg-[#005a8c] disabled:opacity-50 text-white shadow-md shadow-[#0070ad]/30 transition-all hover:scale-[1.02] cursor-pointer disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#0070ad] hover:bg-[#005a8c] disabled:opacity-50 text-white shadow-md shadow-[#0070ad]/25 transition-all hover:scale-[1.02] cursor-pointer disabled:cursor-not-allowed"
                   >
                     <span>Submit</span>
                     <Send className="w-3.5 h-3.5" />
@@ -1061,21 +1061,21 @@ export function ExamEnvironment({
 
       {/* ── 4. End Exam Confirmation Modal ── */}
       {showExitConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-lg rounded-3xl border border-slate-800 bg-[#0d1424] p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center gap-3 text-amber-400 font-bold">
-              <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400" />
-              <h3 className="text-base font-black text-white">Exit Active Assessment?</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 space-y-4 shadow-2xl text-slate-900">
+            <div className="flex items-center gap-3 text-amber-600 font-bold">
+              <AlertTriangle className="w-5 h-5 shrink-0 text-amber-500" />
+              <h3 className="text-base font-black text-slate-900">Exit Active Assessment?</h3>
             </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-slate-600 leading-relaxed">
               Your assessment state and chat history are securely preserved in your database. You can pause and return to resume anytime, or explicitly abandon this test attempt.
             </p>
-            <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 text-[11px] text-slate-400 space-y-1">
-              <div className="flex items-center gap-1.5 font-bold text-slate-200">
-                <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" />
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 space-y-1.5">
+              <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#0070ad]" />
                 <span>Pause & Save: You can resume this exact test at any time without losing progress.</span>
               </div>
-              <div className="flex items-center gap-1.5 font-bold text-rose-400">
+              <div className="flex items-center gap-1.5 font-bold text-rose-600">
                 <XCircle className="w-3.5 h-3.5" />
                 <span>Abandon & Reset: Terminates this active test attempt.</span>
               </div>
@@ -1083,13 +1083,13 @@ export function ExamEnvironment({
             <div className="flex flex-col sm:flex-row items-center justify-end gap-2 pt-2">
               <button
                 onClick={() => setShowExitConfirm(false)}
-                className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
               >
                 Continue Test
               </button>
               <button
                 onClick={handleAbandonSession}
-                className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all"
+                className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all"
               >
                 Abandon & Reset
               </button>
@@ -1098,7 +1098,7 @@ export function ExamEnvironment({
                   setShowExitConfirm(false)
                   onExit()
                 }}
-                className="w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-bold bg-[#0070ad] hover:bg-[#005a8c] text-white transition-all shadow-md shadow-[#0070ad]/30"
+                className="w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-bold bg-[#0070ad] hover:bg-[#005a8c] text-white transition-all shadow-md shadow-[#0070ad]/25"
               >
                 Pause & Return to Hub
               </button>
@@ -1109,34 +1109,34 @@ export function ExamEnvironment({
 
       {/* ── 5. Post-Assessment Final Rubric Scorecard Modal ── */}
       {showScoreModal && session.evaluation && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="relative w-full max-w-2xl rounded-3xl border border-slate-800 bg-[#0d1424] p-6 sm:p-8 shadow-2xl max-h-[90vh] overflow-y-auto space-y-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="relative w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl max-h-[90vh] overflow-y-auto space-y-6 text-slate-900">
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-[#0070ad]/20 text-[#00a3e0] border border-[#0070ad]/40">
+                  <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-[#0070ad]/10 text-[#0070ad] border border-[#0070ad]/20">
                     Capgemini Assessment Evaluation
                   </span>
                   <span
                     className={cn(
                       "text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border",
                       session.evaluation.passed
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                        : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-rose-50 text-rose-700 border-rose-200"
                     )}
                   >
                     {session.evaluation.passed ? "PASSED" : "NEEDS REFINEMENT"}
                   </span>
                 </div>
-                <h3 className="text-xl sm:text-2xl font-black text-white">
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900">
                   {session.problem.title}
                 </h3>
               </div>
 
               {/* Total Score Badge */}
-              <div className="flex flex-col items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#0070ad] to-[#00a3e0] text-white shadow-lg shrink-0">
+              <div className="flex flex-col items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#0070ad] to-[#00a3e0] text-white shadow-md shadow-[#0070ad]/20 shrink-0">
                 <span className="text-2xl font-black">{session.evaluation.totalScore}</span>
-                <span className="text-[10px] font-bold uppercase opacity-80">/ 100 PTS</span>
+                <span className="text-[10px] font-bold uppercase opacity-85">/ 100 PTS</span>
               </div>
             </div>
 
@@ -1145,66 +1145,66 @@ export function ExamEnvironment({
               className={cn(
                 "p-4 rounded-2xl border text-xs sm:text-sm font-medium leading-relaxed",
                 session.evaluation.passed
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-200"
-                  : "bg-rose-500/10 border-rose-500/30 text-rose-200"
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                  : "bg-rose-50 border-rose-200 text-rose-900"
               )}
             >
               {session.evaluation.passed ? (
                 <div className="space-y-1">
-                  <p className="font-bold flex items-center gap-1.5 text-emerald-400">
+                  <p className="font-bold flex items-center gap-1.5 text-emerald-700">
                     <CheckCircle2 className="w-4 h-4" />
                     Assessment criteria for this problem have been satisfied.
                   </p>
-                  <p className="text-xs opacity-90">
+                  <p className="text-xs text-emerald-800">
                     You have passed this question and may proceed to the next problem.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-1">
-                  <p className="font-bold flex items-center gap-1.5 text-rose-400">
+                  <p className="font-bold flex items-center gap-1.5 text-rose-700">
                     <XCircle className="w-4 h-4" />
                     Process requirements were not fully satisfied.
                   </p>
-                  <p className="text-xs opacity-90">{session.evaluation.summary}</p>
+                  <p className="text-xs text-rose-800">{session.evaluation.summary}</p>
                 </div>
               )}
             </div>
 
             {/* 4-Pillar Scorecard Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3 rounded-2xl bg-[#090e1c] border border-slate-800 text-center">
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-center">
                 <span className="text-[10px] font-extrabold uppercase text-slate-500">
                   AI Literacy
                 </span>
-                <div className="text-lg font-black text-white mt-0.5">
-                  {session.evaluation.aiLiteracy} <span className="text-xs text-slate-500">/ 25</span>
+                <div className="text-lg font-black text-slate-900 mt-0.5">
+                  {session.evaluation.aiLiteracy} <span className="text-xs text-slate-400">/ 25</span>
                 </div>
               </div>
 
-              <div className="p-3 rounded-2xl bg-[#090e1c] border border-slate-800 text-center">
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-center">
                 <span className="text-[10px] font-extrabold uppercase text-slate-500">
                   Prompt Quality
                 </span>
-                <div className="text-lg font-black text-white mt-0.5">
-                  {session.evaluation.promptQuality} <span className="text-xs text-slate-500">/ 25</span>
+                <div className="text-lg font-black text-slate-900 mt-0.5">
+                  {session.evaluation.promptQuality} <span className="text-xs text-slate-400">/ 25</span>
                 </div>
               </div>
 
-              <div className="p-3 rounded-2xl bg-[#090e1c] border border-slate-800 text-center">
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-center">
                 <span className="text-[10px] font-extrabold uppercase text-slate-500">
                   Problem Solving
                 </span>
-                <div className="text-lg font-black text-white mt-0.5">
-                  {session.evaluation.problemSolving} <span className="text-xs text-slate-500">/ 25</span>
+                <div className="text-lg font-black text-slate-900 mt-0.5">
+                  {session.evaluation.problemSolving} <span className="text-xs text-slate-400">/ 25</span>
                 </div>
               </div>
 
-              <div className="p-3 rounded-2xl bg-[#090e1c] border border-slate-800 text-center">
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-center">
                 <span className="text-[10px] font-extrabold uppercase text-slate-500">
                   Review & Adapt
                 </span>
-                <div className="text-lg font-black text-white mt-0.5">
-                  {session.evaluation.reviewAndAdapt} <span className="text-xs text-slate-500">/ 25</span>
+                <div className="text-lg font-black text-slate-900 mt-0.5">
+                  {session.evaluation.reviewAndAdapt} <span className="text-xs text-slate-400">/ 25</span>
                 </div>
               </div>
             </div>
@@ -1212,15 +1212,15 @@ export function ExamEnvironment({
             {/* Strengths & Gaps Analysis */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {session.evaluation.strengths && session.evaluation.strengths.length > 0 && (
-                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
                     <TrendingUp className="w-3.5 h-3.5" />
                     Observed Strengths
                   </h4>
-                  <ul className="space-y-1 text-xs text-slate-300">
+                  <ul className="space-y-1 text-xs text-emerald-900">
                     {session.evaluation.strengths.map((s, i) => (
                       <li key={i} className="flex items-start gap-2">
-                        <span className="text-emerald-400">✓</span>
+                        <span className="text-emerald-600 font-bold">✓</span>
                         <span>{s}</span>
                       </li>
                     ))}
@@ -1229,15 +1229,15 @@ export function ExamEnvironment({
               )}
 
               {session.evaluation.gaps && session.evaluation.gaps.length > 0 && (
-                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5" />
                     Areas to Refine
                   </h4>
-                  <ul className="space-y-1 text-xs text-slate-300">
+                  <ul className="space-y-1 text-xs text-amber-900">
                     {session.evaluation.gaps.map((g, i) => (
                       <li key={i} className="flex items-start gap-2">
-                        <span className="text-amber-400">!</span>
+                        <span className="text-amber-600 font-bold">!</span>
                         <span>{g}</span>
                       </li>
                     ))}
@@ -1247,16 +1247,16 @@ export function ExamEnvironment({
             </div>
 
             {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
               <button
                 onClick={() => setShowScoreModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
               >
                 Close Modal
               </button>
               <button
                 onClick={onExit}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#0070ad] hover:bg-[#005a8c] text-white shadow-md shadow-[#0070ad]/30 transition-all hover:scale-[1.02]"
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#0070ad] hover:bg-[#005a8c] text-white shadow-md shadow-[#0070ad]/25 transition-all hover:scale-[1.02]"
               >
                 Exit to Assessment Hub
               </button>

@@ -11,8 +11,6 @@ import {
   Download, Eye, Key, ShieldAlert, ChevronRight, Activity, Ban,
   Lock, RefreshCw, X, Loader2
 } from "lucide-react"
-import "@/styles/variables.css"
-import "@/styles/components.css"
 import "@/styles/animations.css"
 import { cn } from "@/lib/utils"
 
@@ -318,8 +316,8 @@ export default function AdminDashboardPage() {
 
   if (userLoading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "50vh" }}>
-        <Loader2 size={32} className="anim-spin" color="var(--brand-400)" />
+      <div className="flex justify-center items-center min-h-[50vh]">
+        <Loader2 size={32} className="animate-spin text-indigo-600" />
       </div>
     )
   }
@@ -431,32 +429,12 @@ export default function AdminDashboardPage() {
 
       {/* ════════════════════ TAB 1: USERS ════════════════════ */}
       {activeTab === "users" && (
-        <div>
+        <div className="space-y-4">
           {/* Filters Bar */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "12px",
-              marginBottom: "16px",
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ display: "flex", gap: "12px", flex: 1, minWidth: "280px" }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  background: "var(--bg-surface)",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: "var(--radius-md)",
-                  padding: "6px 12px",
-                  flex: 1,
-                }}
-              >
-                <Search size={16} color="var(--txt-secondary)" />
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+            <div className="flex flex-1 flex-wrap sm:flex-nowrap items-center gap-2.5">
+              <div className="relative flex-1 min-w-[240px]">
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={userSearch}
@@ -465,14 +443,7 @@ export default function AdminDashboardPage() {
                     setUserPage(1)
                   }}
                   placeholder="Search by name or email..."
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    outline: "none",
-                    color: "var(--txt-primary)",
-                    fontSize: "13px",
-                    width: "100%",
-                  }}
+                  className="w-full h-10 pl-9 pr-4 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs"
                 />
               </div>
 
@@ -482,8 +453,7 @@ export default function AdminDashboardPage() {
                   setRoleFilter(e.target.value)
                   setUserPage(1)
                 }}
-                className="v2-input"
-                style={{ padding: "6px 12px", fontSize: "13px", width: "auto" }}
+                className="h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs cursor-pointer"
               >
                 <option value="ALL">All Roles</option>
                 <option value="admin">Admin</option>
@@ -496,8 +466,7 @@ export default function AdminDashboardPage() {
                   setAiAccessFilter(e.target.value)
                   setUserPage(1)
                 }}
-                className="v2-input"
-                style={{ padding: "6px 12px", fontSize: "13px", width: "auto" }}
+                className="h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs cursor-pointer"
               >
                 <option value="ALL">All AI Access</option>
                 <option value="DEFAULT">Default Limit</option>
@@ -508,87 +477,67 @@ export default function AdminDashboardPage() {
 
             <button
               onClick={() => refetchUsers()}
-              className="v2-btn v2-btn--secondary"
-              style={{ padding: "8px 12px" }}
+              className="h-10 px-3.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-bold transition-all shadow-xs inline-flex items-center justify-center gap-2 shrink-0"
               title="Refresh users"
             >
-              <RefreshCw size={14} />
+              <RefreshCw size={14} className={usersLoading ? "animate-spin text-indigo-600" : ""} />
+              <span className="hidden sm:inline text-xs">Refresh</span>
             </button>
           </div>
 
-          {/* Users Table */}
-          <div
-            className="v2-card"
-            style={{
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-default)",
-              borderRadius: "var(--radius-xl)",
-              overflow: "hidden",
-            }}
-          >
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+          {/* Users Table Card */}
+          <div className="rounded-3xl border border-slate-200/80 bg-white/95 backdrop-blur-xl shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs sm:text-sm border-collapse">
                 <thead>
-                  <tr style={{ borderBottom: "1px solid var(--border-subtle)", background: "var(--bg-surface-2)" }}>
-                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>USER</th>
-                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>ROLE</th>
-                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>AI PRIVILEGE</th>
-                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>AI USAGE</th>
-                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>RECORDS</th>
-                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700, textAlign: "right" }}>ACTIONS</th>
+                  <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="py-3.5 px-4 sm:px-6">User</th>
+                    <th className="py-3.5 px-4 sm:px-6">Role</th>
+                    <th className="py-3.5 px-4 sm:px-6">AI Privilege</th>
+                    <th className="py-3.5 px-4 sm:px-6">AI Usage</th>
+                    <th className="py-3.5 px-4 sm:px-6">Records</th>
+                    <th className="py-3.5 px-4 sm:px-6 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
                   {usersLoading ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--txt-secondary)" }}>
-                        <Loader2 size={24} className="anim-spin" style={{ margin: "0 auto 8px" }} />
-                        Loading users...
+                      <td colSpan={6} className="py-12 text-center text-slate-500">
+                        <Loader2 size={24} className="animate-spin text-indigo-600 mx-auto mb-2" />
+                        <span>Loading users...</span>
                       </td>
                     </tr>
                   ) : usersData?.users?.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--txt-secondary)" }}>
+                      <td colSpan={6} className="py-12 text-center text-slate-500">
                         No users found matching your filters.
                       </td>
                     </tr>
                   ) : (
                     usersData?.users?.map((u) => (
-                      <tr
-                        key={u.id}
-                        style={{
-                          borderBottom: "1px solid var(--border-subtle)",
-                          transition: "background 0.15s ease",
-                        }}
-                      >
+                      <tr key={u.id} className="hover:bg-slate-50/70 transition-colors">
                         {/* User Identity */}
-                        <td style={{ padding: "14px 18px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <td className="py-3.5 px-4 sm:px-6">
+                          <div className="flex items-center gap-3">
                             <div
-                              style={{
-                                width: "32px",
-                                height: "32px",
-                                borderRadius: "var(--radius-full)",
-                                background: u.role === "admin" ? "var(--brand-gradient)" : "var(--bg-surface-3)",
-                                color: "#FFFFFF",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontWeight: 800,
-                                fontSize: "12px",
-                              }}
+                              className={cn(
+                                "w-9 h-9 rounded-full flex items-center justify-center font-black text-xs text-white shadow-xs shrink-0",
+                                u.role === "admin"
+                                  ? "bg-gradient-to-br from-rose-500 to-indigo-600"
+                                  : "bg-slate-200 text-slate-700"
+                              )}
                             >
                               {u.name?.[0]?.toUpperCase() || "U"}
                             </div>
-                            <div>
-                              <div style={{ fontWeight: 700, color: "var(--txt-primary)" }}>{u.name}</div>
-                              <div style={{ fontSize: "11px", color: "var(--txt-secondary)" }}>{u.email}</div>
+                            <div className="min-w-0">
+                              <div className="font-bold text-slate-900 truncate">{u.name}</div>
+                              <div className="text-xs text-slate-500 truncate">{u.email}</div>
                             </div>
                           </div>
                         </td>
 
                         {/* Role */}
-                        <td style={{ padding: "14px 18px" }}>
+                        <td className="py-3.5 px-4 sm:px-6">
                           <button
                             onClick={() => {
                               if (u.id === user?.id) {
@@ -600,88 +549,46 @@ export default function AdminDashboardPage() {
                             }}
                             title={u.id === user?.id ? "Your own account" : "Click to toggle role"}
                             disabled={u.id === user?.id}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "6px",
-                              padding: "4px 10px",
-                              borderRadius: "var(--radius-full)",
-                              border: u.role === "admin" ? "1px solid var(--border-brand)" : "1px solid var(--border-default)",
-                              background: u.role === "admin" ? "rgba(139, 92, 246, 0.15)" : "var(--bg-surface-2)",
-                              color: u.role === "admin" ? "var(--brand-300)" : "var(--txt-secondary)",
-                              fontSize: "11px",
-                              fontWeight: 800,
-                              cursor: u.id === user?.id ? "default" : "pointer",
-                              opacity: u.id === user?.id ? 0.8 : 1,
-                            }}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black tracking-wide border transition-all",
+                              u.role === "admin"
+                                ? "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100"
+                                : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200",
+                              u.id === user?.id && "cursor-default opacity-85 hover:bg-rose-50"
+                            )}
                           >
-                            {u.role === "admin" ? <ShieldCheck size={12} /> : <Users size={12} />}
+                            {u.role === "admin" ? <ShieldCheck size={12} className="text-rose-600" /> : <Users size={12} />}
                             {u.role.toUpperCase()}
                           </button>
                         </td>
 
                         {/* AI Privilege Mode */}
-                        <td style={{ padding: "14px 18px" }}>
+                        <td className="py-3.5 px-4 sm:px-6">
                           {u.role === "admin" ? (
-                            <span
-                              style={{
-                                padding: "4px 8px",
-                                borderRadius: "var(--radius-sm)",
-                                background: "rgba(16, 185, 129, 0.12)",
-                                color: "var(--clr-success)",
-                                fontSize: "11px",
-                                fontWeight: 700,
-                              }}
-                            >
-                              Admin (Unlimited)
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-xs font-black">
+                              <ShieldCheck size={12} /> Admin (Unlimited)
                             </span>
                           ) : u.aiAccess === "UNRESTRICTED" ? (
-                            <span
-                              style={{
-                                padding: "4px 8px",
-                                borderRadius: "var(--radius-sm)",
-                                background: "rgba(16, 185, 129, 0.12)",
-                                color: "var(--clr-success)",
-                                fontSize: "11px",
-                                fontWeight: 700,
-                              }}
-                            >
-                              Unrestricted
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-black">
+                              <Sparkles size={12} /> Unrestricted
                             </span>
                           ) : u.aiAccess === "DISABLED" ? (
-                            <span
-                              style={{
-                                padding: "4px 8px",
-                                borderRadius: "var(--radius-sm)",
-                                background: "rgba(239, 68, 68, 0.12)",
-                                color: "var(--clr-danger)",
-                                fontSize: "11px",
-                                fontWeight: 700,
-                              }}
-                            >
-                              Blocked
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-xs font-black">
+                              <Ban size={12} /> Blocked
                             </span>
                           ) : (
-                            <span
-                              style={{
-                                padding: "4px 8px",
-                                borderRadius: "var(--radius-sm)",
-                                background: "var(--bg-surface-2)",
-                                color: "var(--txt-secondary)",
-                                fontSize: "11px",
-                              }}
-                            >
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium">
                               Default ({u.aiUsage.limit})
                             </span>
                           )}
                         </td>
 
                         {/* AI Usage Meter & Reset */}
-                        <td style={{ padding: "14px 18px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                            <div style={{ minWidth: "80px" }}>
-                              <span style={{ fontWeight: 800, color: "var(--txt-primary)" }}>{u.aiUsage.count}</span>
-                              <span style={{ color: "var(--txt-muted)", fontSize: "11px" }}>
+                        <td className="py-3.5 px-4 sm:px-6">
+                          <div className="flex items-center gap-2">
+                            <div className="min-w-[65px]">
+                              <span className="font-black text-slate-900">{u.aiUsage.count}</span>
+                              <span className="text-slate-400 text-xs">
                                 {" "}
                                 / {u.aiUsage.limit === "UNLIMITED" ? "∞" : u.aiUsage.limit}
                               </span>
@@ -690,18 +597,7 @@ export default function AdminDashboardPage() {
                               <button
                                 onClick={() => updateUserMutation.mutate({ id: u.id, updates: { resetAiUsage: true } })}
                                 title="Reset AI usage to 0"
-                                style={{
-                                  background: "var(--bg-surface-2)",
-                                  border: "1px solid var(--border-default)",
-                                  color: "var(--txt-secondary)",
-                                  borderRadius: "var(--radius-sm)",
-                                  padding: "4px 8px",
-                                  fontSize: "11px",
-                                  cursor: "pointer",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "4px",
-                                }}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-[11px] font-bold transition-colors"
                               >
                                 <RotateCcw size={10} /> Reset
                               </button>
@@ -710,14 +606,13 @@ export default function AdminDashboardPage() {
                         </td>
 
                         {/* Counts */}
-                        <td style={{ padding: "14px 18px", color: "var(--txt-secondary)" }}>
-                          <span title="Jobs tracked">{u.opportunitiesCount} jobs</span> ·{" "}
-                          <span title="Resumes uploaded">{u.resumesCount} CVs</span>
+                        <td className="py-3.5 px-4 sm:px-6 text-slate-500 font-medium">
+                          <span>{u.opportunitiesCount} jobs</span> · <span>{u.resumesCount} CVs</span>
                         </td>
 
                         {/* Actions */}
-                        <td style={{ padding: "14px 18px", textAlign: "right" }}>
-                          <div style={{ display: "inline-flex", gap: "6px" }}>
+                        <td className="py-3.5 px-4 sm:px-6 text-right">
+                          <div className="inline-flex items-center gap-1.5">
                             {/* Fast toggle AI Access */}
                             <button
                               onClick={() => {
@@ -726,14 +621,12 @@ export default function AdminDashboardPage() {
                                 updateUserMutation.mutate({ id: u.id, updates: { aiAccess: nextAccess } })
                               }}
                               title={`Current: ${u.aiAccess}. Click to cycle.`}
-                              style={{
-                                background: "var(--bg-surface-2)",
-                                border: "1px solid var(--border-default)",
-                                borderRadius: "var(--radius-sm)",
-                                padding: "6px",
-                                color: u.aiAccess === "DISABLED" ? "var(--clr-danger)" : "var(--txt-secondary)",
-                                cursor: "pointer",
-                              }}
+                              className={cn(
+                                "p-2 rounded-xl border transition-all",
+                                u.aiAccess === "DISABLED"
+                                  ? "bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100"
+                                  : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                              )}
                             >
                               <Sparkles size={14} />
                             </button>
@@ -752,14 +645,7 @@ export default function AdminDashboardPage() {
                                 })
                               }}
                               title="Edit user"
-                              style={{
-                                background: "var(--bg-surface-2)",
-                                border: "1px solid var(--border-default)",
-                                borderRadius: "var(--radius-sm)",
-                                padding: "6px",
-                                color: "var(--txt-secondary)",
-                                cursor: "pointer",
-                              }}
+                              className="p-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
                             >
                               <Edit3 size={14} />
                             </button>
@@ -769,14 +655,7 @@ export default function AdminDashboardPage() {
                               <button
                                 onClick={() => setDeletingUser(u)}
                                 title="Delete user"
-                                style={{
-                                  background: "var(--bg-surface-2)",
-                                  border: "1px solid var(--border-default)",
-                                  borderRadius: "var(--radius-sm)",
-                                  padding: "6px",
-                                  color: "var(--clr-danger)",
-                                  cursor: "pointer",
-                                }}
+                                className="p-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all"
                               >
                                 <Trash2 size={14} />
                               </button>
@@ -792,39 +671,26 @@ export default function AdminDashboardPage() {
 
             {/* Users Table Pagination */}
             {usersData?.pagination && usersData.pagination.totalPages > 1 && (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "14px 20px",
-                  borderTop: "1px solid var(--border-subtle)",
-                  background: "var(--bg-surface-2)",
-                  fontSize: "12px",
-                  color: "var(--txt-secondary)",
-                }}
-              >
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-3 px-6 py-4 border-t border-slate-200/80 bg-slate-50/60 text-xs text-slate-600">
                 <span>
                   Showing {Math.min(usersData.pagination.total, (usersData.pagination.page - 1) * usersData.pagination.limit + 1)}–
                   {Math.min(usersData.pagination.total, usersData.pagination.page * usersData.pagination.limit)} of {usersData.pagination.total} users
                 </span>
-                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => setUserPage((p) => Math.max(1, p - 1))}
                     disabled={usersData.pagination.page <= 1}
-                    className="v2-btn v2-btn--secondary"
-                    style={{ padding: "4px 10px", fontSize: "12px" }}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold disabled:opacity-40 transition-colors shadow-xs"
                   >
                     Previous
                   </button>
-                  <span style={{ fontWeight: 700, color: "var(--txt-primary)", margin: "0 4px" }}>
+                  <span className="font-bold text-slate-900 px-2">
                     {usersData.pagination.page} / {usersData.pagination.totalPages}
                   </span>
                   <button
                     onClick={() => setUserPage((p) => Math.min(usersData.pagination!.totalPages, p + 1))}
                     disabled={usersData.pagination.page >= usersData.pagination.totalPages}
-                    className="v2-btn v2-btn--secondary"
-                    style={{ padding: "4px 10px", fontSize: "12px" }}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold disabled:opacity-40 transition-colors shadow-xs"
                   >
                     Next
                   </button>
@@ -837,49 +703,22 @@ export default function AdminDashboardPage() {
 
       {/* ════════════════════ TAB 2: RESUMES ════════════════════ */}
       {activeTab === "resumes" && (
-        <div>
+        <div className="space-y-4">
           {/* Resumes Filter Bar */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "12px",
-              marginBottom: "16px",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                background: "var(--bg-surface)",
-                border: "1px solid var(--border-default)",
-                borderRadius: "var(--radius-md)",
-                padding: "6px 12px",
-                maxWidth: "380px",
-                flex: 1,
-              }}
-            >
-              <Search size={16} color="var(--txt-secondary)" />
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+            <div className="relative flex-1 max-w-md">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={resumeSearch}
                 onChange={(e) => setResumeSearch(e.target.value)}
-                placeholder="Search resumes by title or role..."
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  outline: "none",
-                  color: "var(--txt-primary)",
-                  fontSize: "13px",
-                  width: "100%",
-                }}
+                placeholder="Search resumes by document name or user..."
+                className="w-full h-10 pl-9 pr-9 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs"
               />
               {resumeSearch && (
                 <button
                   onClick={() => setResumeSearch("")}
-                  style={{ background: "transparent", border: "none", color: "var(--txt-secondary)", cursor: "pointer" }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
                   <X size={14} />
                 </button>
@@ -888,111 +727,85 @@ export default function AdminDashboardPage() {
 
             <button
               onClick={() => refetchResumes()}
-              className="v2-btn v2-btn--secondary"
-              style={{ padding: "8px 12px" }}
+              className="h-10 px-3.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-bold transition-all shadow-xs inline-flex items-center justify-center gap-2 shrink-0"
               title="Refresh resumes"
             >
-              <RefreshCw size={14} />
+              <RefreshCw size={14} className={resumesLoading ? "animate-spin text-indigo-600" : ""} />
+              <span className="hidden sm:inline text-xs">Refresh</span>
             </button>
           </div>
 
-          <div
-            className="v2-card"
-            style={{
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-default)",
-              borderRadius: "var(--radius-xl)",
-              overflow: "hidden",
-            }}
-          >
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+          {/* Resumes Table Card */}
+          <div className="rounded-3xl border border-slate-200/80 bg-white/95 backdrop-blur-xl shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs sm:text-sm border-collapse">
                 <thead>
-                  <tr style={{ borderBottom: "1px solid var(--border-subtle)", background: "var(--bg-surface-2)" }}>
-                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>DOCUMENT NAME</th>
-                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>USER</th>
-                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>TARGET ROLE</th>
-                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>SIZE</th>
-                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700 }}>UPLOADED</th>
-                    <th style={{ padding: "14px 18px", color: "var(--txt-secondary)", fontWeight: 700, textAlign: "right" }}>ACTIONS</th>
+                  <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="py-3.5 px-4 sm:px-6">Document Name</th>
+                    <th className="py-3.5 px-4 sm:px-6">User</th>
+                    <th className="py-3.5 px-4 sm:px-6">Target Role</th>
+                    <th className="py-3.5 px-4 sm:px-6">Size</th>
+                    <th className="py-3.5 px-4 sm:px-6">Uploaded</th>
+                    <th className="py-3.5 px-4 sm:px-6 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
                   {resumesLoading ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--txt-secondary)" }}>
-                        <Loader2 size={24} className="anim-spin" style={{ margin: "0 auto 8px" }} />
-                        Loading resumes...
+                      <td colSpan={6} className="py-12 text-center text-slate-500">
+                        <Loader2 size={24} className="animate-spin text-indigo-600 mx-auto mb-2" />
+                        <span>Loading resumes...</span>
                       </td>
                     </tr>
                   ) : resumes?.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--txt-secondary)" }}>
+                      <td colSpan={6} className="py-12 text-center text-slate-500">
                         No resumes found matching your search.
                       </td>
                     </tr>
                   ) : (
                     resumes?.map((r) => (
-                      <tr key={r.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                        <td style={{ padding: "14px 18px", fontWeight: 700, color: "var(--txt-primary)" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <FileText size={16} color="var(--brand-400)" />
-                            {r.name}
+                      <tr key={r.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3.5 px-4 sm:px-6">
+                          <div className="flex items-center gap-2.5 font-bold text-slate-900">
+                            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
+                              <FileText size={16} />
+                            </div>
+                            <span className="truncate max-w-xs">{r.name}</span>
                           </div>
                         </td>
-                        <td style={{ padding: "14px 18px" }}>
-                          <div style={{ color: "var(--txt-primary)", fontWeight: 600 }}>{r.userName}</div>
-                          <div style={{ fontSize: "11px", color: "var(--txt-secondary)" }}>{r.userEmail}</div>
+                        <td className="py-3.5 px-4 sm:px-6">
+                          <div className="font-semibold text-slate-900">{r.userName}</div>
+                          <div className="text-xs text-slate-500">{r.userEmail}</div>
                         </td>
-                        <td style={{ padding: "14px 18px", color: "var(--txt-secondary)" }}>
+                        <td className="py-3.5 px-4 sm:px-6 text-slate-600">
                           {r.targetRole || "General"}
                         </td>
-                        <td style={{ padding: "14px 18px", color: "var(--txt-secondary)" }}>
+                        <td className="py-3.5 px-4 sm:px-6 text-slate-500 font-mono text-xs">
                           {formatBytes(r.sizeBytes)}
                         </td>
-                        <td style={{ padding: "14px 18px", color: "var(--txt-secondary)" }}>
+                        <td className="py-3.5 px-4 sm:px-6 text-slate-500">
                           {new Date(r.uploadedAt).toLocaleDateString()}
                         </td>
-                        <td style={{ padding: "14px 18px", textAlign: "right" }}>
-                          <div style={{ display: "inline-flex", gap: "6px" }}>
+                        <td className="py-3.5 px-4 sm:px-6 text-right">
+                          <div className="inline-flex items-center gap-1.5">
                             <button
                               onClick={() => handlePreviewResume(r)}
-                              style={{
-                                background: "var(--bg-surface-2)",
-                                border: "1px solid var(--border-default)",
-                                borderRadius: "var(--radius-sm)",
-                                padding: "6px",
-                                color: "var(--txt-secondary)",
-                                cursor: "pointer",
-                              }}
+                              className="p-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
                               title="Preview resume details"
                             >
                               <Eye size={14} />
                             </button>
                             <button
                               onClick={() => handleDownloadResume(r)}
-                              style={{
-                                background: "var(--bg-surface-2)",
-                                border: "1px solid var(--border-default)",
-                                borderRadius: "var(--radius-sm)",
-                                padding: "6px",
-                                color: "var(--brand-400)",
-                                cursor: "pointer",
-                              }}
+                              className="p-2 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all"
                               title="Download resume file"
                             >
                               <Download size={14} />
                             </button>
                             <button
                               onClick={() => setDeletingResume(r)}
-                              style={{
-                                background: "var(--bg-surface-2)",
-                                border: "1px solid var(--border-default)",
-                                borderRadius: "var(--radius-sm)",
-                                padding: "6px",
-                                color: "var(--clr-danger)",
-                                cursor: "pointer",
-                              }}
+                              className="p-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all"
                               title="Delete resume"
                             >
                               <Trash2 size={14} />
@@ -1011,118 +824,119 @@ export default function AdminDashboardPage() {
 
       {/* ════════════════════ TAB 3: SYSTEM SETTINGS ════════════════════ */}
       {activeTab === "system" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* AI Settings Box */}
-          <div
-            className="v2-card"
-            style={{
-              padding: "24px",
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-default)",
-              borderRadius: "var(--radius-xl)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
-              <Cpu size={20} color="var(--brand-400)" />
-              <h3 style={{ fontSize: "16px", fontWeight: 800, color: "var(--txt-primary)" }}>
-                Platform AI Model & Engine
-              </h3>
+          <div className="rounded-3xl border border-slate-200/80 bg-white/95 backdrop-blur-xl p-6 shadow-xs space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-2xl bg-indigo-50 text-indigo-600">
+                <Cpu size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  Platform AI Model & Engine
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Global LLM gateway status and baseline quotas
+                </p>
+              </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px", fontSize: "13px" }}>
-              <div>
-                <span style={{ color: "var(--txt-secondary)", display: "block", marginBottom: "4px" }}>Active Model</span>
-                <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--brand-300)" }}>
-                  {stats?.systemModel}
-                </span>
-              </div>
-              <div>
-                <span style={{ color: "var(--txt-secondary)", display: "block", marginBottom: "4px" }}>API Key Status</span>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    color: stats?.hasSystemApiKey ? "var(--clr-success)" : "var(--clr-danger)",
-                    fontWeight: 700,
-                  }}
-                >
-                  {stats?.hasSystemApiKey ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-                  {stats?.hasSystemApiKey ? "System Groq API Key Active" : "Missing GROQ_API_KEY in .env"}
-                </span>
-              </div>
-              <div>
-                <span style={{ color: "var(--txt-secondary)", display: "block", marginBottom: "4px" }}>Default Free Tier Quota</span>
-                <span style={{ fontWeight: 700, color: "var(--txt-primary)" }}>
-                  {stats?.freeLimitDefault} requests per user
+
+            <div className="space-y-3 pt-2 text-xs sm:text-sm divide-y divide-slate-100">
+              <div className="flex justify-between items-center py-2">
+                <span className="text-slate-500 font-medium">Active Engine</span>
+                <span className="font-mono font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
+                  {stats?.systemModel || "llama-3.3-70b-versatile"}
                 </span>
               </div>
 
-              {/* Interactive AI Health Test */}
-              <div style={{ marginTop: "8px", paddingTop: "14px", borderTop: "1px solid var(--border-subtle)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                  <span style={{ fontWeight: 700, color: "var(--txt-primary)" }}>AI Service Connectivity</span>
-                  <button
-                    onClick={handleTestAi}
-                    disabled={isTestingAi}
-                    className="v2-btn v2-btn--secondary"
-                    style={{ padding: "6px 12px", fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "6px" }}
-                  >
-                    {isTestingAi ? <Loader2 size={13} className="anim-spin" /> : <RefreshCw size={13} />}
-                    {isTestingAi ? "Testing..." : "Test AI Connection"}
-                  </button>
-                </div>
-                {aiTestResult && (
-                  <div
-                    style={{
-                      padding: "10px 14px",
-                      borderRadius: "var(--radius-md)",
-                      background: aiTestResult.success ? "rgba(16, 185, 129, 0.08)" : "rgba(239, 68, 68, 0.08)",
-                      border: aiTestResult.success ? "1px solid var(--border-success)" : "1px solid var(--border-danger)",
-                      fontSize: "12px",
-                    }}
-                  >
-                    {aiTestResult.success ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--clr-success)" }}>
-                        <CheckCircle2 size={16} />
-                        <span>Connected to <strong>{aiTestResult.model}</strong> ({aiTestResult.latencyMs}ms latency).</span>
-                      </div>
-                    ) : (
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--clr-danger)" }}>
-                        <XCircle size={16} />
-                        <span>Error: {aiTestResult.error}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
+              <div className="flex justify-between items-center py-2">
+                <span className="text-slate-500 font-medium">API Key Status</span>
+                <span className={cn(
+                  "inline-flex items-center gap-1.5 font-bold text-xs px-2.5 py-1 rounded-full",
+                  stats?.hasSystemApiKey
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-rose-50 text-rose-700 border border-rose-200"
+                )}>
+                  {stats?.hasSystemApiKey ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+                  {stats?.hasSystemApiKey ? "System Groq API Key Active" : "Missing GROQ_API_KEY in .env"}
+                </span>
               </div>
+
+              <div className="flex justify-between items-center py-2">
+                <span className="text-slate-500 font-medium">Default Free Tier Quota</span>
+                <span className="font-bold text-slate-900">
+                  {stats?.freeLimitDefault ?? 30} requests per user
+                </span>
+              </div>
+            </div>
+
+            {/* Interactive AI Health Test */}
+            <div className="pt-4 border-t border-slate-100 space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-slate-900 text-xs sm:text-sm">AI Service Connectivity</span>
+                <button
+                  onClick={handleTestAi}
+                  disabled={isTestingAi}
+                  className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs inline-flex items-center gap-2 transition-all shadow-xs"
+                >
+                  <RefreshCw size={13} className={isTestingAi ? "animate-spin text-indigo-600" : ""} />
+                  {isTestingAi ? "Testing..." : "Test Connection"}
+                </button>
+              </div>
+
+              {aiTestResult && (
+                <div
+                  className={cn(
+                    "p-3.5 rounded-2xl border text-xs leading-relaxed",
+                    aiTestResult.success
+                      ? "bg-emerald-50/80 border-emerald-200 text-emerald-900"
+                      : "bg-rose-50/80 border-rose-200 text-rose-900"
+                  )}
+                >
+                  {aiTestResult.success ? (
+                    <div className="flex items-center gap-2 font-medium">
+                      <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                      <span>Connected to <strong>{aiTestResult.model}</strong> ({aiTestResult.latencyMs}ms latency).</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 font-medium">
+                      <XCircle size={16} className="text-rose-600 shrink-0" />
+                      <span>Error: {aiTestResult.error}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
           {/* Admin Policy Summary */}
-          <div
-            className="v2-card"
-            style={{
-              padding: "24px",
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-brand)",
-              borderRadius: "var(--radius-xl)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
-              <ShieldCheck size={20} color="var(--brand-400)" />
-              <h3 style={{ fontSize: "16px", fontWeight: 800, color: "var(--txt-primary)" }}>
-                Admin Privilege Rules
-              </h3>
+          <div className="rounded-3xl border border-slate-200/80 bg-white/95 backdrop-blur-xl p-6 shadow-xs space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-2xl bg-rose-50 text-rose-600">
+                <ShieldCheck size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  Admin Privilege Rules
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Platform access controls and system authorization
+                </p>
+              </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px", color: "var(--txt-secondary)", lineHeight: "1.6" }}>
-              <div>
-                <strong style={{ color: "var(--txt-primary)" }}>1. Unrestricted AI:</strong> Admins are exempt from request limits and quotas across all features.
+
+            <div className="space-y-3 pt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <strong className="text-slate-900 block mb-0.5">1. Unrestricted AI Access:</strong>
+                Admins have zero token and request limits across all generative features including STAR synthesis, the Griller, and Resume Studio.
               </div>
-              <div>
-                <strong style={{ color: "var(--txt-primary)" }}>2. User AI Controls:</strong> Admins can unrestrict any specific user, raise their request limit, or temporarily disable AI access.
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <strong className="text-slate-900 block mb-0.5">2. Granular User AI Controls:</strong>
+                Admins can upgrade individual users to unrestricted status, raise custom quota ceilings, or block AI privileges.
               </div>
-              <div>
-                <strong style={{ color: "var(--txt-primary)" }}>3. Role Delegation:</strong> Any existing admin can promote or demote other users directly from the user table.
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <strong className="text-slate-900 block mb-0.5">3. Role Delegation & Safety:</strong>
+                Admins can promote or demote any user. Self-demotion is strictly blocked by backend guards to prevent accidental admin lockouts.
               </div>
             </div>
           </div>
@@ -1131,35 +945,16 @@ export default function AdminDashboardPage() {
 
       {/* ── MODAL: Add New User ── */}
       {isAddUserOpen && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "var(--bg-overlay)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 100,
-            padding: "16px",
-          }}
-        >
-          <div
-            className="v2-card"
-            style={{
-              width: "100%",
-              maxWidth: "460px",
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-brand)",
-              borderRadius: "var(--radius-xl)",
-              padding: "28px",
-              boxShadow: "var(--shadow-xl)",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h3 style={{ fontSize: "18px", fontWeight: 800, color: "var(--txt-primary)" }}>Register New User</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl text-slate-900 space-y-5">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black text-slate-900">Register New User</h3>
+                <p className="text-xs text-slate-500">Create an account and assign AI privileges</p>
+              </div>
               <button
                 onClick={() => setIsAddUserOpen(false)}
-                style={{ background: "transparent", border: "none", color: "var(--txt-secondary)", cursor: "pointer" }}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
               >
                 <X size={18} />
               </button>
@@ -1170,24 +965,23 @@ export default function AdminDashboardPage() {
                 e.preventDefault()
                 createUserMutation.mutate(formData)
               }}
-              style={{ display: "flex", flexDirection: "column", gap: "14px" }}
+              className="space-y-4"
             >
               <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--txt-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                   Full Name *
                 </label>
                 <input
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="v2-input"
-                  style={{ width: "100%" }}
+                  className="w-full h-10 px-3.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs"
                   placeholder="Jane Doe"
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--txt-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                   Email Address *
                 </label>
                 <input
@@ -1195,14 +989,13 @@ export default function AdminDashboardPage() {
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="v2-input"
-                  style={{ width: "100%" }}
+                  className="w-full h-10 px-3.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs"
                   placeholder="jane@example.com"
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--txt-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                   Password *
                 </label>
                 <input
@@ -1210,37 +1003,34 @@ export default function AdminDashboardPage() {
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="v2-input"
-                  style={{ width: "100%" }}
+                  className="w-full h-10 px-3.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs"
                   placeholder="Min 6 characters"
                 />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--txt-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>
-                    Role
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                    Account Role
                   </label>
                   <select
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
-                    className="v2-input"
-                    style={{ width: "100%" }}
+                    className="w-full h-10 px-3 rounded-xl border border-slate-300 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs cursor-pointer"
                   >
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
+                    <option value="user">Standard User</option>
+                    <option value="admin">Administrator</option>
                   </select>
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--txt-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                     AI Access Mode
                   </label>
                   <select
                     value={formData.aiAccess}
                     onChange={(e) => setFormData({ ...formData, aiAccess: e.target.value as any })}
-                    className="v2-input"
-                    style={{ width: "100%" }}
+                    className="w-full h-10 px-3 rounded-xl border border-slate-300 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs cursor-pointer"
                   >
                     <option value="DEFAULT">Default Limit</option>
                     <option value="UNRESTRICTED">Unrestricted</option>
@@ -1249,20 +1039,21 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
+              <div className="flex justify-end items-center gap-2.5 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsAddUserOpen(false)}
-                  className="v2-btn v2-btn--secondary"
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={createUserMutation.isPending}
-                  className="v2-btn v2-btn--primary"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-500/25 transition-all inline-flex items-center gap-2"
                 >
-                  {createUserMutation.isPending ? <Loader2 size={16} className="anim-spin" /> : "Create Account"}
+                  {createUserMutation.isPending && <Loader2 size={14} className="animate-spin" />}
+                  <span>{createUserMutation.isPending ? "Creating..." : "Create Account"}</span>
                 </button>
               </div>
             </form>
@@ -1272,37 +1063,18 @@ export default function AdminDashboardPage() {
 
       {/* ── MODAL: Edit User ── */}
       {editingUser && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "var(--bg-overlay)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 100,
-            padding: "16px",
-          }}
-        >
-          <div
-            className="v2-card"
-            style={{
-              width: "100%",
-              maxWidth: "480px",
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-brand)",
-              borderRadius: "var(--radius-xl)",
-              padding: "28px",
-              boxShadow: "var(--shadow-xl)",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h3 style={{ fontSize: "18px", fontWeight: 800, color: "var(--txt-primary)" }}>
-                Edit Account: {editingUser.name}
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl text-slate-900 space-y-5">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black text-slate-900">
+                  Edit Account: {editingUser.name}
+                </h3>
+                <p className="text-xs text-slate-500">Update account credentials and AI quotas</p>
+              </div>
               <button
                 onClick={() => setEditingUser(null)}
-                style={{ background: "transparent", border: "none", color: "var(--txt-secondary)", cursor: "pointer" }}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
               >
                 <X size={18} />
               </button>
@@ -1323,59 +1095,55 @@ export default function AdminDashboardPage() {
                 }
                 updateUserMutation.mutate({ id: editingUser.id, updates })
               }}
-              style={{ display: "flex", flexDirection: "column", gap: "14px" }}
+              className="space-y-4"
             >
               <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--txt-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                   Name
                 </label>
                 <input
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="v2-input"
-                  style={{ width: "100%" }}
+                  className="w-full h-10 px-3.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs"
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--txt-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>
-                  Email
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  Email Address
                 </label>
                 <input
                   required
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="v2-input"
-                  style={{ width: "100%" }}
+                  className="w-full h-10 px-3.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs"
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--txt-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                   Reset Password (leave empty to keep current)
                 </label>
                 <input
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="v2-input"
-                  style={{ width: "100%" }}
+                  className="w-full h-10 px-3.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs"
                   placeholder="New password (optional)"
                 />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--txt-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                     Role
                   </label>
                   <select
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
-                    className="v2-input"
-                    style={{ width: "100%" }}
+                    className="w-full h-10 px-3 rounded-xl border border-slate-300 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs cursor-pointer"
                   >
                     <option value="user">Standard User</option>
                     <option value="admin">Administrator</option>
@@ -1383,14 +1151,13 @@ export default function AdminDashboardPage() {
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--txt-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                     AI Access Privilege
                   </label>
                   <select
                     value={formData.aiAccess}
                     onChange={(e) => setFormData({ ...formData, aiAccess: e.target.value as any })}
-                    className="v2-input"
-                    style={{ width: "100%" }}
+                    className="w-full h-10 px-3 rounded-xl border border-slate-300 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs cursor-pointer"
                   >
                     <option value="DEFAULT">Default Limit</option>
                     <option value="UNRESTRICTED">Unrestricted (Unlimited)</option>
@@ -1400,33 +1167,33 @@ export default function AdminDashboardPage() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--txt-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                   Custom AI Request Limit (leave blank for platform default)
                 </label>
                 <input
                   type="number"
                   value={formData.aiLimit}
                   onChange={(e) => setFormData({ ...formData, aiLimit: e.target.value })}
-                  className="v2-input"
-                  style={{ width: "100%" }}
+                  className="w-full h-10 px-3.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs"
                   placeholder="e.g. 50"
                 />
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
+              <div className="flex justify-end items-center gap-2.5 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setEditingUser(null)}
-                  className="v2-btn v2-btn--secondary"
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={updateUserMutation.isPending}
-                  className="v2-btn v2-btn--primary"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-500/25 transition-all inline-flex items-center gap-2"
                 >
-                  {updateUserMutation.isPending ? <Loader2 size={16} className="anim-spin" /> : "Save Changes"}
+                  {updateUserMutation.isPending && <Loader2 size={14} className="animate-spin" />}
+                  <span>{updateUserMutation.isPending ? "Saving..." : "Save Changes"}</span>
                 </button>
               </div>
             </form>
@@ -1436,47 +1203,33 @@ export default function AdminDashboardPage() {
 
       {/* ── MODAL: Delete User Confirmation ── */}
       {deletingUser && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "var(--bg-overlay)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 100,
-            padding: "16px",
-          }}
-        >
-          <div
-            className="v2-card"
-            style={{
-              width: "100%",
-              maxWidth: "420px",
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-danger)",
-              borderRadius: "var(--radius-xl)",
-              padding: "24px",
-              textAlign: "center",
-            }}
-          >
-            <AlertTriangle size={36} color="var(--clr-danger)" style={{ margin: "0 auto 12px" }} />
-            <h3 style={{ fontSize: "18px", fontWeight: 800, color: "var(--txt-primary)", marginBottom: "8px" }}>
-              Delete User Account?
-            </h3>
-            <p style={{ fontSize: "13px", color: "var(--txt-secondary)", marginBottom: "20px", lineHeight: "1.5" }}>
-              This will permanently delete <strong>{deletingUser.name}</strong> ({deletingUser.email}) and cascade delete all their opportunities, resumes, and reminders.
-            </p>
-            <div style={{ display: "flex", justifyContent: "center", gap: "12px" }}>
-              <button onClick={() => setDeletingUser(null)} className="v2-btn v2-btn--secondary">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl border border-rose-200 bg-white p-6 sm:p-8 shadow-2xl text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 mx-auto flex items-center justify-center">
+              <AlertTriangle size={28} />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-slate-900">
+                Delete User Account?
+              </h3>
+              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                This will permanently delete <strong>{deletingUser.name}</strong> ({deletingUser.email}) and cascade delete all their tracked opportunities, resumes, and reminders.
+              </p>
+            </div>
+            <div className="flex justify-center gap-3 pt-2">
+              <button
+                onClick={() => setDeletingUser(null)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+              >
                 Cancel
               </button>
               <button
                 onClick={() => deleteUserMutation.mutate(deletingUser.id)}
                 disabled={deleteUserMutation.isPending}
-                className="v2-btn v2-btn--danger"
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md shadow-rose-600/25 transition-all inline-flex items-center gap-2"
               >
-                {deleteUserMutation.isPending ? <Loader2 size={16} className="anim-spin" /> : "Confirm Delete"}
+                {deleteUserMutation.isPending && <Loader2 size={14} className="animate-spin" />}
+                <span>{deleteUserMutation.isPending ? "Deleting..." : "Confirm Delete"}</span>
               </button>
             </div>
           </div>
@@ -1485,39 +1238,24 @@ export default function AdminDashboardPage() {
 
       {/* ── MODAL: Delete Resume Confirmation ── */}
       {deletingResume && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "var(--bg-overlay)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 100,
-            padding: "16px",
-          }}
-        >
-          <div
-            className="v2-card"
-            style={{
-              width: "100%",
-              maxWidth: "420px",
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-danger)",
-              borderRadius: "var(--radius-xl)",
-              padding: "24px",
-              textAlign: "center",
-            }}
-          >
-            <AlertTriangle size={36} color="var(--clr-danger)" style={{ margin: "0 auto 12px" }} />
-            <h3 style={{ fontSize: "18px", fontWeight: 800, color: "var(--txt-primary)", marginBottom: "8px" }}>
-              Delete Resume?
-            </h3>
-            <p style={{ fontSize: "13px", color: "var(--txt-secondary)", marginBottom: "20px", lineHeight: "1.5" }}>
-              Permanently delete <strong>{deletingResume.name}</strong> uploaded by {deletingResume.userName}? This cannot be undone.
-            </p>
-            <div style={{ display: "flex", justifyContent: "center", gap: "12px" }}>
-              <button onClick={() => setDeletingResume(null)} className="v2-btn v2-btn--secondary">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl border border-rose-200 bg-white p-6 sm:p-8 shadow-2xl text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 mx-auto flex items-center justify-center">
+              <AlertTriangle size={28} />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-slate-900">
+                Delete Resume?
+              </h3>
+              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                Permanently delete <strong>{deletingResume.name}</strong> uploaded by {deletingResume.userName}? This cannot be undone.
+              </p>
+            </div>
+            <div className="flex justify-center gap-3 pt-2">
+              <button
+                onClick={() => setDeletingResume(null)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+              >
                 Cancel
               </button>
               <button
@@ -1526,9 +1264,10 @@ export default function AdminDashboardPage() {
                   setDeletingResume(null)
                 }}
                 disabled={deleteResumeMutation.isPending}
-                className="v2-btn v2-btn--danger"
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md shadow-rose-600/25 transition-all inline-flex items-center gap-2"
               >
-                {deleteResumeMutation.isPending ? <Loader2 size={16} className="anim-spin" /> : "Confirm Delete"}
+                {deleteResumeMutation.isPending && <Loader2 size={14} className="animate-spin" />}
+                <span>{deleteResumeMutation.isPending ? "Deleting..." : "Confirm Delete"}</span>
               </button>
             </div>
           </div>
@@ -1537,80 +1276,66 @@ export default function AdminDashboardPage() {
 
       {/* ── MODAL: Preview Resume ── */}
       {previewResume && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "var(--bg-overlay)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 100,
-            padding: "16px",
-          }}
-        >
-          <div
-            className="v2-card"
-            style={{
-              width: "100%",
-              maxWidth: "520px",
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-brand)",
-              borderRadius: "var(--radius-xl)",
-              padding: "28px",
-              boxShadow: "var(--shadow-xl)",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <FileText size={20} color="var(--brand-400)" />
-                <h3 style={{ fontSize: "18px", fontWeight: 800, color: "var(--txt-primary)" }}>Resume Metadata</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl text-slate-900 space-y-5">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">Resume Metadata</h3>
+                  <p className="text-xs text-slate-500">Document attributes and owner record</p>
+                </div>
               </div>
               <button
                 onClick={() => setPreviewResume(null)}
-                style={{ background: "transparent", border: "none", color: "var(--txt-secondary)", cursor: "pointer" }}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px", marginBottom: "24px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "8px" }}>
-                <span style={{ color: "var(--txt-secondary)" }}>File Name</span>
-                <strong style={{ color: "var(--txt-primary)" }}>{previewResume.name}</strong>
+            <div className="space-y-2.5 text-xs sm:text-sm divide-y divide-slate-100">
+              <div className="flex justify-between items-center py-2">
+                <span className="text-slate-500">File Name</span>
+                <strong className="text-slate-900 truncate max-w-[260px]">{previewResume.name}</strong>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "8px" }}>
-                <span style={{ color: "var(--txt-secondary)" }}>Uploaded By</span>
-                <span style={{ color: "var(--txt-primary)", fontWeight: 600 }}>{previewResume.userName} ({previewResume.userEmail})</span>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-slate-500">Uploaded By</span>
+                <span className="text-slate-800 font-semibold">{previewResume.userName} ({previewResume.userEmail})</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "8px" }}>
-                <span style={{ color: "var(--txt-secondary)" }}>Target Role</span>
-                <span style={{ color: "var(--txt-primary)" }}>{previewResume.targetRole || "General"}</span>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-slate-500">Target Role</span>
+                <span className="text-slate-800">{previewResume.targetRole || "General"}</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "8px" }}>
-                <span style={{ color: "var(--txt-secondary)" }}>MIME Type</span>
-                <span style={{ color: "var(--brand-300)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>{previewResume.mimeType}</span>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-slate-500">MIME Type</span>
+                <span className="font-mono text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">{previewResume.mimeType}</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "8px" }}>
-                <span style={{ color: "var(--txt-secondary)" }}>Size</span>
-                <span style={{ color: "var(--txt-primary)" }}>{formatBytes(previewResume.sizeBytes || 0)}</span>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-slate-500">Size</span>
+                <span className="text-slate-800 font-mono">{formatBytes(previewResume.sizeBytes || 0)}</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "8px" }}>
-                <span style={{ color: "var(--txt-secondary)" }}>Uploaded At</span>
-                <span style={{ color: "var(--txt-primary)" }}>{new Date(previewResume.uploadedAt).toLocaleString()}</span>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-slate-500">Uploaded At</span>
+                <span className="text-slate-800">{new Date(previewResume.uploadedAt).toLocaleString()}</span>
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-              <button onClick={() => setPreviewResume(null)} className="v2-btn v2-btn--secondary">
+            <div className="flex justify-end items-center gap-2.5 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => setPreviewResume(null)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm transition-colors"
+              >
                 Close
               </button>
               <button
                 onClick={() => handleDownloadResume(previewResume)}
-                className="v2-btn v2-btn--primary"
-                style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-500/25 transition-all inline-flex items-center gap-2"
               >
-                <Download size={14} /> Download Document
+                <Download size={14} />
+                <span>Download Document</span>
               </button>
             </div>
           </div>

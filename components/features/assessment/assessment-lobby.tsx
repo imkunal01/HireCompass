@@ -205,7 +205,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* ── Top Level Navigation Tabs: Assessment Arena vs Recent Assessments ── */}
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveTab("arena")}
@@ -213,7 +213,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
               "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all",
               activeTab === "arena"
                 ? "bg-[#0070ad] text-white shadow-md shadow-[#0070ad]/20"
-                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
             )}
           >
             <BrainCircuit className="w-4 h-4" />
@@ -226,7 +226,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
               "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all",
               activeTab === "history"
                 ? "bg-[#0070ad] text-white shadow-md shadow-[#0070ad]/20"
-                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
             )}
           >
             <History className="w-4 h-4" />
@@ -237,7 +237,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                   "px-2 py-0.5 rounded-full text-[10px] font-extrabold",
                   activeTab === "history"
                     ? "bg-white/20 text-white"
-                    : "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                    : "bg-slate-200 text-slate-700"
                 )}
               >
                 {pastSessions.length}
@@ -249,7 +249,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
         {activeSession && activeSession.status === "ACTIVE" && (
           <div className="hidden sm:flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+            <span className="text-xs font-bold text-emerald-600">
               Exam In Progress
             </span>
           </div>
@@ -263,23 +263,23 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
         <div className="space-y-6">
           {/* Active In-Progress Assessment Alert Banner (Never lost on back button) */}
           {activeSession && activeSession.status === "ACTIVE" && (
-            <div className="relative overflow-hidden rounded-3xl border border-blue-500/40 bg-gradient-to-r from-blue-600/15 via-[#0070ad]/10 to-transparent dark:from-blue-900/30 dark:via-slate-900 dark:to-slate-950 p-6 backdrop-blur-xl shadow-lg animate-in slide-in-from-top-4 duration-300">
+            <div className="relative overflow-hidden rounded-3xl border border-blue-200 bg-gradient-to-r from-blue-50 via-sky-50/50 to-white p-6 backdrop-blur-xl shadow-xs animate-in slide-in-from-top-4 duration-300">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-700 border border-blue-200">
                       <Clock className="w-3 h-3" />
                       In-Progress Assessment Preserved
                     </span>
                     <span className="text-xs text-slate-400">•</span>
-                    <span className="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">
+                    <span className="text-xs font-mono font-bold text-slate-700">
                       Stage: {activeSession.currentStage}
                     </span>
                   </div>
-                  <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
+                  <h3 className="text-lg sm:text-xl font-black text-slate-900">
                     {activeSession.problem.title}
                   </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                  <p className="text-xs text-slate-600">
                     Your assessment state and chat history were preserved. Click resume to continue your proctored session right where you left off.
                   </p>
                 </div>
@@ -288,13 +288,13 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                   <button
                     onClick={handleAbandonActive}
                     disabled={abandonExamMutation.isPending}
-                    className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-500 dark:text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 transition-colors"
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors"
                   >
                     Abandon & Reset
                   </button>
                   <button
                     onClick={() => onStartExam(activeSession)}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#0070ad] to-[#00a3e0] text-white shadow-md shadow-[#0070ad]/30 hover:scale-105 transition-all"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#0070ad] to-[#00a3e0] text-white shadow-md shadow-[#0070ad]/25 hover:scale-105 transition-all"
                   >
                     <span>Resume Assessment</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -305,53 +305,53 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
           )}
 
           {/* Top Hero Banner */}
-          <div className="relative overflow-hidden rounded-3xl border border-[#0070ad]/30 bg-gradient-to-br from-[#0070ad]/15 via-[#00a3e0]/5 to-transparent dark:from-[#0070ad]/25 dark:via-slate-900/60 dark:to-slate-950 p-6 sm:p-8 backdrop-blur-xl shadow-lg">
+          <div className="relative overflow-hidden rounded-3xl border border-[#0070ad]/20 bg-gradient-to-br from-[#0070ad]/10 via-[#00a3e0]/5 to-white p-6 sm:p-8 backdrop-blur-xl shadow-xs">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
               <div className="space-y-3 max-w-3xl">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-[#0070ad] text-white shadow-xs">
                     Capgemini
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                    <Sparkles className="w-3.5 h-3.5" />
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                    <Sparkles className="w-3.5 h-3.5 text-[#0070ad]" />
                     AI Coding Assessment Arena
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
                     29 Curated DSA Problems
                   </span>
                 </div>
 
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">
                   Capgemini AI Coding Assessment Simulator
                 </h1>
 
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
                   Experience authentic Capgemini AI-collaborative coding evaluation. Instead of asking AI to solve the question for you, you guide, direct, and critically review a restricted AI assistant through 6 authoritative stages.
                 </p>
 
                 {/* 6-Stage Process Flow */}
-                <div className="pt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-400 font-mono">
-                  <span className="px-2 py-0.5 rounded-md bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 font-bold">
+                <div className="pt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600 font-mono">
+                  <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-bold shadow-2xs">
                     1. Understand
                   </span>
                   <span>→</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 font-bold">
+                  <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-bold shadow-2xs">
                     2. Approach
                   </span>
                   <span>→</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 font-bold">
+                  <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-bold shadow-2xs">
                     3. Structured Prompt
                   </span>
                   <span>→</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 font-bold">
+                  <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-bold shadow-2xs">
                     4. Code Review
                   </span>
                   <span>→</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 font-bold">
+                  <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-bold shadow-2xs">
                     5. Refine
                   </span>
                   <span>→</span>
-                  <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold shadow-2xs">
                     6. 100-Pt Scorecard
                   </span>
                 </div>
@@ -359,13 +359,13 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
 
               {/* Simulation Difficulty Selector & Start Assessment Button */}
               <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0">
-                <div className="p-3.5 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800/80 space-y-2">
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                <div className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-2 shadow-xs">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700">
                     <span className="flex items-center gap-1.5">
                       <Sliders className="w-3.5 h-3.5 text-[#0070ad]" />
                       Simulation Difficulty:
                     </span>
-                    <span className="text-[10px] uppercase font-extrabold text-[#0070ad] dark:text-[#00a3e0]">
+                    <span className="text-[10px] uppercase font-extrabold text-[#0070ad]">
                       {selectedDifficulty}
                     </span>
                   </div>
@@ -376,7 +376,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                         "px-3 py-1.5 rounded-xl text-xs font-bold transition-all text-center",
                         selectedDifficulty === "standard"
                           ? "bg-[#0070ad] text-white shadow-xs"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                          : "bg-slate-100 text-slate-600 hover:text-slate-900"
                       )}
                     >
                       Standard
@@ -387,13 +387,13 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                         "px-3 py-1.5 rounded-xl text-xs font-bold transition-all text-center",
                         selectedDifficulty === "hard"
                           ? "bg-rose-600 text-white shadow-xs"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                          : "bg-slate-100 text-slate-600 hover:text-slate-900"
                       )}
                     >
                       Strict / Hard
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-400 leading-tight">
+                  <p className="text-[10px] text-slate-500 leading-tight">
                     {selectedDifficulty === "hard"
                       ? "Seeds realistic defects & aggressively evaluates edge cases."
                       : "Standard Capgemini rigor with targeted defect checks."}
@@ -403,7 +403,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                 <button
                   onClick={handleLaunchRandom}
                   disabled={isStarting}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-black text-sm bg-gradient-to-r from-[#0070ad] to-[#00a3e0] hover:from-[#005a8c] hover:to-[#008cc0] text-white shadow-xl shadow-[#0070ad]/30 transition-all duration-300 hover:scale-[1.02] cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-black text-sm bg-gradient-to-r from-[#0070ad] to-[#00a3e0] hover:from-[#005a8c] hover:to-[#008cc0] text-white shadow-lg shadow-[#0070ad]/25 transition-all duration-300 hover:scale-[1.02] cursor-pointer"
                 >
                   <Dices className="w-4 h-4 fill-white" />
                   <span>{isStarting ? "Assigning Random Problem..." : "Start Assessment"}</span>
@@ -414,23 +414,23 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
           </div>
 
           {/* Random Problem Generator Information Card */}
-          <div className="p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/60 backdrop-blur-md space-y-4">
+          <div className="p-6 rounded-3xl border border-slate-200/80 bg-white/95 backdrop-blur-md shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Dices className="w-5 h-5 text-[#0070ad]" />
-                  <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                  <h2 className="text-base sm:text-lg font-black text-slate-900">
                     Random Problem Dispatcher (Capgemini DSA Bank)
                   </h2>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                <p className="text-xs text-slate-500 leading-relaxed">
                   When you click &ldquo;Start Assessment&rdquo;, a problem is selected at random from the 29-problem Capgemini practice set.
                 </p>
               </div>
 
               <button
                 onClick={() => setShowCustomModal(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shrink-0"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Practice Custom Statement</span>
@@ -439,50 +439,50 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
 
             {/* Categorical Breakdown Pills */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-              <div className="p-3 rounded-2xl bg-blue-500/5 border border-blue-500/15 space-y-1">
-                <span className="text-[10px] font-extrabold uppercase text-blue-600 dark:text-blue-400">
+              <div className="p-3 rounded-2xl bg-blue-50 border border-blue-100 space-y-1">
+                <span className="text-[10px] font-extrabold uppercase text-blue-700">
                   Arrays & Strings
                 </span>
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                <p className="text-xs font-bold text-slate-800">
                   9 Core Problems
                 </p>
-                <span className="text-[10px] text-slate-400 block">
+                <span className="text-[10px] text-slate-500 block">
                   Kadane, Sliding Window, Matrix, In-Place Shifts
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-amber-500/5 border border-amber-500/15 space-y-1">
-                <span className="text-[10px] font-extrabold uppercase text-amber-600 dark:text-amber-400">
+              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-100 space-y-1">
+                <span className="text-[10px] font-extrabold uppercase text-amber-700">
                   Math & Greedy
                 </span>
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                <p className="text-xs font-bold text-slate-800">
                   7 Core Problems
                 </p>
-                <span className="text-[10px] text-slate-400 block">
+                <span className="text-[10px] text-slate-500 block">
                   Stock Buy/Sell, Container, Two Sum, Jump Game
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-indigo-500/5 border border-indigo-500/15 space-y-1">
-                <span className="text-[10px] font-extrabold uppercase text-indigo-600 dark:text-indigo-400">
+              <div className="p-3 rounded-2xl bg-indigo-50 border border-indigo-100 space-y-1">
+                <span className="text-[10px] font-extrabold uppercase text-indigo-700">
                   Stacks & Lists
                 </span>
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                <p className="text-xs font-bold text-slate-800">
                   5 Core Problems
                 </p>
-                <span className="text-[10px] text-slate-400 block">
+                <span className="text-[10px] text-slate-500 block">
                   Cycle Detection, Reverse in K, NGE, Parentheses
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-emerald-500/5 border border-emerald-500/15 space-y-1">
-                <span className="text-[10px] font-extrabold uppercase text-emerald-600 dark:text-emerald-400">
+              <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-100 space-y-1">
+                <span className="text-[10px] font-extrabold uppercase text-emerald-700">
                   DP & Trees
                 </span>
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                <p className="text-xs font-bold text-slate-800">
                   8 Core Problems
                 </p>
-                <span className="text-[10px] text-slate-400 block">
+                <span className="text-[10px] text-slate-500 block">
                   0/1 Knapsack, Coin Change, LCS, LIS, BST Pruning
                 </span>
               </div>
@@ -491,32 +491,32 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
 
           {/* Pre-Flight Exam Protocol Checklist */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800/80 space-y-1">
-              <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-bold text-xs">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs space-y-1">
+              <div className="flex items-center gap-2 text-blue-600 font-bold text-xs">
                 <ShieldCheck className="w-4 h-4" />
                 <span>Anti-Bypass Guard Active</span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              <p className="text-xs text-slate-500 leading-relaxed">
                 Requests like &quot;Give me the code&quot; or &quot;Solve this&quot; are intercepted. Candidates must demonstrate semantic reasoning.
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800/80 space-y-1">
-              <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-xs">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs space-y-1">
+              <div className="flex items-center gap-2 text-indigo-600 font-bold text-xs">
                 <Award className="w-4 h-4" />
                 <span>100-Point Process Rubric</span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              <p className="text-xs text-slate-500 leading-relaxed">
                 Graded on AI Literacy (25), Prompt Quality (25), Problem Solving (25), and Review & Adapt (25). Pass threshold: ≥70 pts.
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800/80 space-y-1">
-              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs space-y-1">
+              <div className="flex items-center gap-2 text-emerald-600 font-bold text-xs">
                 <Clock className="w-4 h-4" />
                 <span>State Persistence & Proctoring</span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              <p className="text-xs text-slate-500 leading-relaxed">
                 Exam states do not reset when clicking back or navigating away. All prompts and AI replies are saved securely.
               </p>
             </div>
@@ -531,16 +531,16 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-black text-slate-900 dark:text-white">
+              <h2 className="text-lg font-black text-slate-900">
                 Recent Assessment Attempts
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-500">
                 Inspect your prompts given, AI responses, code drafts, and 100-point evaluation scorecards.
               </p>
             </div>
 
             {/* Filter buttons */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl text-xs font-semibold">
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
               {(["ALL", "PASSED", "ACTIVE", "FAILED"] as const).map((filter) => (
                 <button
                   key={filter}
@@ -548,8 +548,8 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                   className={cn(
                     "px-3 py-1 rounded-lg text-xs transition-all",
                     historyFilter === filter
-                      ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-2xs font-bold"
-                      : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-300"
+                      ? "bg-white text-blue-600 shadow-2xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
                   )}
                 >
                   {filter}
@@ -559,11 +559,11 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
           </div>
 
           {filteredPastSessions.length === 0 ? (
-            <div className="p-8 sm:p-12 text-center rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 space-y-3">
+            <div className="p-8 sm:p-12 text-center rounded-3xl border border-slate-200/80 bg-white/70 space-y-3">
               <div className="w-12 h-12 mx-auto rounded-2xl bg-[#0070ad]/10 text-[#0070ad] flex items-center justify-center">
                 <BrainCircuit className="w-6 h-6" />
               </div>
-              <h3 className="font-bold text-slate-900 dark:text-white text-base">
+              <h3 className="font-bold text-slate-900 text-base">
                 No Assessment Attempts Recorded Yet
               </h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
@@ -578,7 +578,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
               </button>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100 dark:divide-slate-800/80 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 overflow-hidden shadow-sm">
+            <div className="divide-y divide-slate-100 rounded-3xl border border-slate-200/80 bg-white overflow-hidden shadow-xs">
               {filteredPastSessions.map((sess) => {
                 const candidatePromptsCount = sess.messages.filter((m) => m.role === "candidate").length
                 const assistantRepliesCount = sess.messages.filter((m) => m.role === "assistant").length
@@ -586,7 +586,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                 return (
                   <div
                     key={sess._id || sess.id}
-                    className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
+                    className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-slate-50/70 transition-colors"
                   >
                     <div className="space-y-1.5 max-w-xl">
                       <div className="flex flex-wrap items-center gap-2">
@@ -594,13 +594,13 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                           className={cn(
                             "text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border",
                             sess.status === "PASSED" &&
-                              "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+                              "bg-emerald-50 text-emerald-700 border-emerald-200",
                             sess.status === "FAILED" &&
-                              "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
+                              "bg-rose-50 text-rose-700 border-rose-200",
                             sess.status === "ACTIVE" &&
-                              "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+                              "bg-blue-50 text-blue-700 border-blue-200",
                             sess.status === "ABANDONED" &&
-                              "bg-slate-500/10 text-slate-500 border-slate-500/20"
+                              "bg-slate-100 text-slate-600 border-slate-200"
                           )}
                         >
                           {sess.status}
@@ -615,7 +615,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                         </span>
                       </div>
 
-                      <h4 className="font-bold text-base text-slate-900 dark:text-white">
+                      <h4 className="font-bold text-base text-slate-900">
                         {sess.problem.title}
                       </h4>
 
@@ -631,14 +631,14 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
 
                     <div className="flex flex-wrap items-center gap-3">
                       {sess.evaluation && (
-                        <div className="flex items-center gap-3 bg-slate-100/90 dark:bg-slate-800/80 px-4 py-2 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+                        <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200">
                           <div className="text-center">
                             <span className="text-[9px] font-bold uppercase text-slate-400">Total</span>
-                            <div className="text-base font-black text-slate-900 dark:text-white">
+                            <div className="text-base font-black text-slate-900">
                               {sess.evaluation.totalScore}/100
                             </div>
                           </div>
-                          <div className="h-6 w-px bg-slate-300 dark:bg-slate-700" />
+                          <div className="h-6 w-px bg-slate-200" />
                           <div className="text-[10px] text-slate-500 space-y-0.5">
                             <div>AI Lit: {sess.evaluation.aiLiteracy}/25</div>
                             <div>Prompt: {sess.evaluation.promptQuality}/25</div>
@@ -649,7 +649,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                       {/* View Chat Transcript button */}
                       <button
                         onClick={() => setSelectedTranscriptSession(sess)}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-all shadow-xs"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 transition-all shadow-xs"
                       >
                         <FileText className="w-3.5 h-3.5 text-[#0070ad]" />
                         <span>View Transcript & Prompts</span>
@@ -676,23 +676,23 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
       {/* TRANSCRIPT & CHAT HISTORY MODAL (Full turn-by-turn prompt inspection)  */}
       {/* ────────────────────────────────────────────────────────────────────── */}
       {selectedTranscriptSession && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative w-full max-w-4xl h-[90vh] flex flex-col rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#080d19] shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-4xl h-[90vh] flex flex-col rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden text-slate-900">
             {/* Modal Header */}
-            <div className="shrink-0 p-5 bg-slate-50 dark:bg-[#0c1326] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4">
+            <div className="shrink-0 p-5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span
                     className={cn(
                       "text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border",
                       selectedTranscriptSession.status === "PASSED" &&
-                        "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+                        "bg-emerald-50 text-emerald-700 border-emerald-200",
                       selectedTranscriptSession.status === "FAILED" &&
-                        "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
+                        "bg-rose-50 text-rose-700 border-rose-200",
                       selectedTranscriptSession.status === "ACTIVE" &&
-                        "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+                        "bg-blue-50 text-blue-700 border-blue-200",
                       selectedTranscriptSession.status === "ABANDONED" &&
-                        "bg-slate-500/10 text-slate-500 border-slate-500/20"
+                        "bg-slate-100 text-slate-600 border-slate-200"
                     )}
                   >
                     {selectedTranscriptSession.status}
@@ -702,14 +702,14 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                     Stage Reached: {selectedTranscriptSession.currentStage}
                   </span>
                 </div>
-                <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
+                <h3 className="text-lg sm:text-xl font-black text-slate-900">
                   {selectedTranscriptSession.problem.title} — Chat History & Prompts
                 </h3>
               </div>
 
               <button
                 onClick={() => setSelectedTranscriptSession(null)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -717,22 +717,22 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
 
             {/* Scorecard quick stats bar if evaluated */}
             {selectedTranscriptSession.evaluation && (
-              <div className="shrink-0 px-6 py-3 bg-[#0070ad]/10 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="shrink-0 px-6 py-3 bg-blue-50/80 border-b border-blue-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-800">
                 <div className="flex items-center gap-3">
                   <Award className="w-4 h-4 text-[#0070ad]" />
-                  <span className="font-bold text-slate-900 dark:text-white">
+                  <span className="font-bold text-slate-900">
                     Score: {selectedTranscriptSession.evaluation.totalScore}/100
                   </span>
-                  <span className="text-slate-400">•</span>
-                  <span className="text-slate-600 dark:text-slate-300">
+                  <span className="text-slate-300">•</span>
+                  <span className="text-slate-600">
                     AI Literacy: {selectedTranscriptSession.evaluation.aiLiteracy}/25
                   </span>
-                  <span className="text-slate-400">•</span>
-                  <span className="text-slate-600 dark:text-slate-300">
+                  <span className="text-slate-300">•</span>
+                  <span className="text-slate-600">
                     Prompting: {selectedTranscriptSession.evaluation.promptQuality}/25
                   </span>
-                  <span className="text-slate-400">•</span>
-                  <span className="text-slate-600 dark:text-slate-300">
+                  <span className="text-slate-300">•</span>
+                  <span className="text-slate-600">
                     Review: {selectedTranscriptSession.evaluation.reviewAndAdapt}/25
                   </span>
                 </div>
@@ -743,7 +743,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
             )}
 
             {/* Scrollable Conversation Stream */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50/50">
               {selectedTranscriptSession.messages.map((msg, idx) => {
                 const isCandidate = msg.role === "candidate"
                 const isAssistant = msg.role === "assistant"
@@ -758,17 +758,17 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                   >
                     <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium px-1">
                       {isCandidate ? (
-                        <span className="font-bold text-[#0070ad] dark:text-[#00a3e0]">
+                        <span className="font-bold text-[#0070ad]">
                           Candidate Prompt
                         </span>
                       ) : (
-                        <span className="font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                        <span className="font-bold text-slate-600 flex items-center gap-1">
                           <Terminal className="w-3 h-3 text-[#0070ad]" />
                           Capgemini AI Evaluator
                         </span>
                       )}
                       <span>•</span>
-                      <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 uppercase font-mono text-[9px]">
+                      <span className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 uppercase font-mono text-[9px]">
                         {msg.stage}
                       </span>
                       <span>•</span>
@@ -787,19 +787,19 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                         isCandidate
                           ? "bg-gradient-to-r from-[#0070ad] to-[#005a8c] text-white rounded-tr-xs"
                           : msg.isBypassAttempt
-                          ? "bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/30 rounded-tl-xs"
-                          : "bg-slate-100 dark:bg-[#0e1628] border border-slate-200/80 dark:border-slate-800 text-slate-900 dark:text-slate-200 rounded-tl-xs"
+                          ? "bg-rose-50 text-rose-700 border border-rose-200 rounded-tl-xs"
+                          : "bg-white border border-slate-200 text-slate-900 rounded-tl-xs"
                       )}
                     >
                       {msg.content}
 
                       {/* Missing requirements if any */}
                       {msg.missingRequirements && msg.missingRequirements.length > 0 && (
-                        <div className="mt-2.5 pt-2 border-t border-slate-300/40 dark:border-slate-800 space-y-1">
-                          <span className="text-[10px] font-extrabold uppercase text-slate-400">
+                        <div className="mt-2.5 pt-2 border-t border-slate-200 space-y-1">
+                          <span className="text-[10px] font-extrabold uppercase text-slate-500">
                             Required Focus Areas:
                           </span>
-                          <ul className="space-y-0.5 text-xs text-rose-500 dark:text-rose-400">
+                          <ul className="space-y-0.5 text-xs text-rose-600">
                             {msg.missingRequirements.map((r, i) => (
                               <li key={i} className="flex items-center gap-1">
                                 <span>•</span>
@@ -816,24 +816,24 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
 
               {/* Final Generated Code if exists */}
               {selectedTranscriptSession.generatedCode && (
-                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#070c18] overflow-hidden my-4">
-                  <div className="flex items-center justify-between px-4 py-2.5 bg-slate-100 dark:bg-[#0c1224] border-b border-slate-200 dark:border-slate-800">
+                <div className="rounded-2xl border border-slate-200 bg-slate-950 text-slate-100 overflow-hidden my-4 shadow-md">
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900 border-b border-slate-800">
                     <div className="flex items-center gap-2">
-                      <FileCode2 className="w-4 h-4 text-[#0070ad]" />
-                      <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-200">
+                      <FileCode2 className="w-4 h-4 text-[#00a3e0]" />
+                      <span className="text-xs font-mono font-bold text-slate-200">
                         Final Generated Code
                       </span>
                     </div>
                     <button
                       onClick={() => handleCopy(selectedTranscriptSession.generatedCode || "")}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono text-slate-400 hover:text-white transition-colors"
                     >
-                      {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                       <span>{copiedCode ? "Copied" : "Copy"}</span>
                     </button>
                   </div>
 
-                  <div className="p-4 font-mono text-xs overflow-x-auto max-h-[300px] leading-relaxed text-slate-800 dark:text-slate-200">
+                  <div className="p-4 font-mono text-xs overflow-x-auto max-h-[300px] leading-relaxed text-slate-100">
                     <pre>
                       <code>{selectedTranscriptSession.generatedCode}</code>
                     </pre>
@@ -843,14 +843,14 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
             </div>
 
             {/* Modal Footer */}
-            <div className="shrink-0 p-4 bg-slate-50 dark:bg-[#0c1326] border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+            <div className="shrink-0 p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
               <span className="text-xs text-slate-400">
-                Attempt ID: <code className="font-mono">{selectedTranscriptSession._id || selectedTranscriptSession.id}</code>
+                Attempt ID: <code className="font-mono text-slate-600">{selectedTranscriptSession._id || selectedTranscriptSession.id}</code>
               </span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setSelectedTranscriptSession(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors"
                 >
                   Close
                 </button>
@@ -874,20 +874,20 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
       {/* CUSTOM PROBLEM BUILDER MODAL                                           */}
       {/* ────────────────────────────────────────────────────────────────────── */}
       {showCustomModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="relative w-full max-w-xl rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-2xl max-h-[90vh] overflow-y-auto space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="relative w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl max-h-[90vh] overflow-y-auto space-y-5 text-slate-900">
             <div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-white">
+              <h3 className="text-xl font-black text-slate-900">
                 Create Custom Assessment Problem
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Enter your own problem statement to test Capgemini&apos;s AI-assisted assessment state machine.
               </p>
             </div>
 
             <form onSubmit={handleCreateCustomProblem} className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 block">
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block uppercase tracking-wider">
                   Problem Title
                 </label>
                 <input
@@ -896,12 +896,12 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                   value={customTitle}
                   onChange={(e) => setCustomTitle(e.target.value)}
                   placeholder="e.g. Find Longest Substring Without Repeating Characters"
-                  className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-white border border-slate-300 outline-none focus:ring-2 focus:ring-[#0070ad]/20 focus:border-[#0070ad] text-slate-900 placeholder:text-slate-400"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 block">
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block uppercase tracking-wider">
                   Problem Statement
                 </label>
                 <textarea
@@ -910,13 +910,13 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                   value={customDescription}
                   onChange={(e) => setCustomDescription(e.target.value)}
                   placeholder="Describe what the problem requires..."
-                  className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-white border border-slate-300 outline-none focus:ring-2 focus:ring-[#0070ad]/20 focus:border-[#0070ad] text-slate-900 placeholder:text-slate-400 resize-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 block">
+                  <label className="text-xs font-bold text-slate-700 mb-1.5 block uppercase tracking-wider">
                     Input Format
                   </label>
                   <input
@@ -924,11 +924,11 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                     value={customInputFormat}
                     onChange={(e) => setCustomInputFormat(e.target.value)}
                     placeholder="e.g. string s"
-                    className="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3.5 py-2 rounded-xl text-xs sm:text-sm bg-white border border-slate-300 outline-none focus:ring-2 focus:ring-[#0070ad]/20 focus:border-[#0070ad] text-slate-900 placeholder:text-slate-400"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 block">
+                  <label className="text-xs font-bold text-slate-700 mb-1.5 block uppercase tracking-wider">
                     Output Format
                   </label>
                   <input
@@ -936,28 +936,28 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                     value={customOutputFormat}
                     onChange={(e) => setCustomOutputFormat(e.target.value)}
                     placeholder="e.g. integer length"
-                    className="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3.5 py-2 rounded-xl text-xs sm:text-sm bg-white border border-slate-300 outline-none focus:ring-2 focus:ring-[#0070ad]/20 focus:border-[#0070ad] text-slate-900 placeholder:text-slate-400"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 block">
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block uppercase tracking-wider">
                   Constraints (one per line)
                 </label>
                 <textarea
                   rows={3}
                   value={customConstraints}
                   onChange={(e) => setCustomConstraints(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-none"
+                  className="w-full px-3.5 py-2 rounded-xl text-xs sm:text-sm bg-white border border-slate-300 outline-none focus:ring-2 focus:ring-[#0070ad]/20 focus:border-[#0070ad] text-slate-900 placeholder:text-slate-400 font-mono resize-none"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setShowCustomModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
                 >
                   Cancel
                 </button>
