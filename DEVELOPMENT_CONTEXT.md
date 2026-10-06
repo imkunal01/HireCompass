@@ -500,4 +500,44 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
     * Ran `npx tsc --noEmit`: 0 errors.
     * Ran `npm run lint`: 0 errors.
     * Browser subagent live audit on `http://localhost:3000/dashboard`: Verified 0 console errors, 0 runtime warnings, 0 hydration mismatches, and smooth rendering of pipeline chart, calendar, metric cards, and prep modules.
+- **2026-10-06 (Phase 23 Complete — Global Navbar Feature Buttons & Phone Mode "More" Drawer Overhaul)**:
+  - **User Problem & Request**:
+    * Desktop navigation lacked direct, visible top-bar buttons for critical high-frequency workflows like Coding Sheets (`/prep/problem-solving`), Smart JD Import (`/import`), and AI Assessment (`/assessment`).
+    * On phone/mobile view, essential tools like Smart JD Import were either missing or buried deep in submenus.
+  - **Implementations**:
+    * **Desktop Top Navbar (`components/layout/navbar.tsx`)**:
+      - Appended direct prominent navigation pills: **Sheets** (`/prep/problem-solving`), **JD Import** (`/import` with `AI` badge), and **AI Exam** (`/assessment` with `EXAM` badge), alongside Home, Jobs, Interviews, Analytics, and Admin.
+      - Integrated **Smart JD Import** into the Tools mega-menu under Execution & Vault.
+      - Responsive search optimization: renders compact search trigger on `<xl` viewports and expandable full `⌘K` omnibar on `xl:` and above to prevent pill clipping.
+    * **Mobile & Phone Mode ("More" Drawer) (`components/layout/bottom-nav.tsx` & `navbar.tsx`)**:
+      - Renamed 5th tab on the floating bottom dock to **"More"**.
+      - Added a highlighted **Featured Shortcuts** grid right at the top of the mobile sheet featuring **Smart JD Import** (with `AI` badge) and **Coding Sheets** (with `DSA` badge).
+- **2026-10-06 (Phase 24 Complete — AI Assessment De-Branding, Mobile UI Disambiguation, Sweety Draggable FAB & Mobile Nav Overhaul)**:
+  - **User Requests**:
+    * Remove specific "Capgemini" branding/tagging from the AI-assisted coding simulator while keeping the 6-stage workflow intact.
+    * Improve phone/mobile mode UI for the AI Assessment environment: distinctly differentiate the Problem Statement panel, Chat Thread, and Prompt Input field.
+    * Fix Sweety AI on mobile: prevent the chat background from blending into the underlying page content, and make her floating action button draggable so it doesn't obstruct reading.
+    * Update mobile phone bottom navigation: replace Jobs, Interviews, Analytics with AI Exam, Day Planner, and Cold Outreach, and ensure Jobs, Interviews, and Analytics remain accessible via the "More" drawer.
+  - **Implementations**:
+    * **AI Assessment De-Branding (`exam-environment.tsx`, `assessment-lobby.tsx`, `navbar.tsx`, `bottom-nav.tsx`, `command-palette.tsx`, `product-tour.tsx`)**:
+      - Removed all explicit Capgemini badges and branding; replaced with `PROCTORED EXAM`, `Enterprise Proctored Exam Simulators`, and `AI-Assisted Coding Assessment Simulator`.
+      - Updated Scorecard Modal to `AI Assessment Evaluation Scorecard`.
+      - Updated Evaluator label to `AI Assessment Proctor` / `AI Assessment Evaluator`.
+    * **Assessment Mobile Layout & Visual Hierarchy (`exam-environment.tsx`)**:
+      - Added explicit **Problem Statement Panel** identifier header and difficulty badge on the left pane.
+      - Added explicit **Evaluation Chat Thread** header on the right pane with a mobile quick-jump button (`View Statement →`).
+      - Completely redesigned the docked **Prompt Input Field** container with a 2px high-contrast border, elevated top shadow, stage badge (`Stage X/6: [Stage Name]`), quick suggested prompts, and dedicated submit button.
+      - Maintained smooth mobile tab switching (`Problem Spec` vs `Chat & Prompting`) without outer page scroll conflicts.
+    * **Sweety AI Draggable FAB & Anti-Bleed UI (`agent-chat.tsx`)**:
+      - Replaced translucent `/95` and `/40` background opacities with 100% solid opaque backgrounds (`bg-white dark:bg-slate-900` for panel and header, `bg-slate-100/95 dark:bg-slate-950` for message history) to eliminate text and aurora bleed-through.
+      - Added a mobile dimming backdrop overlay (`bg-slate-950/60 backdrop-blur-xs`) when Sweety is open on small viewports.
+      - Built pointer-captured draggable FAB icon with boundary clamping (safe margin from navbar and mobile bottom nav), drag-distance threshold (dist > 6px) to prevent accidental click triggers, `touch-none` / `cursor-grab`, and `localStorage` position persistence.
+    * **Mobile Bottom Nav Overhaul (`bottom-nav.tsx`)**:
+      - Updated the 5 main bottom dock items to: **Home** (`/dashboard`), **AI Exam** (`/assessment`), **Planner** (`/planner`), **Outreach** (`/outreach`), and **More** (drawer trigger).
+      - Added a prominent **Core Tracking & Pipeline** section in the "More" sheet containing **Jobs** (`/applications`), **Interviews** (`/interviews`), and **Analytics** (`/analytics`).
+    * **Mobile Notification Drawer Fix (`navbar.tsx`)**:
+      - Fixed issue where the notification menu on phones was horizontally clipped off the left screen edge and cut off vertically.
+      - On phone viewports (`< 640px`), `NotificationDropdown` now portals directly to `document.body` via `createPortal`, rendering as a dedicated full-width mobile bottom drawer with drag handle, dimming backdrop (`bg-slate-950/60 backdrop-blur-xs`), pinned header/footer, safe-area padding, and internal scrolling up to `85dvh`.
+      - Added `data-notification-drawer` guard to prevent outside-click listeners from accidentally dismissing the drawer on touch/scroll interactions.
+      - Preserved elegant compact dropdown popover for desktop (`sm:`).
 

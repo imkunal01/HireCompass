@@ -65,7 +65,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     title: "AI Coding Assessment Arena",
-    subtitle: "Capgemini & Enterprise Proctored Exam Simulators",
+    subtitle: "Enterprise Proctored Exam Simulators",
     icon: BrainCircuit,
     badge: "TESTING SUITE",
     color: "#0284C7",
@@ -73,7 +73,7 @@ const TOUR_STEPS: TourStep[] = [
     content:
       "Practice 6-stage AI-assisted technical assessments simulating real hiring formats (Understanding -> Approach -> Prompting -> Code Generation -> Defect Review -> 100-Point Scorecard).",
     bullets: [
-      "29 curated Capgemini DSA practice problems across all tracks",
+      "29 curated DSA practice problems across all tracks",
       "Zero-bypass backend evaluation: prompts are tested for technical rigor",
       "Review past session transcripts and full line-by-line diffs",
     ],

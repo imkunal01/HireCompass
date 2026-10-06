@@ -310,7 +310,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
               <div className="space-y-3 max-w-3xl">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-[#0070ad] text-white shadow-xs">
-                    Capgemini
+                    PROCTORED EXAM
                   </span>
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                     <Sparkles className="w-3.5 h-3.5 text-[#0070ad]" />
@@ -322,11 +322,11 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                 </div>
 
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">
-                  Capgemini AI Coding Assessment Simulator
+                  AI-Assisted Coding Assessment Simulator
                 </h1>
 
                 <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                  Experience authentic Capgemini AI-collaborative coding evaluation. Instead of asking AI to solve the question for you, you guide, direct, and critically review a restricted AI assistant through 6 authoritative stages.
+                  Experience authentic enterprise AI-collaborative coding evaluation. Instead of asking AI to solve the question for you, you guide, direct, and critically review a restricted AI assistant through 6 authoritative stages.
                 </p>
 
                 {/* 6-Stage Process Flow */}
@@ -396,7 +396,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                   <p className="text-[10px] text-slate-500 leading-tight">
                     {selectedDifficulty === "hard"
                       ? "Seeds realistic defects & aggressively evaluates edge cases."
-                      : "Standard Capgemini rigor with targeted defect checks."}
+                      : "Standard enterprise rigor with targeted defect checks."}
                   </p>
                 </div>
 
@@ -420,11 +420,11 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                 <div className="flex items-center gap-2">
                   <Dices className="w-5 h-5 text-[#0070ad]" />
                   <h2 className="text-base sm:text-lg font-black text-slate-900">
-                    Random Problem Dispatcher (Capgemini DSA Bank)
+                    Random Problem Dispatcher (DSA Question Bank)
                   </h2>
                 </div>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  When you click &ldquo;Start Assessment&rdquo;, a problem is selected at random from the 29-problem Capgemini practice set.
+                  When you click &ldquo;Start Assessment&rdquo;, a problem is selected at random from the 29-problem practice set.
                 </p>
               </div>
 
@@ -567,7 +567,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                 No Assessment Attempts Recorded Yet
               </h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Head over to the Assessment Arena tab to launch your first randomized Capgemini coding test.
+                Head over to the Assessment Arena tab to launch your first randomized coding assessment.
               </p>
               <button
                 onClick={() => setActiveTab("arena")}
@@ -760,7 +760,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                       ) : (
                         <span className="font-bold text-slate-600 flex items-center gap-1">
                           <Terminal className="w-3 h-3 text-[#0070ad]" />
-                          Capgemini AI Evaluator
+                          AI Assessment Evaluator
                         </span>
                       )}
                       <span>•</span>
@@ -877,7 +877,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                 Create Custom Assessment Problem
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Enter your own problem statement to test Capgemini&apos;s AI-assisted assessment state machine.
+                Enter your own problem statement to test the AI-assisted assessment state machine.
               </p>
             </div>
 

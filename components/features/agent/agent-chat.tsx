@@ -293,6 +293,118 @@ export default function AgentChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const fabRef = useRef<HTMLButtonElement>(null)
+
+  // ─── Draggable FAB Position & Touch/Mouse Handlers ──────────────────────────
+  const [fabPos, setFabPos] = useState<{ x: number; y: number } | null>(null)
+  const isDraggingRef = useRef(false)
+  const dragStartRef = useRef<{ pointerX: number; pointerY: number; startX: number; startY: number } | null>(null)
+
+  // Restore saved FAB position
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("sweety_fab_pos")
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (typeof parsed?.x === "number" && typeof parsed?.y === "number") {
+          const btnWidth = 56
+          const btnHeight = 56
+          const isMobile = window.innerWidth < 640
+          const bottomSafe = isMobile ? 85 : 24
+          const clampedX = Math.max(12, Math.min(window.innerWidth - btnWidth - 12, parsed.x))
+          const clampedY = Math.max(64, Math.min(window.innerHeight - btnHeight - bottomSafe, parsed.y))
+          setFabPos({ x: clampedX, y: clampedY })
+        }
+      }
+    } catch {}
+  }, [])
+
+  // Keep clamped to viewport on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setFabPos((prev) => {
+        if (!prev) return null
+        const btnWidth = fabRef.current?.offsetWidth || 56
+        const btnHeight = fabRef.current?.offsetHeight || 56
+        const isMobile = window.innerWidth < 640
+        const bottomSafe = isMobile ? 85 : 24
+        const clampedX = Math.max(12, Math.min(window.innerWidth - btnWidth - 12, prev.x))
+        const clampedY = Math.max(64, Math.min(window.innerHeight - btnHeight - bottomSafe, prev.y))
+        return { x: clampedX, y: clampedY }
+      })
+    }
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (e.button !== 0) return
+    if (!fabRef.current) return
+
+    const rect = fabRef.current.getBoundingClientRect()
+    dragStartRef.current = {
+      pointerX: e.clientX,
+      pointerY: e.clientY,
+      startX: rect.left,
+      startY: rect.top,
+    }
+    isDraggingRef.current = false
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {}
+  }
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragStartRef.current) return
+
+    const dx = e.clientX - dragStartRef.current.pointerX
+    const dy = e.clientY - dragStartRef.current.pointerY
+    const dist = Math.hypot(dx, dy)
+
+    if (dist > 6) {
+      isDraggingRef.current = true
+    }
+
+    if (isDraggingRef.current) {
+      const btnWidth = fabRef.current?.offsetWidth || 56
+      const btnHeight = fabRef.current?.offsetHeight || 56
+      const isMobile = window.innerWidth < 640
+      const bottomSafe = isMobile ? 85 : 20
+      const minX = 12
+      const maxX = Math.max(12, window.innerWidth - btnWidth - 12)
+      const minY = 64
+      const maxY = Math.max(minY, window.innerHeight - btnHeight - bottomSafe)
+
+      const nextX = Math.max(minX, Math.min(maxX, dragStartRef.current.startX + dx))
+      const nextY = Math.max(minY, Math.min(maxY, dragStartRef.current.startY + dy))
+
+      setFabPos({ x: nextX, y: nextY })
+    }
+  }
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    } catch {}
+
+    dragStartRef.current = null
+
+    if (isDraggingRef.current) {
+      if (fabPos) {
+        try {
+          localStorage.setItem("sweety_fab_pos", JSON.stringify(fabPos))
+        } catch {}
+      }
+      setTimeout(() => {
+        isDraggingRef.current = false
+      }, 60)
+    }
+  }
+
+  const handleFabClick = () => {
+    if (isDraggingRef.current) return
+    setOpen((prev) => !prev)
+  }
 
   // ── Load Guest Usage on Mount ─────────────────────────────────────────────
   useEffect(() => {
@@ -533,28 +645,37 @@ export default function AgentChat() {
 
   return createPortal(
     <>
+      {/* ── Mobile Dimming Backdrop Overlay ────────────────────────────────────── */}
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-[9996] bg-slate-950/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+          aria-hidden="true"
+        />
+      )}
+
       {/* ── Chat Panel ─────────────────────────────────────────────────────── */}
       <div
         ref={panelRef}
         className={cn(
-          "fixed bottom-24 right-3 sm:right-6 z-[9998]",
-          "w-[calc(100vw-1.5rem)] sm:w-[380px]",
+          "fixed bottom-20 sm:bottom-24 left-3 right-3 sm:left-auto sm:right-6 z-[9998]",
+          "w-[calc(100vw-1.5rem)] sm:w-[385px] max-w-[420px] sm:max-w-none mx-auto sm:mx-0",
           "flex flex-col",
           "rounded-2xl overflow-hidden",
-          "shadow-2xl shadow-indigo-900/20 dark:shadow-black/60 ring-1 ring-slate-900/5 dark:ring-white/10",
-          "border border-white/80 dark:border-slate-800/80",
-          "bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl",
+          "shadow-2xl shadow-slate-950/25 dark:shadow-black/80 ring-1 ring-slate-900/10 dark:ring-white/10",
+          "border-2 border-indigo-200/90 dark:border-slate-700",
+          "bg-white dark:bg-slate-900",
           "transition-all duration-300 ease-out",
           open
             ? "opacity-100 translate-y-0 pointer-events-auto"
             : "opacity-0 translate-y-4 pointer-events-none"
         )}
         style={{
-          maxHeight: "min(600px, calc(100dvh - 160px))",
+          maxHeight: "min(600px, calc(100dvh - 150px))",
         }}
       >
-        {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-200/70 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-800/60 shrink-0">
+        {/* Header (100% Solid) */}
+        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 shrink-0">
           <SweetyAvatar className="w-10 h-10 rounded-[14px] shadow-sm shadow-indigo-900/10" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -590,24 +711,25 @@ export default function AgentChat() {
             <button
               onClick={() => setOpen(false)}
               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title="Close chat"
             >
               <ChevronDown className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-3.5 py-4 space-y-4 scroll-smooth bg-slate-50/40 dark:bg-slate-950/40">
+        {/* Messages (100% Solid Background, No bleed through) */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-3.5 py-4 space-y-4 scroll-smooth bg-slate-100/95 dark:bg-slate-950">
           {messages.map((msg, i) => (
             <MessageBubble key={i} msg={msg} onNavigate={navigate} />
           ))}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Quick Suggestions (shown only when 1 message = intro) */}
+        {/* Quick Suggestions (shown only when 1 message = intro) (100% Solid) */}
         {messages.length === 1 && (
-          <div className="px-3.5 pb-4 shrink-0 bg-slate-50/40 dark:bg-slate-950/40">
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-2.5 font-bold uppercase tracking-wider pl-1">Suggested for you</p>
+          <div className="px-3.5 pb-4 shrink-0 bg-slate-100/95 dark:bg-slate-950 border-t border-slate-200/60 dark:border-slate-800/80 pt-2.5">
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-2 font-bold uppercase tracking-wider pl-1">Suggested for you</p>
             <div className="flex flex-wrap gap-1.5">
               {SUGGESTIONS.map((s) => (
                 <button
@@ -673,7 +795,7 @@ export default function AgentChat() {
             </div>
           </div>
         ) : (
-          <div className="px-3.5 pb-3.5 shrink-0 border-t border-slate-200/70 dark:border-slate-800/80 bg-white dark:bg-slate-900 pt-3.5">
+          <div className="px-3.5 pb-3.5 shrink-0 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 pt-3.5">
             <div className="flex items-end gap-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 shadow-inner-sm focus-within:border-indigo-400 dark:focus-within:border-indigo-500 focus-within:bg-white dark:focus-within:bg-slate-800 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all duration-200">
               <textarea
                 ref={inputRef}
@@ -703,25 +825,44 @@ export default function AgentChat() {
                 )}
               </button>
             </div>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-2.5 font-medium">
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-2 font-medium">
               Enter to send · Shift+Enter for newline
             </p>
           </div>
         )}
       </div>
 
-      {/* ── Floating Trigger Button (Circular FAB placed above mobile bottom nav) ── */}
+      {/* ── Floating Trigger Button (Circular Draggable FAB) ── */}
       <button
-        onClick={() => setOpen((p) => !p)}
+        ref={fabRef}
+        onClick={handleFabClick}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         id="hire-bot-trigger"
         data-agent-chat="true"
+        title={open ? "Close Sweety" : "Open Sweety (Drag anywhere to reposition)"}
+        style={
+          fabPos
+            ? {
+                left: `${fabPos.x}px`,
+                top: `${fabPos.y}px`,
+                bottom: "auto",
+                right: "auto",
+                touchAction: "none",
+              }
+            : {
+                touchAction: "none",
+              }
+        }
         className={cn(
-          "fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-[9999]",
-          "w-12 h-12 sm:w-14 sm:h-14 rounded-full",
-          "flex items-center justify-center cursor-pointer",
-          "shadow-xl shadow-indigo-900/20 dark:shadow-black/60",
-          "border border-white/80 dark:border-white/20",
-          "hover:scale-105 active:scale-95 transition-all duration-300 ease-out",
+          fabPos ? "fixed z-[9999]" : "fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-[9999]",
+          "w-12 h-12 sm:w-14 sm:h-14 rounded-full select-none touch-none",
+          "flex items-center justify-center cursor-grab active:cursor-grabbing",
+          "shadow-xl shadow-indigo-900/30 dark:shadow-black/70",
+          "border-2 border-white dark:border-slate-700",
+          "hover:scale-105 active:scale-95 transition-transform duration-200 ease-out",
           open
             ? "bg-slate-800 dark:bg-slate-700 text-white"
             : "btn-primary-glow bg-gradient-to-br from-indigo-500 to-violet-600"
@@ -739,7 +880,7 @@ export default function AgentChat() {
         {open ? (
           <X className="h-6 w-6 text-white relative z-10" />
         ) : (
-          <div className="relative w-full h-full p-1 flex items-center justify-center">
+          <div className="relative w-full h-full p-1 flex items-center justify-center pointer-events-none">
             <SweetyAvatar
               className="w-full h-full rounded-full bg-transparent border-none shadow-none"
               imageClass="drop-shadow-md rounded-full"
@@ -756,12 +897,22 @@ export default function AgentChat() {
       </button>
 
       {/* Sweet Welcome Popup */}
-      {!open && welcomePopup && (
+      {!open && welcomePopup && !isDraggingRef.current && (
         <div
+          style={
+            fabPos
+              ? {
+                  left: `${Math.max(12, fabPos.x - 260)}px`,
+                  top: `${Math.max(70, fabPos.y - 10)}px`,
+                  bottom: "auto",
+                  right: "auto",
+                }
+              : undefined
+          }
           className={cn(
-            "fixed bottom-20 sm:bottom-8 right-20 sm:right-24 z-[9997]",
+            fabPos ? "fixed z-[9997]" : "fixed bottom-20 sm:bottom-8 right-20 sm:right-24 z-[9997]",
             "flex items-center gap-3 px-4 py-3 rounded-2xl rounded-br-sm",
-            "bg-white/95 dark:bg-slate-800/95 border border-indigo-100 dark:border-slate-700 shadow-xl",
+            "bg-white dark:bg-slate-800 border-2 border-indigo-100 dark:border-slate-700 shadow-xl",
             "text-slate-800 dark:text-slate-100 text-sm font-medium max-w-[280px]",
             "animate-in slide-in-from-right-4 fade-in duration-300 backdrop-blur-md"
           )}

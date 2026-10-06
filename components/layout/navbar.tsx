@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from "react"
+import { createPortal } from "react-dom"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -34,6 +35,7 @@ import {
   ShieldCheck,
   Flame,
   ArrowRight,
+  Wand2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/hooks/useUser"
@@ -97,6 +99,8 @@ function getTimeLabel(dateStr?: string | null): string {
 function NotificationDropdown({ onClose }: { onClose: () => void }) {
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default")
   const [isClearing, setIsClearing] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const queryClient = useQueryClient()
   
   const { data: reminders = [] } = useQuery<Reminder[]>({
@@ -108,11 +112,17 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
   })
 
   useEffect(() => {
+    setMounted(true)
     if (typeof window === "undefined" || !("Notification" in window)) {
       setNotifPermission("unsupported")
     } else {
       setNotifPermission(Notification.permission)
     }
+
+    const checkMobile = () => setIsMobile(window.innerWidth < 640)
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
+    return () => window.removeEventListener("resize", checkMobile)
   }, [])
 
   const requestPermission = async () => {
@@ -154,15 +164,15 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
     })
     .slice(0, 6)
 
-  return (
-    <div className="absolute right-0 top-full mt-2 w-[340px] sm:w-96 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl shadow-slate-900/10 dark:shadow-black/60 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+  const dropdownBody = (
+    <>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850">
+      <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 shrink-0">
         <div className="flex items-center gap-2">
           <Bell className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-          <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm">Notifications</span>
+          <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">Notifications</span>
           {reminders.length > 0 && (
-            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
+            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white shadow-xs">
               {reminders.length > 9 ? "9+" : reminders.length}
             </span>
           )}
@@ -172,13 +182,17 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
             <button
               onClick={handleClearAll}
               disabled={isClearing}
-              className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:bg-indigo-100/50 dark:hover:bg-indigo-950/80 px-2 py-1 rounded-md transition-colors disabled:opacity-50 flex items-center gap-1"
+              className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:bg-indigo-100/50 dark:hover:bg-indigo-950/80 px-2 py-1 rounded-md transition-colors disabled:opacity-50 flex items-center gap-1"
             >
               {isClearing && <Loader2 className="h-3 w-3 animate-spin" />}
               Clear all
             </button>
           )}
-          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+            aria-label="Close"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -186,10 +200,10 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
 
       {/* Notification permission banner */}
       {notifPermission === "default" && (
-        <div className="px-4 py-2.5 bg-indigo-50 dark:bg-indigo-950/50 border-b border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+        <div className="px-4 py-2.5 bg-indigo-50 dark:bg-indigo-950/50 border-b border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
             <BellRing className="h-4 w-4 text-indigo-500 dark:text-indigo-400 flex-shrink-0" />
-            <p className="text-xs text-indigo-700 dark:text-indigo-300 font-medium">Enable push alerts for deadlines</p>
+            <p className="text-xs text-indigo-700 dark:text-indigo-300 font-medium truncate">Enable push alerts for deadlines</p>
           </div>
           <button
             onClick={requestPermission}
@@ -201,7 +215,7 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
       )}
 
       {/* Reminders list */}
-      <div className="max-h-80 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/60">
+      <div className="flex-1 max-h-80 sm:max-h-80 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/60">
         {sorted.length === 0 ? (
           <div className="py-10 text-center">
             <CheckCircle className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
@@ -244,16 +258,55 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+      <div className="px-4 py-3 sm:py-2.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:pb-2.5 shrink-0">
         <Link
           href="/reminders"
           onClick={onClose}
-          className="flex items-center justify-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
+          className="flex items-center justify-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors py-0.5"
         >
           <Calendar className="h-3.5 w-3.5" />
-          View all reminders
+          View all reminders & deadlines
         </Link>
       </div>
+    </>
+  )
+
+  // Mobile Phone Drawer (Portalled to document.body, breaks out of header containing block)
+  if (mounted && isMobile) {
+    return createPortal(
+      <div className="fixed inset-0 z-[100] flex flex-col justify-end pointer-events-auto">
+        {/* Dimming Backdrop Overlay */}
+        <div
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+
+        {/* Drawer Bottom Sheet */}
+        <div
+          data-notification-drawer="true"
+          className="relative z-10 w-full bg-white dark:bg-slate-900 rounded-t-3xl border-t-2 border-indigo-200/90 dark:border-slate-800 shadow-2xl flex flex-col max-h-[85dvh] overflow-hidden animate-in slide-in-from-bottom-6 duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Top handle pill */}
+          <div className="pt-3 pb-1 flex justify-center shrink-0">
+            <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
+          </div>
+
+          {dropdownBody}
+        </div>
+      </div>,
+      document.body
+    )
+  }
+
+  // Desktop Popover Dropdown
+  return (
+    <div
+      data-notification-drawer="true"
+      className="absolute right-0 top-full mt-2 w-96 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl shadow-slate-900/10 dark:shadow-black/60 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200"
+    >
+      {dropdownBody}
     </div>
   )
 }
@@ -306,8 +359,13 @@ export default function Navbar() {
   // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setNotifOpen(false)
+      if (notifRef.current) {
+        const isInsideNotif =
+          notifRef.current.contains(e.target as Node) ||
+          Boolean((e.target as Element)?.closest?.("[data-notification-drawer]"))
+        if (!isInsideNotif) {
+          setNotifOpen(false)
+        }
       }
       if (toolsRef.current && !toolsRef.current.contains(e.target as Node)) {
         setToolsOpen(false)
@@ -330,27 +388,28 @@ export default function Navbar() {
   // Navigation Items
   const isHomeActive = pathname === "/dashboard"
   const isJobsActive = pathname.startsWith("/applications") || pathname.startsWith("/opportunities")
+  const isSheetsActive = pathname.startsWith("/prep/problem-solving")
+  const isImportActive = pathname.startsWith("/import")
+  const isAssessmentActive = pathname.startsWith("/assessment")
   const isInterviewsActive = pathname.startsWith("/interviews")
   const isAnalyticsActive = pathname.startsWith("/analytics")
   const isAdminActive = pathname.startsWith("/admin")
   const isToolsActive =
-    pathname.startsWith("/prep") ||
-    pathname.startsWith("/assessment") ||
+    (pathname.startsWith("/prep") && !pathname.startsWith("/prep/problem-solving")) ||
     pathname.startsWith("/planner") ||
     pathname.startsWith("/outreach") ||
     pathname.startsWith("/projects") ||
     pathname.startsWith("/resumes") ||
     pathname.startsWith("/rejected") ||
-    pathname.startsWith("/import") ||
     pathname.startsWith("/settings")
 
   return (
     <>
       <header id="hirecompass-global-navbar" className="sticky top-0 z-30 w-full border-b border-white/50 dark:border-slate-800/80 bg-white/45 dark:bg-slate-900/60 backdrop-blur-2xl backdrop-saturate-150 transition-colors duration-200 shadow-[0_1px_12px_rgba(0,0,0,0.03)]">
-        <div className="w-full flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8 gap-3">
+        <div className="w-full flex h-16 items-center justify-between px-3 sm:px-6 lg:px-8 gap-2 sm:gap-3">
           
           {/* ── Left: Brand Logo & Wordmark ── */}
-          <div className="flex items-center gap-6 shrink-0">
+          <div className="flex items-center gap-4 xl:gap-6 shrink-0">
             <Link href="/dashboard" className="flex items-center gap-2.5 group">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 text-white shadow-md shadow-indigo-500/25 group-hover:scale-105 transition-transform duration-200">
                 <svg
@@ -378,77 +437,135 @@ export default function Navbar() {
               <Link
                 href="/dashboard"
                 className={cn(
-                  "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200",
+                  "flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200",
                   isHomeActive
                     ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-500/20"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-700/50"
                 )}
               >
                 <Home className="h-3.5 w-3.5" />
-                Home
+                <span>Home</span>
               </Link>
 
               {/* 2. Jobs */}
               <Link
                 href="/applications"
                 className={cn(
-                  "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200",
+                  "flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200",
                   isJobsActive
                     ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-500/20"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-700/50"
                 )}
               >
                 <Briefcase className="h-3.5 w-3.5" />
-                Jobs
+                <span>Jobs</span>
               </Link>
 
-              {/* 3. Interviews */}
+              {/* 3. Coding Sheets */}
+              <Link
+                href="/prep/problem-solving"
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200",
+                  isSheetsActive
+                    ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm shadow-emerald-500/20"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-700/50"
+                )}
+              >
+                <ListChecks className="h-3.5 w-3.5" />
+                <span>Sheets</span>
+              </Link>
+
+              {/* 4. Smart JD Import */}
+              <Link
+                href="/import"
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 group",
+                  isImportActive
+                    ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-500/20"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-700/50"
+                )}
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+                <span>JD Import</span>
+                <span className={cn(
+                  "rounded px-1 py-0.2 text-[8px] font-black uppercase tracking-wider",
+                  isImportActive
+                    ? "bg-white/20 text-white"
+                    : "bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300"
+                )}>
+                  AI
+                </span>
+              </Link>
+
+              {/* 5. AI Exam */}
+              <Link
+                href="/assessment"
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 group",
+                  isAssessmentActive
+                    ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-500/20"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-700/50"
+                )}
+              >
+                <Terminal className="h-3.5 w-3.5" />
+                <span>AI Exam</span>
+                <span className={cn(
+                  "rounded px-1 py-0.2 text-[8px] font-black uppercase tracking-wider",
+                  isAssessmentActive
+                    ? "bg-white/20 text-white"
+                    : "bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300"
+                )}>
+                  EXAM
+                </span>
+              </Link>
+
+              {/* 6. Interviews */}
               <Link
                 href="/interviews"
                 className={cn(
-                  "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200",
+                  "flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200",
                   isInterviewsActive
                     ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-500/20"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-700/50"
                 )}
               >
                 <Calendar className="h-3.5 w-3.5" />
-                Interviews
+                <span>Interviews</span>
               </Link>
 
-              {/* 4. Analytics */}
+              {/* 7. Analytics */}
               <Link
                 href="/analytics"
                 className={cn(
-                  "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200",
+                  "flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200",
                   isAnalyticsActive
                     ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-500/20"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-700/50"
                 )}
               >
                 <BarChart3 className="h-3.5 w-3.5" />
-                Analytics
+                <span>Analytics</span>
               </Link>
 
-              {/* 5. Tools (Mega-Dropdown) */}
+              {/* 8. More / Tools (Mega-Dropdown) */}
               <div className="relative" ref={toolsRef}>
                 <button
                   onClick={() => setToolsOpen((v) => !v)}
                   className={cn(
-                    "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200",
+                    "flex items-center gap-1 px-2.5 xl:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200",
                     isToolsActive || toolsOpen
                       ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm"
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-700/50"
                   )}
                 >
                   <LayoutGrid className="h-3.5 w-3.5" />
-                  Tools
+                  <span>More</span>
                   <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", toolsOpen && "rotate-180")} />
                 </button>
 
                 {/* Tools Dropdown Menu */}
                 {toolsOpen && (
-                  <div className="absolute left-0 top-full mt-2 w-[460px] rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="absolute left-0 top-full mt-2 w-[480px] rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
                     <div className="grid grid-cols-2 gap-4">
                       {/* Prep & Testing Hub */}
                       <div className="space-y-1.5">
@@ -470,7 +587,7 @@ export default function Navbar() {
                               </span>
                               <span className="rounded bg-indigo-100 dark:bg-indigo-900/60 px-1 text-[8px] font-bold text-indigo-600 dark:text-indigo-300">EXAM</span>
                             </div>
-                            <p className="text-[10px] text-slate-400">Capgemini proctored console</p>
+                            <p className="text-[10px] text-slate-400">Proctored exam console</p>
                           </div>
                         </Link>
 
@@ -547,11 +664,31 @@ export default function Navbar() {
                         )}
                       </div>
 
-                      {/* Daily Execution & Vault */}
+                      {/* Execution, Ingestion & Vault */}
                       <div className="space-y-1.5 border-l border-slate-100 dark:border-slate-800 pl-4">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-2">
                           Execution & Vault
                         </p>
+                        
+                        <Link
+                          href="/import"
+                          onClick={() => setToolsOpen(false)}
+                          className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-indigo-50/70 dark:hover:bg-indigo-950/50 transition-colors group"
+                        >
+                          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400">
+                            <Wand2 className="h-3.5 w-3.5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                                Smart JD Import
+                              </span>
+                              <span className="rounded bg-indigo-100 dark:bg-indigo-900/60 px-1 text-[8px] font-bold text-indigo-600 dark:text-indigo-300">AI</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400">Instant URL & text job parser</p>
+                          </div>
+                        </Link>
+
                         <Link
                           href="/planner"
                           onClick={() => setToolsOpen(false)}
@@ -621,19 +758,19 @@ export default function Navbar() {
                 )}
               </div>
 
-              {/* 6. Admin Panel Pill (For Admin Users) */}
+              {/* 9. Admin Panel Pill (For Admin Users) */}
               {user?.role === "admin" && (
                 <Link
                   href="/admin"
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 border",
+                    "flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 border",
                     isAdminActive
                       ? "bg-gradient-to-r from-rose-600 via-rose-600 to-indigo-600 text-white shadow-sm shadow-rose-500/20 border-rose-500"
                       : "text-rose-600 dark:text-rose-400 border-rose-200/80 dark:border-rose-800/70 bg-rose-50/70 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60"
                   )}
                 >
                   <ShieldCheck className="h-3.5 w-3.5 text-rose-500" />
-                  Admin
+                  <span>Admin</span>
                   <span className="rounded bg-rose-200/80 dark:bg-rose-900/80 px-1 py-0.2 text-[8px] font-black text-rose-700 dark:text-rose-200">
                     PANEL
                   </span>
@@ -644,24 +781,24 @@ export default function Navbar() {
           </div>
 
           {/* ── Center-Right: Search Input / ⌘K Trigger ── */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => setCommandPaletteOpen(true)}
-              className="hidden md:flex items-center justify-between w-64 lg:w-80 rounded-full bg-slate-100/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-800 px-3.5 py-1.5 text-xs text-slate-500 dark:text-slate-400 border border-slate-200/80 dark:border-slate-700/80 shadow-inner-sm transition-all group"
+              className="hidden xl:flex items-center justify-between w-44 2xl:w-60 rounded-full bg-slate-100/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-800 px-3.5 py-1.5 text-xs text-slate-500 dark:text-slate-400 border border-slate-200/80 dark:border-slate-700/80 shadow-inner-sm transition-all group"
             >
-              <div className="flex items-center gap-2">
-                <Search className="h-3.5 w-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
-                <span className="truncate">Search jobs, companies, notes...</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <Search className="h-3.5 w-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors shrink-0" />
+                <span className="truncate">Search jobs, notes...</span>
               </div>
-              <kbd className="rounded bg-white dark:bg-slate-700 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-600 shadow-xs">
+              <kbd className="rounded bg-white dark:bg-slate-700 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-600 shadow-xs shrink-0">
                 ⌘ K
               </kbd>
             </button>
 
-            {/* Mobile search icon trigger */}
+            {/* Compact search icon trigger for lg and mobile */}
             <button
               onClick={() => setCommandPaletteOpen(true)}
-              className="md:hidden flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="xl:hidden flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
               aria-label="Search"
             >
               <Search className="h-4 w-4" />
@@ -806,6 +943,7 @@ export default function Navbar() {
         {/* Mobile Slide-Out Navigation Drawer */}
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-4 py-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
+            {/* Primary Navigation Cards */}
             <div className="grid grid-cols-2 gap-2">
               <Link
                 href="/dashboard"
@@ -820,6 +958,25 @@ export default function Navbar() {
                 className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200"
               >
                 <Briefcase className="h-4 w-4 text-teal-500" /> Jobs
+              </Link>
+              <Link
+                href="/prep/problem-solving"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 text-xs font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-900/40"
+              >
+                <ListChecks className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Coding Sheets
+              </Link>
+              <Link
+                href="/import"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between p-2.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 text-xs font-bold text-indigo-800 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/40"
+              >
+                <div className="flex items-center gap-2">
+                  <Wand2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" /> Smart Import
+                </div>
+                <span className="rounded bg-indigo-200/80 dark:bg-indigo-900/80 px-1 py-0.2 text-[8px] font-black text-indigo-700 dark:text-indigo-200">
+                  AI
+                </span>
               </Link>
               <Link
                 href="/interviews"
@@ -838,49 +995,76 @@ export default function Navbar() {
             </div>
 
             <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
-              <p className="text-[10px] font-bold uppercase text-slate-400 px-1 mb-2">Core Tools</p>
+              <p className="text-[10px] font-bold uppercase text-slate-400 px-1 mb-2">More Tools & Workflows</p>
               <div className="grid grid-cols-2 gap-2">
                 <Link
                   href="/assessment"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 py-1 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
+                  className="flex items-center justify-between text-xs text-slate-700 dark:text-slate-300 py-1.5 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 border border-transparent hover:border-slate-200"
                 >
-                  <Terminal className="h-3.5 w-3.5 text-indigo-500" /> Assessment Exam
-                </Link>
-                <Link
-                  href="/prep/problem-solving"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 py-1 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
-                >
-                  <ListChecks className="h-3.5 w-3.5 text-emerald-500" /> DSA Sheets
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Terminal className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                    <span className="truncate">AI Exam</span>
+                  </div>
+                  <span className="rounded bg-indigo-100 dark:bg-indigo-900/60 px-1 text-[8px] font-bold text-indigo-600 dark:text-indigo-300 shrink-0">
+                    EXAM
+                  </span>
                 </Link>
                 <Link
                   href="/prep"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 py-1 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
+                  className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 py-1.5 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
-                  <BrainCircuit className="h-3.5 w-3.5 text-purple-500" /> The Griller
+                  <BrainCircuit className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+                  <span className="truncate">The Griller</span>
                 </Link>
                 <Link
                   href="/planner"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 py-1 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
+                  className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 py-1.5 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
-                  <CalendarCheck className="h-3.5 w-3.5 text-amber-500" /> Day Planner
+                  <CalendarCheck className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <span className="truncate">Day Planner</span>
                 </Link>
                 <Link
                   href="/resumes"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 py-1 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
+                  className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 py-1.5 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
-                  <FileText className="h-3.5 w-3.5 text-cyan-500" /> Resume Studio
+                  <FileText className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
+                  <span className="truncate">Resume Studio</span>
                 </Link>
                 <Link
                   href="/projects"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 py-1 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
+                  className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 py-1.5 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
-                  <FolderGit2 className="h-3.5 w-3.5 text-blue-500" /> Project Vault
+                  <FolderGit2 className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                  <span className="truncate">Project Vault</span>
+                </Link>
+                <Link
+                  href="/outreach"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 py-1.5 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  <Send className="h-3.5 w-3.5 text-violet-500 shrink-0" />
+                  <span className="truncate">Cold Outreach</span>
+                </Link>
+                <Link
+                  href="/rejected"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 py-1.5 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  <AlertOctagon className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                  <span className="truncate">Rejection Drills</span>
+                </Link>
+                <Link
+                  href="/settings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 py-1.5 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  <Settings className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                  <span className="truncate">Settings</span>
                 </Link>
                 {user?.role === "admin" && (
                   <Link

@@ -22,6 +22,7 @@ import {
   ChevronRight,
   Sparkles,
   ShieldCheck,
+  Wand2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/hooks/useUser"
@@ -54,17 +55,19 @@ export default function BottomNav() {
   if (inExam) return null
 
   const isHome = pathname === "/dashboard"
-  const isJobs = pathname.startsWith("/applications") || pathname.startsWith("/opportunities")
-  const isInterviews = pathname.startsWith("/interviews")
-  const isAnalytics = pathname.startsWith("/analytics")
-  const isTools =
+  const isExam = pathname.startsWith("/assessment")
+  const isPlanner = pathname.startsWith("/planner")
+  const isOutreach = pathname.startsWith("/outreach")
+  const isMore =
+    pathname.startsWith("/applications") ||
+    pathname.startsWith("/opportunities") ||
+    pathname.startsWith("/interviews") ||
+    pathname.startsWith("/analytics") ||
     pathname.startsWith("/prep") ||
-    pathname.startsWith("/assessment") ||
-    pathname.startsWith("/planner") ||
-    pathname.startsWith("/outreach") ||
     pathname.startsWith("/projects") ||
     pathname.startsWith("/resumes") ||
     pathname.startsWith("/rejected") ||
+    pathname.startsWith("/import") ||
     pathname.startsWith("/settings") ||
     pathname.startsWith("/admin")
 
@@ -98,84 +101,84 @@ export default function BottomNav() {
               )}
             </Link>
 
-            {/* 2. Jobs */}
+            {/* 2. AI Exam */}
             <Link
-              href="/applications"
+              href="/assessment"
               onClick={() => setToolsSheetOpen(false)}
               className={cn(
                 "flex flex-col items-center justify-center flex-1 py-1 rounded-full transition-all duration-150 relative",
-                isJobs
+                isExam
                   ? "text-indigo-600 dark:text-indigo-400 font-bold"
                   : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/20"
               )}
             >
-              <div className={cn("p-1 rounded-full transition-all", isJobs ? "bg-white/60 dark:bg-white/10 shadow-sm border border-white/80" : "bg-transparent")}>
-                <Briefcase className="h-5 w-5" />
+              <div className={cn("p-1 rounded-full transition-all", isExam ? "bg-white/60 dark:bg-white/10 shadow-sm border border-white/80" : "bg-transparent")}>
+                <Terminal className="h-5 w-5" />
               </div>
-              <span className="text-[10px] mt-0.5 leading-none font-medium">Jobs</span>
-              {isJobs && (
+              <span className="text-[10px] mt-0.5 leading-none font-medium">AI Exam</span>
+              {isExam && (
                 <span className="absolute -bottom-0.5 h-1 w-1 rounded-full bg-indigo-600 dark:bg-indigo-400 shadow-[0_0_6px_rgba(99,102,241,0.6)]" />
               )}
             </Link>
 
-            {/* 3. Interviews */}
+            {/* 3. Day Planner */}
             <Link
-              href="/interviews"
+              href="/planner"
               onClick={() => setToolsSheetOpen(false)}
               className={cn(
                 "flex flex-col items-center justify-center flex-1 py-1 rounded-full transition-all duration-150 relative",
-                isInterviews
+                isPlanner
                   ? "text-indigo-600 dark:text-indigo-400 font-bold"
                   : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/20"
               )}
             >
-              <div className={cn("p-1 rounded-full transition-all", isInterviews ? "bg-white/60 dark:bg-white/10 shadow-sm border border-white/80" : "bg-transparent")}>
-                <Calendar className="h-5 w-5" />
+              <div className={cn("p-1 rounded-full transition-all", isPlanner ? "bg-white/60 dark:bg-white/10 shadow-sm border border-white/80" : "bg-transparent")}>
+                <CalendarCheck className="h-5 w-5" />
               </div>
-              <span className="text-[10px] mt-0.5 leading-none font-medium">Interviews</span>
-              {isInterviews && (
+              <span className="text-[10px] mt-0.5 leading-none font-medium">Planner</span>
+              {isPlanner && (
                 <span className="absolute -bottom-0.5 h-1 w-1 rounded-full bg-indigo-600 dark:bg-indigo-400 shadow-[0_0_6px_rgba(99,102,241,0.6)]" />
               )}
             </Link>
 
-            {/* 4. Analytics */}
+            {/* 4. Cold Outreach */}
             <Link
-              href="/analytics"
+              href="/outreach"
               onClick={() => setToolsSheetOpen(false)}
               className={cn(
                 "flex flex-col items-center justify-center flex-1 py-1 rounded-full transition-all duration-150 relative",
-                isAnalytics
+                isOutreach
                   ? "text-indigo-600 dark:text-indigo-400 font-bold"
                   : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/20"
               )}
             >
-              <div className={cn("p-1 rounded-full transition-all", isAnalytics ? "bg-white/60 dark:bg-white/10 shadow-sm border border-white/80" : "bg-transparent")}>
-                <BarChart3 className="h-5 w-5" />
+              <div className={cn("p-1 rounded-full transition-all", isOutreach ? "bg-white/60 dark:bg-white/10 shadow-sm border border-white/80" : "bg-transparent")}>
+                <Send className="h-5 w-5" />
               </div>
-              <span className="text-[10px] mt-0.5 leading-none font-medium">Analytics</span>
-              {isAnalytics && (
+              <span className="text-[10px] mt-0.5 leading-none font-medium">Outreach</span>
+              {isOutreach && (
                 <span className="absolute -bottom-0.5 h-1 w-1 rounded-full bg-indigo-600 dark:bg-indigo-400 shadow-[0_0_6px_rgba(99,102,241,0.6)]" />
               )}
             </Link>
 
-            {/* 5. Tools (Drawer Trigger) */}
+            {/* 5. More (Drawer Trigger) */}
             <button
               onClick={() => setToolsSheetOpen((v) => !v)}
               className={cn(
                 "flex flex-col items-center justify-center flex-1 py-1 rounded-full transition-all duration-150 relative",
-                isTools || toolsSheetOpen
+                isMore || toolsSheetOpen
                   ? "text-indigo-600 dark:text-indigo-400 font-bold"
                   : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/20"
               )}
             >
-              <div className={cn("p-1 rounded-full transition-all relative", (isTools || toolsSheetOpen) ? "bg-white/60 dark:bg-white/10 shadow-sm border border-white/80" : "bg-transparent")}>
+              <div className={cn("p-1 rounded-full transition-all relative", (isMore || toolsSheetOpen) ? "bg-white/60 dark:bg-white/10 shadow-sm border border-white/80" : "bg-transparent")}>
                 <LayoutGrid className="h-5 w-5" />
                 {user?.role === "admin" && (
                   <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-rose-500 ring-1 ring-white" />
                 )}
               </div>
-              <span className="text-[10px] mt-0.5 leading-none font-medium">Tools</span>
-              {(isTools || toolsSheetOpen) && (
+              <span className="text-[10px] mt-0.5 leading-none font-medium">More</span>
+              {(isMore || toolsSheetOpen) && (
                 <span className="absolute -bottom-0.5 h-1 w-1 rounded-full bg-indigo-600 dark:bg-indigo-400 shadow-[0_0_6px_rgba(99,102,241,0.6)]" />
               )}
             </button>
@@ -184,7 +187,7 @@ export default function BottomNav() {
         </nav>
       </div>
 
-      {/* ── Mobile Tools Bottom Sheet / Drawer ── */}
+      {/* ── Mobile More / Tools Bottom Sheet / Drawer ── */}
       {toolsSheetOpen && (
         <div className="fixed inset-0 z-50 md:hidden flex flex-col justify-end bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div
@@ -199,7 +202,7 @@ export default function BottomNav() {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">All Features & Tools</h3>
-                  <p className="text-[10px] text-slate-400">Jump directly to any ecosystem tool</p>
+                  <p className="text-[10px] text-slate-400">Quick jump to any feature</p>
                 </div>
               </div>
               <button
@@ -232,7 +235,95 @@ export default function BottomNav() {
               </Link>
             )}
 
-            {/* Group 1: Interview & Testing */}
+            {/* Core Pipeline: Jobs, Interviews & Analytics */}
+            <div className="space-y-2 mb-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-1">
+                Core Tracking & Pipeline
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                <Link
+                  href="/applications"
+                  onClick={() => setToolsSheetOpen(false)}
+                  className="flex flex-col items-center text-center p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-850 hover:border-indigo-300 transition-all shadow-2xs"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 mb-1.5">
+                    <Briefcase className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate w-full">Jobs</span>
+                  <span className="text-[9px] text-slate-400 truncate">Applications</span>
+                </Link>
+
+                <Link
+                  href="/interviews"
+                  onClick={() => setToolsSheetOpen(false)}
+                  className="flex flex-col items-center text-center p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-850 hover:border-violet-300 transition-all shadow-2xs"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 mb-1.5">
+                    <Calendar className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate w-full">Interviews</span>
+                  <span className="text-[9px] text-slate-400 truncate">Schedule</span>
+                </Link>
+
+                <Link
+                  href="/analytics"
+                  onClick={() => setToolsSheetOpen(false)}
+                  className="flex flex-col items-center text-center p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-850 hover:border-emerald-300 transition-all shadow-2xs"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 mb-1.5">
+                    <BarChart3 className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate w-full">Analytics</span>
+                  <span className="text-[9px] text-slate-400 truncate">Stats</span>
+                </Link>
+              </div>
+            </div>
+
+            {/* Quick Action Highlights */}
+            <div className="space-y-2 mb-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-1">
+                Featured Shortcuts
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {/* 1. Smart JD Import */}
+                <Link
+                  href="/import"
+                  onClick={() => setToolsSheetOpen(false)}
+                  className="flex items-center gap-2.5 p-3 rounded-2xl border border-indigo-200/80 dark:border-indigo-800/60 bg-gradient-to-br from-indigo-50/80 via-white to-violet-50/50 dark:from-indigo-950/40 dark:to-slate-900 hover:border-indigo-300 transition-all shadow-xs"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shrink-0 shadow-sm shadow-indigo-500/20">
+                    <Wand2 className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">JD Import</span>
+                      <span className="text-[8px] font-black bg-indigo-600 text-white px-1 rounded">AI</span>
+                    </div>
+                    <p className="text-[9px] text-slate-500 dark:text-slate-400 truncate">URL & text parser</p>
+                  </div>
+                </Link>
+
+                {/* 2. Coding Sheets */}
+                <Link
+                  href="/prep/problem-solving"
+                  onClick={() => setToolsSheetOpen(false)}
+                  className="flex items-center gap-2.5 p-3 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/60 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/50 dark:from-emerald-950/40 dark:to-slate-900 hover:border-emerald-300 transition-all shadow-xs"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white shrink-0 shadow-sm shadow-emerald-500/20">
+                    <ListChecks className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">Coding Sheets</span>
+                      <span className="text-[8px] font-black bg-emerald-600 text-white px-1 rounded">DSA</span>
+                    </div>
+                    <p className="text-[9px] text-slate-500 dark:text-slate-400 truncate">Roadmaps & topics</p>
+                  </div>
+                </Link>
+              </div>
+            </div>
+
+            {/* Group 1: Interview & Testing Arena */}
             <div className="space-y-2 mb-4">
               <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 px-1">
                 Interview & Assessment Arena
@@ -251,7 +342,7 @@ export default function BottomNav() {
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">AI Exam</span>
                       <span className="text-[8px] font-bold bg-indigo-100 text-indigo-600 px-1 rounded">EXAM</span>
                     </div>
-                    <p className="text-[9px] text-slate-400 truncate">Capgemini console</p>
+                    <p className="text-[9px] text-slate-400 truncate">Proctored console</p>
                   </div>
                 </Link>
 
@@ -264,8 +355,8 @@ export default function BottomNav() {
                     <ListChecks className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0">
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block">DSA Sheets</span>
-                    <p className="text-[9px] text-slate-400 truncate">Roadmaps & topics</p>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block">Coding Sheets</span>
+                    <p className="text-[9px] text-slate-400 truncate">DSA & roadmaps</p>
                   </div>
                 </Link>
 
@@ -299,12 +390,29 @@ export default function BottomNav() {
               </div>
             </div>
 
-            {/* Group 2: Execution & Vault */}
+            {/* Group 2: Job Ingestion & Execution */}
             <div className="space-y-2 mb-4">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-1">
-                Daily Execution & Career Vault
+                Job Search & Execution
               </p>
               <div className="grid grid-cols-2 gap-2">
+                <Link
+                  href="/import"
+                  onClick={() => setToolsSheetOpen(false)}
+                  className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850 hover:border-indigo-200 transition-colors"
+                >
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600">
+                    <Wand2 className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">JD Import</span>
+                      <span className="text-[8px] font-bold bg-indigo-100 text-indigo-600 px-1 rounded">AI</span>
+                    </div>
+                    <p className="text-[9px] text-slate-400 truncate">Parse job posts</p>
+                  </div>
+                </Link>
+
                 <Link
                   href="/planner"
                   onClick={() => setToolsSheetOpen(false)}
@@ -316,6 +424,20 @@ export default function BottomNav() {
                   <div className="min-w-0">
                     <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block">Day Planner</span>
                     <p className="text-[9px] text-slate-400 truncate">Timeboxed study</p>
+                  </div>
+                </Link>
+
+                <Link
+                  href="/resumes"
+                  onClick={() => setToolsSheetOpen(false)}
+                  className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850 hover:border-cyan-200 transition-colors"
+                >
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-600">
+                    <FileText className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block">Resume Studio</span>
+                    <p className="text-[9px] text-slate-400 truncate">ATS score & tailoring</p>
                   </div>
                 </Link>
 
@@ -334,30 +456,16 @@ export default function BottomNav() {
                 </Link>
 
                 <Link
-                  href="/resumes"
-                  onClick={() => setToolsSheetOpen(false)}
-                  className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850 hover:border-cyan-200 transition-colors"
-                >
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-600">
-                    <FileText className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block">Resume Studio</span>
-                    <p className="text-[9px] text-slate-400 truncate">ATS score & versions</p>
-                  </div>
-                </Link>
-
-                <Link
                   href="/outreach"
                   onClick={() => setToolsSheetOpen(false)}
-                  className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850 hover:border-violet-200 transition-colors"
+                  className="col-span-2 flex items-center gap-2 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850 hover:border-violet-200 transition-colors"
                 >
                   <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600">
                     <Send className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0">
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block">Cold Outreach</span>
-                    <p className="text-[9px] text-slate-400 truncate">AI email drafts</p>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block">Cold Outreach Campaign</span>
+                    <p className="text-[9px] text-slate-400 truncate">Personalized AI recruiter emails</p>
                   </div>
                 </Link>
               </div>

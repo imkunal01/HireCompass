@@ -106,7 +106,7 @@ export default function CommandPalette({ isOpen, onClose, onAddJob }: CommandPal
     {
       id: "assessment",
       name: "AI Coding Assessment",
-      description: "Proctored Capgemini 6-stage AI coding simulator",
+      description: "Proctored 6-stage AI coding simulator",
       category: "Preparation & Testing",
       href: "/assessment",
       icon: Terminal,
