@@ -544,4 +544,32 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
     * **Resolved Duplicate JSX Attribute in `agent-chat.tsx`**: Merged separate `style` attributes on the welcome popup `<div>` into a unified style object containing both `animationDelay` and dynamic FAB positioning.
     * **Resolved Type Comparison Error in `exam-environment.tsx`**: Updated `difficulty` comparisons from lowercase strings (`"hard"`, `"medium"`) to PascalCase (`"Hard"`, `"Medium"`) to strictly match the `"Easy" | "Medium" | "Hard"` union type.
     * **Build Result**: Production build (`npm run build`) completed successfully with exit code 0 (`Compiled successfully`, validity of types checked, 0 errors, all 35+ routes rendered).
+- **2026-10-06 (Phase 25 Complete — Home Page 'Resume Where You Left Off' Continuation Hub)**:
+  - **User Problem & Request**:
+    * When users leave DSA practice sheets, AI assessment exams, or AI interview prep tools (like The Griller or War Room) midway, they need to see their last active progress and be able to resume with a single click directly from the Home page (`/dashboard`).
+  - **Implementations**:
+    * **Architecture & State Management (`types/resume-session.ts`, `lib/resume-session.ts`, `hooks/useResumeSessions.ts`)**:
+      - Created `ResumeSessionSnapshot` schema capturing `toolType` (`assessment` | `sheet` | `prep`), `title`, `subtitle`, `badgeText`, `badgeVariant`, `progressPercent`, `progressLabel`, `lastActive`, `href`, `actionLabel`, and metadata.
+      - Built localStorage snapshot manager with real-time custom event dispatching (`hirecompass_session_update`) across tabs and windows, plus dismissal persistence.
+      - Built `useResumeSessions` React hook that queries server active assessment (`/api/prep/assessment`), in-flight user sheets (`/api/sheets`), and local snapshots, dynamically computing progress and relative time ago.
+    * **AI Assessment Simulator Sync (`assessment/page.tsx`)**:
+      - Tracks active exam session changes and stage transitions (`UNDERSTANDING` through `FINAL_REVIEW`), calculating accurate completion percentages and storing snapshot states.
+      - Clears snapshot upon completion or explicit abandonment.
+    * **DSA & Problem Solving Sheets Sync (`sheet/page.tsx`, `useSheetStore.ts`)**:
+      - Automatically saves snapshot when opening any sheet or checking/unchecking problems, recording solved/total item ratio, current topic name, and completion percent.
+      - Clears snapshot if the roadmap is deleted.
+    * **AI Interview Prep Tools Sync (`prep/page.tsx`, `griller-tab.tsx`, `war-room-tab.tsx`)**:
+      - Wrapped `InterviewPrepPage` with Suspense and URL query param synchronization (`/prep?tab=griller`, `/prep?tab=war-room`).
+      - In `GrillerTab`: tracks active project defense turns (e.g., Turn 2/5 against Staff Engineer persona), providing instant 1-click continuation. Clears on round reset.
+      - In `WarRoomTab`: captures company dossier generation and role briefing readiness.
+    * **Home Page UI (`components/features/dashboard/resume-sessions-hub.tsx`, `app/(dashboard)/dashboard/page.tsx`)**:
+      - Placed the high-impact **Resume Where You Left Off** hub directly beneath the Hero Greeting Banner.
+      - Features responsive 1-3 column cards with custom gradient badges, animated progress bars, relative activity timestamps, and direct "Resume Exam →", "Continue Sheet →", and "Resume Defense →" CTA buttons.
+      - Includes individual dismiss buttons (`✕`) per card.
+      - If no active sessions are in progress, renders a compact 1-click quick-launch bar to kickstart DSA Roadmaps, AI Exam Sim, or Project Defense drills.
+    * **De-Branding Polish**:
+      - Replaced residual Capgemini copy in dashboard local focus tasks, suggestions, and metric cards with "AI-Assisted Assessment".
+    * **Production Build Validation**:
+      - Verified with `npm run build`: Exit code 0, 0 TypeScript errors, all 35+ routes compiled cleanly.
+
 
