@@ -557,9 +557,9 @@ export function ExamEnvironment({
             </div>
             <span className={cn(
               "text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full border shrink-0",
-              session.problem.difficulty === "hard"
+              session.problem.difficulty === "Hard"
                 ? "bg-rose-50 text-rose-700 border-rose-200"
-                : session.problem.difficulty === "medium"
+                : session.problem.difficulty === "Medium"
                 ? "bg-amber-50 text-amber-700 border-amber-200"
                 : "bg-emerald-50 text-emerald-700 border-emerald-200"
             )}>

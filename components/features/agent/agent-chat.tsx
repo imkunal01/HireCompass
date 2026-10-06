@@ -899,16 +899,17 @@ export default function AgentChat() {
       {/* Sweet Welcome Popup */}
       {!open && welcomePopup && !isDraggingRef.current && (
         <div
-          style={
-            fabPos
+          style={{
+            animationDelay: "0.2s",
+            ...(fabPos
               ? {
                   left: `${Math.max(12, fabPos.x - 260)}px`,
                   top: `${Math.max(70, fabPos.y - 10)}px`,
                   bottom: "auto",
                   right: "auto",
                 }
-              : undefined
-          }
+              : {}),
+          }}
           className={cn(
             fabPos ? "fixed z-[9997]" : "fixed bottom-20 sm:bottom-8 right-20 sm:right-24 z-[9997]",
             "flex items-center gap-3 px-4 py-3 rounded-2xl rounded-br-sm",
@@ -916,7 +917,6 @@ export default function AgentChat() {
             "text-slate-800 dark:text-slate-100 text-sm font-medium max-w-[280px]",
             "animate-in slide-in-from-right-4 fade-in duration-300 backdrop-blur-md"
           )}
-          style={{ animationDelay: "0.2s" }}
         >
           <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center shrink-0">
             <Sparkles className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />

@@ -5,7 +5,76 @@ import { AssessmentSession } from "@/types/assessment"
 import { AssessmentLobby } from "@/components/features/assessment/assessment-lobby"
 import { ExamEnvironment } from "@/components/features/assessment/exam-environment"
 
+import {
+  saveAssessmentSessionSnapshot,
+  clearAssessmentSessionSnapshot,
+} from "@/lib/resume-session"
+
 const ACTIVE_SESSION_STORAGE_KEY = "hirecompass_active_assessment_id"
+
+const STAGE_LABELS: Record<string, string> = {
+  PROBLEM_PRESENTED: "Stage 1/6 • Requirements & Clarification",
+  UNDERSTANDING: "Stage 1/6 • Requirements & Clarification",
+  APPROACH: "Stage 2/6 • Architecture & Approach",
+  IMPLEMENTATION_PROMPT: "Stage 3/6 • Implementation Prompting",
+  CODE_GENERATION: "Stage 4/6 • Code Generation",
+  CODE_REVIEW: "Stage 4/6 • Defect & Code Review",
+  REFINEMENT: "Stage 5/6 • Refinement & Bug Fixes",
+  FINAL_REVIEW: "Stage 6/6 • Final Comprehensive Review",
+  COMPLETED: "Stage 6/6 • Completed",
+}
+
+function getStageStepIndex(stage?: string): number {
+  switch (stage) {
+    case "PROBLEM_PRESENTED":
+    case "UNDERSTANDING":
+      return 0
+    case "APPROACH":
+      return 1
+    case "IMPLEMENTATION_PROMPT":
+      return 2
+    case "CODE_GENERATION":
+    case "CODE_REVIEW":
+      return 3
+    case "REFINEMENT":
+      return 4
+    case "FINAL_REVIEW":
+    case "COMPLETED":
+      return 5
+    default:
+      return 0
+  }
+}
+
+function syncAssessmentSnapshot(session: AssessmentSession | null) {
+  if (!session || session.status !== "ACTIVE" || !session.problem) {
+    clearAssessmentSessionSnapshot()
+    return
+  }
+  const stageIndex = getStageStepIndex(session.currentStage)
+  const progressPercent = Math.min(100, Math.round(((stageIndex + 1) / 6) * 100))
+  const stageLabel =
+    STAGE_LABELS[session.currentStage] || `Stage ${stageIndex + 1}/6 • In Progress`
+
+  saveAssessmentSessionSnapshot({
+    id: session._id || session.id || "active_assessment_exam",
+    toolType: "assessment",
+    title: session.problem.title || "Proctored Coding Exam",
+    subtitle: stageLabel,
+    badgeText: "In-Progress Exam",
+    badgeVariant: "indigo",
+    progressPercent,
+    progressLabel: `${stageIndex + 1} of 6 stages completed`,
+    lastActive: session.updatedAt || session.startedAt || new Date().toISOString(),
+    href: "/assessment",
+    actionLabel: "Resume Exam",
+    meta: {
+      stageIndex,
+      totalStages: 6,
+      difficulty: session.problem.difficulty,
+    },
+  })
+}
 
 export default function AssessmentPage() {
   const [activeExamSession, setActiveExamSession] = useState<AssessmentSession | null>(null)
@@ -31,12 +100,14 @@ export default function AssessmentPage() {
           if (isMounted) {
             if (savedSessionId && data.session && data.session.status === "ACTIVE") {
               setActiveExamSession(data.session)
+              syncAssessmentSnapshot(data.session)
             } else if (data.activeSession && data.activeSession.status === "ACTIVE") {
-              // If there's an authoritative active session on server
               setActiveExamSession(data.activeSession)
               localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, data.activeSession._id || data.activeSession.id)
+              syncAssessmentSnapshot(data.activeSession)
             } else {
               localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
+              clearAssessmentSessionSnapshot()
             }
           }
         }
@@ -58,8 +129,10 @@ export default function AssessmentPage() {
     setActiveExamSession(session)
     if (session.status === "ACTIVE") {
       localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, session._id || session.id || "")
+      syncAssessmentSnapshot(session)
     } else {
       localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
+      clearAssessmentSessionSnapshot()
     }
   }
 
@@ -67,6 +140,9 @@ export default function AssessmentPage() {
     setActiveExamSession(updated)
     if (updated.status !== "ACTIVE") {
       localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
+      clearAssessmentSessionSnapshot()
+    } else {
+      syncAssessmentSnapshot(updated)
     }
   }
 
@@ -74,6 +150,7 @@ export default function AssessmentPage() {
     // If the session was completed or abandoned, clear localStorage
     if (activeExamSession && activeExamSession.status !== "ACTIVE") {
       localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
+      clearAssessmentSessionSnapshot()
     }
     setActiveExamSession(null)
   }

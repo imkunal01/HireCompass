@@ -42,6 +42,8 @@ import {
 import { AddJobModal } from "@/components/features/kanban/add-job-modal"
 import { JobDrawer } from "@/components/features/kanban/job-drawer"
 import { ToastProvider } from "@/components/ui/toast"
+import { useResumeSessions } from "@/hooks/useResumeSessions"
+import { ResumeSessionsHub } from "@/components/features/dashboard/resume-sessions-hub"
 
 const EMPTY_STATS: DashboardStats = {
   totalSaved: 0,
@@ -98,7 +100,7 @@ export default function DashboardPage() {
   // ── Local Focus Fallback Tasks ──
   const [localFocusTasks, setLocalFocusTasks] = useState([
     { id: "focus-1", text: "Apply to 2 targeted opportunities", done: false, link: "/applications" },
-    { id: "focus-2", text: "Capgemini AI OA Simulator drill", done: false, link: "/assessment" },
+    { id: "focus-2", text: "AI-Assisted OA Simulator drill", done: false, link: "/assessment" },
     { id: "focus-3", text: "Solve 2 Blind 75 DSA problems", done: false, link: "/prep/problem-solving" },
   ])
 
@@ -194,6 +196,16 @@ export default function DashboardPage() {
       const res = await r.json()
       return res && typeof res === "object" ? res : null
     },
+  })
+
+  // ── In-Progress Session Continuation Hub ──
+  const {
+    sessions: resumeSessions,
+    dismissSession: dismissResumeSession,
+    isLoaded: resumeSessionsLoaded,
+  } = useResumeSessions({
+    serverActiveAssessment: assessmentData?.activeSession,
+    serverSheets: sheetsData,
   })
 
   const displayStats = stats || EMPTY_STATS
@@ -506,8 +518,8 @@ export default function DashboardPage() {
     if (list.length < 2) {
       list.push({
         id: "sug-assessment",
-        companyInitial: "C",
-        title: "Capgemini Assessment Drill",
+        companyInitial: "A",
+        title: "AI Assessment Simulator Drill",
         description: "Simulate proctored technical exam and defect review with instant 100-pt scorecard.",
         link: "/assessment",
         color: "bg-sky-600 text-white",
@@ -781,6 +793,15 @@ export default function DashboardPage() {
         </div>
 
         {/* ═══════════════════════════════════════════════════
+            ROW 1.5: RESUME WHERE YOU LEFT OFF (IN-PROGRESS SESSIONS HUB)
+        ═══════════════════════════════════════════════════ */}
+        <ResumeSessionsHub
+          sessions={resumeSessions}
+          onDismiss={dismissResumeSession}
+          isLoaded={resumeSessionsLoaded}
+        />
+
+        {/* ═══════════════════════════════════════════════════
             ROW 2: 5 KPI METRIC CARDS
         ═══════════════════════════════════════════════════ */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -931,7 +952,7 @@ export default function DashboardPage() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600">
                   <BrainCircuit className="h-4 w-4" />
                 </div>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Capgemini Readiness</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Assessment Readiness</span>
               </div>
               <span className="px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 text-indigo-700 text-[10px] font-black">
                 {readinessScore.score}/100

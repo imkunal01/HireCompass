@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { ItemStatus, SheetDetailResponse, MergedSheetTopic, SheetSummary } from "@/types/sheet"
+import { saveSheetSessionSnapshot } from "@/lib/resume-session"
 
 interface SheetState {
   current: SheetDetailResponse | null
@@ -88,6 +89,28 @@ export const useSheetStore = create<SheetState>((set, get) => ({
     })
 
     set({ current: updated })
+
+    const activeTopic = updated.topics.find((t) => t.done < t.total)?.name || updated.topics[0]?.name
+    saveSheetSessionSnapshot({
+      id: sheetId,
+      toolType: "sheet",
+      title: updated.sheet.title || "DSA Roadmap",
+      subtitle: `${updated.sheet.category || "DSA"} • ${activeTopic ? `Topic: ${activeTopic}` : "Topic Roadmap"}`,
+      badgeText: `${updated.summary.done}/${updated.summary.total} Solved`,
+      badgeVariant: "emerald",
+      progressPercent: updated.summary.percent || 0,
+      progressLabel: `${updated.summary.done} of ${updated.summary.total} solved (${updated.summary.percent}%)`,
+      lastActive: new Date().toISOString(),
+      href: `/prep/problem-solving/${sheetId}`,
+      actionLabel: "Continue Sheet",
+      meta: {
+        sheetId,
+        doneCount: updated.summary.done,
+        totalCount: updated.summary.total,
+        category: updated.sheet.category,
+        lastTopic: activeTopic,
+      },
+    })
 
     try {
       const res = await fetch(`/api/sheets/${sheetId}/items/${itemId}/progress`, {

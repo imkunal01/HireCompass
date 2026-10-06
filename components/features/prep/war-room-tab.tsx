@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { WarRoomDossier } from "@/types/prep"
+import { savePrepSessionSnapshot } from "@/lib/resume-session"
 
 interface WarRoomTabProps {
   initialCompany?: string
@@ -92,6 +93,25 @@ export function WarRoomTab({
 
       setDossier(data.dossier)
       setCheckedTopics({})
+
+      savePrepSessionSnapshot({
+        id: "prep_war_room_active",
+        toolType: "prep",
+        title: `War Room: ${company.trim()} Dossier`,
+        subtitle: `${role ? role.trim() : "Software Engineering"} • ${roundType}`,
+        badgeText: "Briefing Active",
+        badgeVariant: "purple",
+        progressPercent: 75,
+        progressLabel: "Company briefing & focus topics ready",
+        lastActive: new Date().toISOString(),
+        href: "/prep?tab=war-room",
+        actionLabel: "Resume Briefing",
+        meta: {
+          tab: "war-room",
+          company: company.trim(),
+          role: role.trim(),
+        },
+      })
     } catch (err: any) {
       setError(err.message || "Failed to generate dossier")
     } finally {

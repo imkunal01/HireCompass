@@ -540,4 +540,8 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
       - On phone viewports (`< 640px`), `NotificationDropdown` now portals directly to `document.body` via `createPortal`, rendering as a dedicated full-width mobile bottom drawer with drag handle, dimming backdrop (`bg-slate-950/60 backdrop-blur-xs`), pinned header/footer, safe-area padding, and internal scrolling up to `85dvh`.
       - Added `data-notification-drawer` guard to prevent outside-click listeners from accidentally dismissing the drawer on touch/scroll interactions.
       - Preserved elegant compact dropdown popover for desktop (`sm:`).
+  - **Production Build Verification**:
+    * **Resolved Duplicate JSX Attribute in `agent-chat.tsx`**: Merged separate `style` attributes on the welcome popup `<div>` into a unified style object containing both `animationDelay` and dynamic FAB positioning.
+    * **Resolved Type Comparison Error in `exam-environment.tsx`**: Updated `difficulty` comparisons from lowercase strings (`"hard"`, `"medium"`) to PascalCase (`"Hard"`, `"Medium"`) to strictly match the `"Easy" | "Medium" | "Hard"` union type.
+    * **Build Result**: Production build (`npm run build`) completed successfully with exit code 0 (`Compiled successfully`, validity of types checked, 0 errors, all 35+ routes rendered).
 

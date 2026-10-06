@@ -25,6 +25,7 @@ import { useSheetStore } from "@/hooks/useSheetStore"
 import { TopicAccordion } from "@/components/features/sheets/topic-accordion"
 import { CsvImportModal } from "@/components/features/sheets/csv-import-modal"
 import { useUser } from "@/hooks/useUser"
+import { saveSheetSessionSnapshot, clearSheetSessionSnapshot } from "@/lib/resume-session"
 
 export default function SheetDetailPage() {
   const params = useParams()
@@ -47,6 +48,33 @@ export default function SheetDetailPage() {
       fetchSheet(sheetId)
     }
   }, [sheetId, fetchSheet])
+
+  // Track active sheet session snapshot for Home page resume hub
+  useEffect(() => {
+    if (current && sheetId) {
+      const activeTopic = current.topics.find((t) => t.done < t.total)?.name || current.topics[0]?.name
+      saveSheetSessionSnapshot({
+        id: sheetId,
+        toolType: "sheet",
+        title: current.sheet.title || "DSA Roadmap",
+        subtitle: `${current.sheet.category || "DSA"} • ${activeTopic ? `Topic: ${activeTopic}` : "Problem Solving"}`,
+        badgeText: `${current.summary.done}/${current.summary.total} Solved`,
+        badgeVariant: "emerald",
+        progressPercent: current.summary.percent || 0,
+        progressLabel: `${current.summary.done} of ${current.summary.total} solved (${current.summary.percent}%)`,
+        lastActive: new Date().toISOString(),
+        href: `/prep/problem-solving/${sheetId}`,
+        actionLabel: "Continue Sheet",
+        meta: {
+          sheetId,
+          doneCount: current.summary.done,
+          totalCount: current.summary.total,
+          category: current.sheet.category,
+          lastTopic: activeTopic,
+        },
+      })
+    }
+  }, [current, sheetId])
 
   if (loading && !current) {
     return (
@@ -88,6 +116,7 @@ export default function SheetDetailPage() {
     try {
       const res = await fetch(`/api/sheets/${sheetId}`, { method: "DELETE" })
       if (res.ok) {
+        clearSheetSessionSnapshot()
         router.push("/prep/problem-solving")
       }
     } catch (e) {

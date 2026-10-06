@@ -21,6 +21,7 @@ import {
   Clock,
   Compass,
 } from "lucide-react"
+import { useSearchParams } from "next/navigation"
 import { PrepTab } from "@/types/prep"
 import { cn } from "@/lib/utils"
 import { WarRoomTab } from "@/components/features/prep/war-room-tab"
@@ -85,8 +86,21 @@ const TABS: Array<{
   },
 ]
 
-export default function InterviewPrepPage() {
-  const [activeTab, setActiveTab] = useState<PrepTab>("war-room")
+function InterviewPrepContent() {
+  const searchParams = useSearchParams()
+  const tabParam = searchParams.get("tab") as PrepTab | null
+  const [activeTab, setActiveTab] = useState<PrepTab>(() => {
+    if (tabParam && ["war-room", "griller", "star-matrix", "remediation", "primer"].includes(tabParam)) {
+      return tabParam
+    }
+    return "war-room"
+  })
+
+  useEffect(() => {
+    if (tabParam && ["war-room", "griller", "star-matrix", "remediation", "primer"].includes(tabParam)) {
+      setActiveTab(tabParam)
+    }
+  }, [tabParam])
 
   // Keyboard navigation shortcuts
   useEffect(() => {
@@ -302,5 +316,19 @@ export default function InterviewPrepPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function InterviewPrepPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="min-h-[50vh] flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
+        </div>
+      }
+    >
+      <InterviewPrepContent />
+    </React.Suspense>
   )
 }

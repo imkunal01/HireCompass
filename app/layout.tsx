@@ -8,12 +8,14 @@ import TelemetryTracker from "@/components/layout/telemetry-tracker";
 const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const caveat = Caveat({
   variable: "--font-handwriting",
   subsets: ["latin"],
   weight: ["500", "600", "700"],
+  display: "swap",
 });
 
 // All meta tags go through Next.js exports — never a raw <head> in App Router

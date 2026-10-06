@@ -44,6 +44,7 @@ import {
   FRESHER_STARTER_PROJECTS,
   FresherStarterProject,
 } from "@/lib/fresher-projects"
+import { savePrepSessionSnapshot, clearPrepSessionSnapshot } from "@/lib/resume-session"
 
 interface Message {
   role: "interviewer" | "candidate"
@@ -173,6 +174,36 @@ export function GrillerTab() {
   const currentRoleMeta = CANDIDATE_ROLES.find((r) => r.id === selectedRole) || CANDIDATE_ROLES[0]
   const currentLevelMeta =
     EXPERIENCE_LEVELS.find((l) => l.id === experienceLevel) || EXPERIENCE_LEVELS[0]
+
+  // Track active Griller session snapshot for Home page resume hub
+  React.useEffect(() => {
+    if (sessionActive && normalizedProject) {
+      const activePersonaMeta = PERSONAS.find((p) => p.id === selectedPersona) || PERSONAS[0]
+      const candidateTurns = messages.filter((m) => m.role === "candidate").length
+      const progressPct = Math.min(100, Math.round(((candidateTurns + 1) / 5) * 100))
+
+      savePrepSessionSnapshot({
+        id: "prep_griller_active",
+        toolType: "prep",
+        title: "The Griller: Project Defense",
+        subtitle: `${activePersonaMeta.title} • ${activeProjectTitle}`,
+        badgeText: `Turn ${candidateTurns}/5 Defended`,
+        badgeVariant: "amber",
+        progressPercent: Math.max(20, progressPct),
+        progressLabel: `Turn ${candidateTurns} of 5 completed`,
+        lastActive: new Date().toISOString(),
+        href: "/prep?tab=griller",
+        actionLabel: "Resume Defense",
+        meta: {
+          tab: "griller",
+          persona: activePersonaMeta.title,
+          projectName: activeProjectTitle,
+          turnCount: candidateTurns,
+          totalTurns: 5,
+        },
+      })
+    }
+  }, [sessionActive, normalizedProject, messages, selectedPersona, activeProjectTitle])
 
   const handleStartSession = async () => {
     if (projectSource === "vault" && !selectedVaultProjectId) {
@@ -442,6 +473,7 @@ export function GrillerTab() {
                 if (confirm("Reset current defense round and reconfigure settings?")) {
                   setSessionActive(false)
                   setMessages([])
+                  clearPrepSessionSnapshot()
                 }
               }}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors"
