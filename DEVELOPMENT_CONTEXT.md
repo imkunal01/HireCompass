@@ -571,5 +571,78 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
       - Replaced residual Capgemini copy in dashboard local focus tasks, suggestions, and metric cards with "AI-Assisted Assessment".
     * **Production Build Validation**:
       - Verified with `npm run build`: Exit code 0, 0 TypeScript errors, all 35+ routes compiled cleanly.
+- **2026-10-07 (Phase 26 Complete — 150-Problem Capgemini DSA Bank, Anti-Repetition Randomizer & Question Browser)**:
+  - **User Requests Addressed**:
+    * "in ai assisted coding feature problems arent comming randomly and mostly come same ones two three problems can you fix that"
+    * "i have attached the Capgemini_DSA_Problems_New.xlsx new sheet which contains most of the problems. i want you to add all the problems from this sheet into ai assisted coding problems feature"
+    * "also remove all the pre loaded sheets from there put only this one Capgemini_DSA_Problems_New.xlsx"
+  - **Identified Root Causes**:
+    1. Problem Bank Limitation: Only 29 problems from an older practice sheet were previously loaded into `lib/assessment-problems.ts`.
+    2. Pseudo-Random Collisions: `getRandomProblem()` used pure random index selection with replacement without checking user history, repeatedly serving the same 2-3 questions.
+    3. Active Session Hijacking: Starting tests without superseding existing unfinished active sessions in MongoDB caused `AssessmentPage` to endlessly reload the same problem across page visits.
+    4. Outdated Pre-Loaded Sheets: Templates and lobby metrics were pinned to hardcoded 29-problem categories rather than the comprehensive 150-question syllabus.
+  - **Implementations**:
+    * **Full 150-Problem Catalog Generation (`lib/assessment-problems.ts` & `scripts/build-assessment-problems.js`)**:
+      - Parsed all 150 problems from `Capgemini_DSA_Problems_New.xlsx` spanning 10 algorithmic tracks: Dynamic Programming (35), Arrays (28), Trees & BST (25), Graphs (22), Sliding Window (17), Strings (9), Mathematics (9), Linked Lists (3), Stack & Queue (2).
+      - Populated complete metadata for every problem: Title, Category, Difficulty (Easy: 47, Medium: 94, Hard: 9), Tags, Problem Links, Input/Output formats, Constraints, Test Examples, Edge Cases, Time/Space complexities, Approach Hints, and Realistic Seeded Defects.
+    * **Anti-Repetition Random Problem Dispatcher (`app/api/prep/assessment/route.ts` & `lib/assessment-problems.ts`)**:
+      - Re-architected `getRandomProblem(excludeProblemIds)`: Queries candidate's historical attempts from `getUserAssessmentSessions` and filters them out, guaranteeing true rotation across all 150 problems without repeating recent questions.
+      - Automatically marks any existing `ACTIVE` session for the candidate as superseded/abandoned when initiating a new test, completely eliminating the stale session restoration loop.
+    * **Assessment Lobby Question Bank Explorer (`components/features/assessment/assessment-lobby.tsx`)**:
+      - Updated Curated DSA Problems badge to reflect the complete 150-problem dataset.
+      - Updated Categorical Breakdown cards across 8 consolidated topic tracks.
+      - Built an interactive **Question Bank Browser**: live search by problem title or tags, topic filter chips (ALL, DP, Arrays, Trees, Graphs, Sliding Window, Strings, Math, etc.), difficulty filter chips (ALL, Easy, Medium, Hard), problem complexity tags, and direct 1-click **"Practice"** launch button per question.
+      - Added **"Abandon & Roll New Random"** action to the in-progress session banner to seamlessly allow candidates to break out of an active test and immediately draw a fresh unattempted question.
+    * **Dedicated Sheet Template Unification (`lib/sheet-templates.ts` & `scripts/build-capgemini-sheet-template.js`)**:
+    * **Purge of Legacy Curated Sheets from DB & Templates (`lib/sheets-db.ts`, `app/api/sheets/templates/route.ts`, `app/(dashboard)/prep/problem-solving/page.tsx`)**:
+      - Executed database migration completely deleting legacy templates (`dsa`, `os`, `cn`, `dbms`, `system-design`) and stale 29-problem sheets from MongoDB `sheets` and `sheet_items` collections.
+      - Seeded the official 150-problem `capgemini-dsa` template into MongoDB across 10 topics.
+      - Replaced hardcoded legacy templates in Problem Solving Prep UI with only the unified Capgemini 150-problem roadmap.
+    * **Default Roadmap Auto-Provisioning & Normalization (`lib/sheets-db.ts`, `app/api/sheets/route.ts`, `app/api/auth/signup/route.ts`)**:
+      - Built `ensureUserDefaultSheets`: Automatically provisions the official 150-problem Capgemini DSA sheet into a user's personal roadmap upon account registration and on API sheet access if not present.
+      - Migrated MongoDB: All existing users (including admin/demo/Kunal) now have the official 150-problem Capgemini DSA roadmap in their personal workspace.
+      - Normalized existing sheet names and preserved user progress records.
+    * **Guest User Auth Interception & Auto Pop-Up Modal (`app/(dashboard)/prep/problem-solving/page.tsx`, `app/(dashboard)/prep/problem-solving/[id]/page.tsx`)**:
+      - When an unauthenticated / guest user clicks on any roadmap card, "Clone Roadmap", "New Custom Sheet", or "Import Excel / CSV", the system intercepts the click and directly triggers the `AuthModal` popup prompting login or registration.
+      - Integrated an ambient Guest Mode notice banner on `/prep/problem-solving` highlighting the roadmap preview and 1-click auth modal trigger.
+      - Built an Authentication Required lock gate card on `/prep/problem-solving/[id]` with direct 1-click modal invocation and auto-popup triggering on page mount for guests.
+    * **Hook Stability & Safe Props Normalization (`components/features/auth/auth-modal.tsx`, `app/(dashboard)/prep/problem-solving/[id]/page.tsx`)**:
+      - Resolved `TypeError: Cannot read properties of null (reading 'useContext')` caused by unmemoized `openAuthModal`/`closeAuthModal` functions triggering an infinite `useEffect` render loop.
+      - Wrapped callbacks in `useCallback` and context value in `useMemo` in `AuthModalProvider`.
+      - Added fallback defaults in `useAuthModal()` to prevent unhandled context throws.
+      - Added `hasPromptedRef` in `SheetDetailPage` so guest modal triggers cleanly once without re-trigger cascades.
+      - Added page props `{ params }` typing and safe fallbacks for `params?.id` to prevent null-reading during SSR.
+- **2026-10-07 (Phase 20 Complete — Google OAuth Integration, Anti-Token Abuse Shield & Dynamic Feature Flag System)**:
+  - **User Problem Addressed**:
+    * Increasing server load and bot vulnerability: Unverified guest users and scripts could register throwaway accounts using arbitrary emails, rapidly draining Groq AI token limits and exhausting MongoDB collections.
+    * Requirement to mandate verified Google accounts for standard users while preserving existing account data, keeping current administrators logged in, and providing a dynamic admin panel feature flag to toggle password authentication on or off at will.
+  - **Architecture & Security Implementations**:
+    1. **Google OAuth 2.0 Integration (`lib/google-auth.ts`, `app/api/auth/google/route.ts`, `app/api/auth/google/callback/route.ts`)**:
+       - Built standards-compliant Google OAuth 2.0 flow using `googleapis` with scopes: `openid`, `.../auth/userinfo.email`, `.../auth/userinfo.profile`.
+       - Security Guard: Strictly mandates `verified_email === true` from Google's userinfo API. Reject unverified Google emails to eliminate spoofed accounts.
+       - Zero-Data-Loss User Upsert: When a user logs in with Google, matches against MongoDB `users` by normalized email. Re-uses the existing MongoDB `_id` and keeps all user opportunities, CVs, sheets, notes, assessments, and AI usage 100% intact. Updates `googleId`, `emailVerified: true`, `authProvider: "google"`.
+       - For brand new users, provisions default 150-problem Capgemini DSA study sheets via `ensureUserDefaultSheets`.
+       - Issues standard `auth-token` httpOnly JWT cookie (HS256 via `signToken`) matching existing session architecture.
+    2. **Anti-Token Abuse Shield & Feature Flag System (`lib/auth-settings.ts`, `app/api/auth/settings/route.ts`, `app/api/admin/system/auth-settings/route.ts`)**:
+       - Implemented centralized auth settings with 15-second in-memory TTL cache and MongoDB `system_settings` persistence (`enablePasswordAuth: boolean`, default `false`).
+       - Backend API Protection: `POST /api/auth/signup` enforces a hard HTTP 403 block when password auth is disabled ("Password signup is temporarily disabled to prevent abuse. Please sign in or register using your verified Google account."). Eliminates direct API script bypass.
+       - Admin Safety Net: Current administrators (determined by `ADMIN_EMAILS` env or `user.role === "admin"`) can always sign in using their credentials even when password auth is disabled for standard visitors.
+       - Existing sessions are never invalidated; current admins remain logged in with zero disruption.
+    3. **UI Modernization & Feature Flag Controls**:
+       - **Google Sign-In Button (`components/features/auth/google-sign-in-button.tsx`)**: High-aesthetic component with official Google multi-color SVG branding, hover lifts, and loading state.
+       - **Login Page (`app/(auth)/login/page.tsx`)**: Google Sign-In button front and center. When password auth is OFF, shows verified account shield badge. When ON, shows hybrid view with divider and email/password form.
+       - **Signup Page (`app/(auth)/signup/page.tsx`)**: When password auth is OFF, shows 1-click Google Sign-up with benefit highlights. When ON, displays full registration fields alongside Google.
+       - **Auth Modal (`components/features/auth/auth-modal.tsx`)**: Embedded Google Sign-in button for in-session gatekeeper popups.
+       - **Admin Control Center (`app/(dashboard)/admin/page.tsx`)**: Dedicated full-width "Authentication Feature Flag & Token Abuse Shield" card in Tab 3 (System & AI Settings) with live toggle switch, status pills, and audit trail.
+       - **Dedicated Administrator Sign-In Portal (`app/(auth)/admin/login/page.tsx` & `/admin-login`)**: Dedicated high-security gateway specifically for system administrators to authenticate with email & password. Validates administrator privileges before granting entry directly to `/admin`. Standard visitors cannot use it.
+       - **Discreet Footer Link (`components/features/landing/landing-footer.tsx`)**: Removed prominent admin badges from the resources column and placed a subtle, understated `Admin Access` link (`text-[11px] text-slate-400/40`) in the bottom legal/meta row—accessible to administrators without catching the eye of ordinary visitors.
+  - **Verification**:
+    * `npx tsc --noEmit`: Clean (0 errors).
+    * `npm run lint`: Clean (0 errors).
+
+
+
+
+
 
 

@@ -345,6 +345,52 @@ export default function AdminDashboardPage() {
     },
   })
 
+  // 4. Auth Settings Feature Flag Query & Mutation
+  const { data: authSettings, isLoading: authSettingsLoading, refetch: refetchAuthSettings } = useQuery<{
+    enablePasswordAuth: boolean
+    googleAuthEnabled: boolean
+    updatedAt?: string
+    updatedBy?: string
+  }>({
+    queryKey: ["admin-auth-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/system/auth-settings")
+      if (!res.ok) throw new Error("Failed to load auth settings")
+      return res.json()
+    },
+    enabled: user?.role === "admin",
+  })
+
+  const toggleAuthMutation = useMutation({
+    mutationFn: async (enablePasswordAuth: boolean) => {
+      const res = await fetch("/api/admin/system/auth-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enablePasswordAuth }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || "Failed to update auth settings")
+      }
+      return res.json()
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-auth-settings"] })
+      queryClient.invalidateQueries({ queryKey: ["auth-settings"] })
+      const isEnabled = data.settings?.enablePasswordAuth
+      toast({
+        type: "success",
+        title: isEnabled ? "Hybrid Auth Mode Enabled" : "Google OAuth Only Mode Active",
+        message: isEnabled
+          ? "Normal login/signup flow along with Google signup is now visible across the website."
+          : "Password registration is now disabled. Only verified Google accounts can enter.",
+      })
+    },
+    onError: (err: any) => {
+      toast({ type: "error", title: "Update failed", message: err.message })
+    },
+  })
+
   if (userLoading) {
     return (
       <div className="flex justify-center items-center min-h-[50vh]">
@@ -1374,6 +1420,124 @@ export default function AdminDashboardPage() {
               <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80">
                 <strong className="text-slate-900 block mb-0.5">3. Role Delegation & Safety:</strong>
                 Admins can promote or demote any user. Self-demotion is strictly blocked by backend guards to prevent accidental admin lockouts.
+              </div>
+            </div>
+          </div>
+
+          {/* ── Feature Flag: Authentication Flow & Anti-Token Abuse Shield ── */}
+          <div className="md:col-span-2 rounded-3xl border border-slate-200/80 bg-white/95 backdrop-blur-xl p-6 sm:p-7 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/20">
+                  <ShieldCheck size={22} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-black text-slate-900">
+                      Authentication Feature Flag & Token Abuse Shield
+                    </h3>
+                    <span className={cn(
+                      "px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider",
+                      authSettings?.enablePasswordAuth
+                        ? "bg-amber-50 text-amber-800 border border-amber-200"
+                        : "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                    )}>
+                      {authSettings?.enablePasswordAuth ? "Hybrid Auth" : "Google Only (Shield Active)"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Control public registration flow to prevent bot burner accounts from consuming AI token quotas
+                  </p>
+                </div>
+              </div>
+
+              {/* Interactive Toggle Switch */}
+              <div className="flex items-center gap-3 bg-slate-50 border border-slate-200/90 rounded-2xl p-2 px-3 shrink-0">
+                <span className="text-xs font-bold text-slate-700">
+                  {authSettings?.enablePasswordAuth ? "Password Auth ON" : "Password Auth OFF"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => toggleAuthMutation.mutate(!authSettings?.enablePasswordAuth)}
+                  disabled={authSettingsLoading || toggleAuthMutation.isPending}
+                  aria-label="Toggle password authentication feature flag"
+                  className={cn(
+                    "relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50",
+                    authSettings?.enablePasswordAuth ? "bg-indigo-600" : "bg-slate-300"
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out flex items-center justify-center",
+                      authSettings?.enablePasswordAuth ? "translate-x-6" : "translate-x-0"
+                    )}
+                  >
+                    {toggleAuthMutation.isPending && (
+                      <Loader2 size={12} className="animate-spin text-indigo-600" />
+                    )}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Feature Flag Status Overview */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-1">
+              {/* Left Column: Active Behavior */}
+              <div className={cn(
+                "p-4 rounded-2xl border text-xs leading-relaxed space-y-2",
+                authSettings?.enablePasswordAuth
+                  ? "bg-amber-50/50 border-amber-200/80 text-amber-950"
+                  : "bg-emerald-50/50 border-emerald-200/80 text-emerald-950"
+              )}>
+                <div className="flex items-center gap-2 font-bold text-sm">
+                  {authSettings?.enablePasswordAuth ? (
+                    <>
+                      <Users size={16} className="text-amber-600" />
+                      <span>Hybrid Authentication Mode Active</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck size={16} className="text-emerald-600" />
+                      <span>Google-Only Protection Active (Recommended)</span>
+                    </>
+                  )}
+                </div>
+                <p className="text-slate-600">
+                  {authSettings?.enablePasswordAuth
+                    ? "Both traditional email/password forms and Google Sign-In are visible across the login page, signup page, and modal popups. Any visitor can register with any email."
+                    : "Traditional password forms are hidden across all login/signup screens. Users can ONLY enter via verified Google accounts, ensuring 100% genuine emails and preventing token drainage."}
+                </p>
+                <div className="pt-2 border-t border-slate-200/50 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-500">
+                  <span>Backend Guard: {authSettings?.enablePasswordAuth ? "Open" : "Strict 403 on /api/auth/signup"}</span>
+                  <span>·</span>
+                  <span>Admin Bypass: Enabled (admins can always log in with credentials)</span>
+                </div>
+              </div>
+
+              {/* Right Column: Google OAuth Infrastructure Status */}
+              <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/70 text-xs text-slate-700 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900">Google OAuth 2.0 Gateway</span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                    <CheckCircle2 size={12} /> Active
+                  </span>
+                </div>
+                <div className="space-y-1 font-mono text-[11px] text-slate-600">
+                  <div>
+                    <span className="text-slate-400">Callback URI: </span>
+                    <span className="text-indigo-600 font-semibold">/api/auth/google/callback</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Scope: </span>
+                    <span>openid, email (verified), profile</span>
+                  </div>
+                  {authSettings?.updatedAt && (
+                    <div className="text-slate-400 font-sans text-[10px] pt-1">
+                      Last modified: {new Date(authSettings.updatedAt).toLocaleString()} by {authSettings.updatedBy || "admin"}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

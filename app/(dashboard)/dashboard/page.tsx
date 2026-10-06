@@ -926,7 +926,7 @@ export default function DashboardPage() {
             </div>
             <div className="my-3">
               <div className="flex items-baseline justify-between text-xs font-semibold text-slate-500 mb-1">
-                <span>Blind 75 & Curated DSA</span>
+                <span>Capgemini 150 DSA</span>
                 <span className="font-bold text-slate-900 dark:text-slate-100">{dsaProgress.done}/{dsaProgress.total}</span>
               </div>
               <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">

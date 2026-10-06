@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
-import { getSheetsDb, toObjectId } from "@/lib/sheets-db"
+import { getSheetsDb, toObjectId, ensureUserDefaultSheets } from "@/lib/sheets-db"
 import { ObjectId } from "mongodb"
 
 // GET /api/sheets — list all sheets visible to user with progress summary (single aggregation)
@@ -13,6 +13,12 @@ export async function GET(request: NextRequest) {
     const db = await getSheetsDb()
     const sheetsCol = db.collection("sheets")
     const progressCol = db.collection("item_progress")
+
+    if (userId) {
+      await ensureUserDefaultSheets(db, userId).catch((err) =>
+        console.error("[GET /api/sheets] Failed to auto-provision default sheets:", err)
+      )
+    }
 
     // Find sheets owned by user or built-in templates
     const query = userId

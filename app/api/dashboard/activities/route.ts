@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
           {
             id: "guest-2",
             title: "Capgemini Assessment Ready",
-            description: "29 curated DSA & prompt engineering challenges available.",
+            description: "150 curated Capgemini DSA & prompt engineering challenges available.",
             timestamp: new Date(Date.now() - 3600000).toISOString(),
             type: "assessment",
             iconType: "chart",

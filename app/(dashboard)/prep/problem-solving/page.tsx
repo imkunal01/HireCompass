@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useMemo } from "react"
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import {
@@ -24,10 +24,14 @@ import {
   Upload,
   FileSpreadsheet,
   TrendingUp,
+  Lock,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { SheetListItem, TemplateSummary } from "@/types/sheet"
 import { CsvImportModal } from "@/components/features/sheets/csv-import-modal"
+import { useUser } from "@/hooks/useUser"
+import { useAuthModal } from "@/components/features/auth/auth-modal"
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   DSA: { bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", border: "border-emerald-500/20" },
@@ -40,8 +44,73 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string
 }
 
 export default function ProblemSolvingPrepPage() {
+  const router = useRouter()
+  const { user, isAuthenticated, isLoading: isLoadingUser } = useUser()
+  const { openAuthModal } = useAuthModal()
+
   const [activeView, setActiveView] = useState<"my-sheets" | "templates">("my-sheets")
   const [showCsvModal, setShowCsvModal] = useState(false)
+
+  // Handlers for guest authentication prompts
+  const handleSheetClick = (e: React.MouseEvent, sheetId: string) => {
+    if (!isAuthenticated && !isLoadingUser) {
+      e.preventDefault()
+      openAuthModal({
+        mode: "login",
+        reason: "Sign in or register to track your DSA problem progress and access your customized roadmap.",
+        onSuccess: () => {
+          router.push(`/prep/problem-solving/${sheetId}`)
+        },
+      })
+    }
+  }
+
+  const handleCloneClick = async (e: React.MouseEvent, key: string) => {
+    if (!isAuthenticated && !isLoadingUser) {
+      e.preventDefault()
+      openAuthModal({
+        mode: "login",
+        reason: "Sign in or register to clone this DSA roadmap into your personal account.",
+        onSuccess: () => {
+          window.location.reload()
+        },
+      })
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/sheets/from-template/${key}`, { method: "POST" })
+      if (res.ok) {
+        window.location.reload()
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleNewSheetClick = (e: React.MouseEvent) => {
+    if (!isAuthenticated && !isLoadingUser) {
+      e.preventDefault()
+      openAuthModal({
+        mode: "signup",
+        reason: "Sign in or register to create custom problem-solving roadmaps.",
+        onSuccess: () => {
+          router.push("/prep/problem-solving/new")
+        },
+      })
+    }
+  }
+
+  const handleImportCsvClick = () => {
+    if (!isAuthenticated && !isLoadingUser) {
+      openAuthModal({
+        mode: "signup",
+        reason: "Sign in or register to bulk import DSA problems from Excel / CSV.",
+      })
+      return
+    }
+    setShowCsvModal(true)
+  }
 
   // Query user sheets
   const { data: sheetsData, isLoading: loadingSheets, refetch: refetchSheets } = useQuery<{ sheets: SheetListItem[] }>({
@@ -66,7 +135,13 @@ export default function ProblemSolvingPrepPage() {
   const sheets = sheetsData?.sheets || []
   const templates = templatesData?.templates || []
 
-  const mySheets = sheets.filter((s) => !s.isTemplate)
+  const mySheets = useMemo(() => {
+    const personal = sheets.filter((s) => !s.isTemplate)
+    if (personal.length > 0) return personal
+    // If no personal roadmaps created yet (e.g. guest mode or initial load), surface the default Capgemini DSA roadmap
+    return sheets.filter((s) => s.isTemplate && s.templateKey === "capgemini-dsa")
+  }, [sheets])
+
   const totalSolved = mySheets.reduce((acc, s) => acc + (s.done || 0), 0)
   const totalItems = mySheets.reduce((acc, s) => acc + (s.itemCount || 0), 0)
   const overallPercent = totalItems > 0 ? Math.round((totalSolved / totalItems) * 100) : 0
@@ -104,7 +179,7 @@ export default function ProblemSolvingPrepPage() {
             </Link>
 
             <button
-              onClick={() => setShowCsvModal(true)}
+              onClick={handleImportCsvClick}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 transition-all shadow-sm hover:scale-[1.02]"
               title="Import problems from Excel or CSV spreadsheet"
             >
@@ -114,6 +189,7 @@ export default function ProblemSolvingPrepPage() {
 
             <Link
               href="/prep/problem-solving/new"
+              onClick={handleNewSheetClick}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md hover:shadow-emerald-500/25 transition-all hover:scale-[1.02]"
             >
               <Plus className="w-4 h-4" />
@@ -170,6 +246,38 @@ export default function ProblemSolvingPrepPage() {
         </div>
       </div>
 
+      {/* ── Guest Access Notification Banner ── */}
+      {!isLoadingUser && !isAuthenticated && (
+        <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 p-5 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-in fade-in duration-300">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-inner">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-900 dark:text-white">
+                Guest Mode: Capgemini DSA Roadmap Preview
+              </p>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                Sign in or create a free account to track solved problems, bookmark items, and save personal notes.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() =>
+              openAuthModal({
+                mode: "login",
+                reason: "Sign in or register to track your DSA roadmap progress and save problem notes.",
+              })
+            }
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md hover:scale-105 transition-all shrink-0"
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span>Log In / Sign Up</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* ── View Switch Tabs ── */}
       <div className="flex items-center gap-2 border-b border-slate-200/80 dark:border-slate-800 pb-3">
         <button
@@ -200,7 +308,7 @@ export default function ProblemSolvingPrepPage() {
           <BookOpen className="w-4 h-4" />
           <span>Curated Templates Library</span>
           <span className="text-[10px] px-2 py-0.5 rounded-md font-mono bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-            {templates.length > 0 ? templates.length : "5"}
+            {templates.length > 0 ? templates.length : "1"}
           </span>
         </button>
       </div>
@@ -238,7 +346,7 @@ export default function ProblemSolvingPrepPage() {
                 </button>
 
                 <button
-                  onClick={() => setShowCsvModal(true)}
+                  onClick={handleImportCsvClick}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/25 transition-all hover:scale-105"
                 >
                   <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
@@ -254,6 +362,7 @@ export default function ProblemSolvingPrepPage() {
                   <Link
                     key={sheet._id}
                     href={`/prep/problem-solving/${sheet._id}`}
+                    onClick={(e) => handleSheetClick(e, sheet._id)}
                     className="group relative flex flex-col justify-between rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 p-6 hover:border-emerald-500/50 hover:shadow-xl hover:shadow-emerald-500/10 hover:-translate-y-1 transition-all duration-300 backdrop-blur-xl"
                   >
                     <div>
@@ -311,54 +420,19 @@ export default function ProblemSolvingPrepPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {[
-              {
-                key: "dsa",
-                title: "DSA Essentials & Blind 75",
-                category: "DSA",
-                description: "Array, Binary Search, Sliding Window, Graphs, Trees, Dynamic Programming.",
-                icon: Binary,
-                topicsCount: 8,
-                itemsCount: 75,
-              },
-              {
-                key: "os",
-                title: "Operating Systems Checklist",
-                category: "OS",
-                description: "Process synchronization, Deadlocks, Memory paging, Virtual memory, File systems.",
-                icon: Cpu,
-                topicsCount: 5,
-                itemsCount: 32,
-              },
-              {
-                key: "cn",
-                title: "Computer Networks Fundamentals",
-                category: "CN",
-                description: "TCP/IP vs UDP, DNS resolution, HTTP/2 & HTTP/3, TLS handshakes, WebSockets.",
-                icon: Globe,
-                topicsCount: 5,
-                itemsCount: 28,
-              },
-              {
-                key: "dbms",
-                title: "DBMS & SQL Architecture",
-                category: "DBMS",
-                description: "ACID guarantees, B-Trees vs LSM-Trees, Indexing strategies, Sharding, Replication.",
-                icon: Database,
-                topicsCount: 4,
-                itemsCount: 24,
-              },
-              {
-                key: "system-design",
-                title: "System Design Core Concepts",
-                category: "System Design",
-                description: "CAP theorem, Consistent hashing, Rate limiters, Distributed locks, CQRS, Message queues.",
-                icon: Code2,
-                topicsCount: 5,
-                itemsCount: 20,
-              },
-            ].map((tmpl) => {
-              const Icon = tmpl.icon
+            {(templates.length > 0
+              ? templates
+              : [
+                  {
+                    key: "capgemini-dsa",
+                    title: "Capgemini DSA Problems",
+                    category: "DSA" as const,
+                    description: "Complete 150-problem Capgemini DSA assessment syllabus spanning Arrays, Strings, Sliding Window, DP, Trees, and Graphs.",
+                    topicCount: 10,
+                    itemCount: 150,
+                  },
+                ]
+            ).map((tmpl) => {
               const colors = CATEGORY_COLORS[tmpl.category] || CATEGORY_COLORS.Custom
               return (
                 <div
@@ -368,7 +442,7 @@ export default function ProblemSolvingPrepPage() {
                   <div>
                     <div className="flex items-center justify-between gap-2">
                       <div className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-500 group-hover:scale-110 transition-transform">
-                        <Icon className="w-5 h-5" />
+                        <Binary className="w-5 h-5" />
                       </div>
                       <span className={cn("text-[10px] uppercase font-extrabold tracking-wider px-2.5 py-0.5 rounded-full border", colors.bg, colors.text, colors.border)}>
                         {tmpl.category}
@@ -385,19 +459,10 @@ export default function ProblemSolvingPrepPage() {
 
                   <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                     <span className="text-xs font-semibold text-slate-400 font-mono">
-                      {tmpl.topicsCount} topics · {tmpl.itemsCount} problems
+                      {tmpl.topicCount || 10} topics · {tmpl.itemCount || 150} problems
                     </span>
                     <button
-                      onClick={async () => {
-                        try {
-                          const res = await fetch(`/api/sheets/from-template/${tmpl.key}`, { method: "POST" })
-                          if (res.ok) {
-                            window.location.reload()
-                          }
-                        } catch (err) {
-                          console.error(err)
-                        }
-                      }}
+                      onClick={(e) => handleCloneClick(e, tmpl.key)}
                       className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-sm hover:scale-105"
                     >
                       <span>Clone Roadmap</span>

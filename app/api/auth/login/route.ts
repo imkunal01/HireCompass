@@ -15,6 +15,7 @@ import bcrypt from "bcryptjs"
 import clientPromise from "@/lib/mongodb"
 import { signToken, isEmailAdmin } from "@/lib/session"
 import { getExtensionCorsHeaders, handleOptionsCors } from "@/lib/extension-cors"
+import { getAuthSettings } from "@/lib/auth-settings"
 
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60 // 30 days
 
@@ -41,6 +42,19 @@ export async function POST(request: NextRequest) {
 
     // ── Lookup user ───────────────────────────────────────────────────────
     const user = await users.findOne({ email: normalizedEmail })
+
+    // ── Feature Flag Guard: Only admins can use password login when flag is OFF ──
+    const authSettings = await getAuthSettings()
+    const isAdminUser = isEmailAdmin(normalizedEmail) || user?.role === "admin"
+    if (!authSettings.enablePasswordAuth && !isAdminUser) {
+      return NextResponse.json(
+        {
+          error:
+            "Password sign-in is reserved for administrators. Please use 'Sign in with Google' to access your account.",
+        },
+        { status: 403, headers: corsHeaders }
+      )
+    }
 
     // ── Constant-time compare (prevents user enumeration via timing) ───────
     // If user doesn't exist, compare against a dummy hash so response time

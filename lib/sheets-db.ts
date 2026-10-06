@@ -35,12 +35,26 @@ export async function seedBuiltinTemplates(db: Db) {
   const sheetsCol = db.collection("sheets")
   const itemsCol = db.collection("sheet_items")
 
-  const count = await sheetsCol.countDocuments({ isTemplate: true })
-  if (count > 0) return
+  const validKeys = Object.keys(BUILTIN_TEMPLATES)
+
+  // Remove any legacy template sheets that are NOT in BUILTIN_TEMPLATES (e.g. old dsa, os, cn, dbms, system-design)
+  const legacyTemplates = await sheetsCol.find({ isTemplate: true, templateKey: { $nin: validKeys } }).toArray()
+  for (const legacy of legacyTemplates) {
+    await itemsCol.deleteMany({ sheet: legacy._id })
+    await sheetsCol.deleteOne({ _id: legacy._id })
+  }
 
   const now = new Date()
 
   for (const [key, t] of Object.entries(BUILTIN_TEMPLATES)) {
+    const existing = await sheetsCol.findOne({ isTemplate: true, templateKey: key })
+    if (existing && (existing.itemCount || 0) > 0) continue
+
+    if (existing) {
+      await itemsCol.deleteMany({ sheet: existing._id })
+      await sheetsCol.deleteOne({ _id: existing._id })
+    }
+
     const topicNames = Object.keys(t.topics)
     const sheetDoc = {
       owner: null,
@@ -141,3 +155,91 @@ export async function findOwnedSheet(db: Db, sheetId: string, userId: string) {
     $or: [{ owner: userId }, { owner: toObjectId(userId) }],
   })
 }
+
+/**
+ * Automatically provisions the default Capgemini DSA Problems sheet for a user if they do not have it yet
+ */
+export async function ensureUserDefaultSheets(db: Db, userId: string | ObjectId) {
+  if (!userId) return
+
+  const sheetsCol = db.collection("sheets")
+  const itemsCol = db.collection("sheet_items")
+  const uId = toObjectId(userId)
+  const uIdStr = typeof userId === "string" ? userId : userId.toString()
+
+  const templateKey = "capgemini-dsa"
+  const template = BUILTIN_TEMPLATES[templateKey]
+  if (!template) return
+
+  // Check if user already has this sheet
+  const existing = await sheetsCol.findOne({
+    isTemplate: false,
+    $and: [
+      { $or: [{ owner: uIdStr }, ...(uId ? [{ owner: uId }] : [])] },
+      {
+        $or: [
+          { templateKey: "capgemini-dsa" },
+          { title: template.title },
+          { title: /^Capgemini DSA Problems/i },
+        ],
+      },
+    ],
+  })
+
+  if (existing) {
+    if (existing.title !== template.title || !existing.templateKey) {
+      await sheetsCol.updateOne(
+        { _id: existing._id },
+        { $set: { title: template.title, templateKey: "capgemini-dsa" } }
+      )
+    }
+    return
+  }
+
+  const topicNames = Object.keys(template.topics)
+  const now = new Date()
+
+  const newSheet = {
+    owner: uId || uIdStr,
+    isTemplate: false,
+    templateKey,
+    clonedFrom: null,
+    title: template.title,
+    description: template.description,
+    category: template.category,
+    topics: topicNames.map((name, i) => ({ name, order: i })),
+    itemCount: 0,
+    createdAt: now,
+    updatedAt: now,
+  }
+
+  const res = await sheetsCol.insertOne(newSheet)
+  const sheetId = res.insertedId
+
+  const itemsToInsert: any[] = []
+  for (const topicName of topicNames) {
+    const topicItems = template.topics[topicName] || []
+    topicItems.forEach((it, order) => {
+      itemsToInsert.push({
+        sheet: sheetId,
+        topic: topicName,
+        title: it.title,
+        difficulty: it.difficulty || "Medium",
+        platform: it.platform || "LeetCode",
+        problemLink: it.problemLink || "",
+        articleLink: it.articleLink || "",
+        youtubeLink: it.youtubeLink || "",
+        tags: it.tags || [],
+        order,
+        createdAt: now,
+        updatedAt: now,
+      })
+    })
+  }
+
+  if (itemsToInsert.length > 0) {
+    await itemsCol.insertMany(itemsToInsert, { ordered: false })
+    await sheetsCol.updateOne({ _id: sheetId }, { $set: { itemCount: itemsToInsert.length } })
+  }
+}
+

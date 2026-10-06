@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect } from "react"
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import {
@@ -19,6 +19,8 @@ import {
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { cn } from "@/lib/utils"
+import { GoogleSignInButton } from "@/components/features/auth/google-sign-in-button"
+import { useAuthSettings } from "@/hooks/useAuthSettings"
 
 export type AuthMode = "login" | "signup"
 
@@ -38,12 +40,16 @@ interface AuthModalContextType {
 
 const AuthModalContext = createContext<AuthModalContextType | undefined>(undefined)
 
-export function useAuthModal() {
+const DEFAULT_AUTH_CONTEXT: AuthModalContextType = {
+  isOpen: false,
+  mode: "signup",
+  openAuthModal: () => {},
+  closeAuthModal: () => {},
+}
+
+export function useAuthModal(): AuthModalContextType {
   const context = useContext(AuthModalContext)
-  if (!context) {
-    throw new Error("useAuthModal must be used within an AuthModalProvider")
-  }
-  return context
+  return context || DEFAULT_AUTH_CONTEXT
 }
 
 export function AuthModalProvider({ children }: { children: React.ReactNode }) {
@@ -72,18 +78,18 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("open-auth-modal", handleOpenEvent)
   }, [])
 
-  const openAuthModal = (options?: AuthModalOptions) => {
+  const openAuthModal = useCallback((options?: AuthModalOptions) => {
     setMode(options?.mode || "signup")
     setReason(options?.reason)
     setSuccessCallback(() => options?.onSuccess)
     setIsOpen(true)
-  }
+  }, [])
 
-  const closeAuthModal = () => {
+  const closeAuthModal = useCallback(() => {
     setIsOpen(false)
-  }
+  }, [])
 
-  const handleSuccess = () => {
+  const handleSuccess = useCallback(() => {
     if (successCallback) {
       try {
         successCallback()
@@ -92,18 +98,21 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
       }
     }
     closeAuthModal()
-  }
+  }, [successCallback, closeAuthModal])
+
+  const contextValue = useMemo<AuthModalContextType>(
+    () => ({
+      isOpen,
+      mode,
+      reason,
+      openAuthModal,
+      closeAuthModal,
+    }),
+    [isOpen, mode, reason, openAuthModal, closeAuthModal]
+  )
 
   return (
-    <AuthModalContext.Provider
-      value={{
-        isOpen,
-        mode,
-        reason,
-        openAuthModal,
-        closeAuthModal,
-      }}
-    >
+    <AuthModalContext.Provider value={contextValue}>
       {children}
       {mounted && isOpen && (
         <AuthModalCard
@@ -132,6 +141,8 @@ function AuthModalCard({
 }: AuthModalCardProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { data: authSettings } = useAuthSettings()
+  const isPasswordAuthEnabled = Boolean(authSettings?.enablePasswordAuth)
   const [tab, setTab] = useState<AuthMode>(initialMode)
 
   // Form states
@@ -315,88 +326,119 @@ function AuthModalCard({
           </div>
         )}
 
-        {/* Authentication Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5">
-          {tab === "signup" && (
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                Full Name
-              </label>
-              <div className="relative">
-                <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Kunal Sharma"
-                  required
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all placeholder:text-slate-400"
-                />
+        {/* Google OAuth Button */}
+        <div className="pt-0.5">
+          <GoogleSignInButton
+            label={tab === "signup" ? "Sign up with Google" : "Sign in with Google"}
+            returnUrl={typeof window !== "undefined" ? window.location.pathname + window.location.search : "/dashboard"}
+            size="default"
+          />
+        </div>
+
+        {isPasswordAuthEnabled ? (
+          <>
+            {/* Divider */}
+            <div className="relative my-3 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200 dark:border-slate-800" />
+              </div>
+              <div className="relative bg-white dark:bg-slate-900 px-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                or {tab === "signup" ? "sign up" : "sign in"} with email
               </div>
             </div>
-          )}
 
-          <div className="space-y-1">
-            <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-              Email Address
-            </label>
-            <div className="relative">
-              <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all placeholder:text-slate-400"
-              />
-            </div>
-          </div>
+            {/* Authentication Form */}
+            <form onSubmit={handleSubmit} className="space-y-3.5">
+              {tab === "signup" && (
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                    Full Name
+                  </label>
+                  <div className="relative">
+                    <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Kunal Sharma"
+                      required
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all placeholder:text-slate-400"
+                    />
+                  </div>
+                </div>
+              )}
 
-          <div className="space-y-1">
-            <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-              Password
-            </label>
-            <div className="relative">
-              <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={tab === "signup" ? "At least 8 characters" : "••••••••"}
-                required
-                className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all placeholder:text-slate-400"
-              />
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={tab === "signup" ? "At least 8 characters" : "••••••••"}
+                    required
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all placeholder:text-slate-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1"
+                    aria-label="Toggle password visibility"
+                  >
+                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Submit Action Button */}
               <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1"
-                aria-label="Toggle password visibility"
+                type="submit"
+                disabled={loading}
+                className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
               >
-                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{tab === "signup" ? "Create Free Account" : "Sign In to Continue"}</span>
+                    <ArrowRight size={15} />
+                  </>
+                )}
               </button>
+            </form>
+          </>
+        ) : (
+          /* Info Note for Google-Only Auth */
+          <div className="p-3.5 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 flex items-start gap-2.5 text-xs text-indigo-900 dark:text-indigo-200">
+            <ShieldCheck size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+            <div className="leading-snug text-[11px]">
+              Access is streamlined with Google Sign-In to ensure account verification and prevent token abuse.
             </div>
           </div>
-
-          {/* Submit Action Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-          >
-            {loading ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                <span>Processing...</span>
-              </>
-            ) : (
-              <>
-                <span>{tab === "signup" ? "Create Free Account" : "Sign In to Continue"}</span>
-                <ArrowRight size={15} />
-              </>
-            )}
-          </button>
-        </form>
+        )}
 
         {/* Footer Note */}
         <div className="pt-2 text-center border-t border-slate-100 dark:border-slate-800/80">

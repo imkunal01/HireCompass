@@ -127,12 +127,6 @@ export default function LandingFooter() {
                 </Link>
               </li>
               <li>
-                <Link href="/admin" className="hover:text-rose-600 transition-colors flex items-center gap-1.5 font-medium">
-                  <span>Admin Portal</span>
-                  <span className="text-[8px] font-black uppercase px-1 py-0.5 rounded bg-rose-100 text-rose-700">Admin</span>
-                </Link>
-              </li>
-              <li>
                 <button
                   type="button"
                   onClick={() => openAuthModal({ mode: "signup", reason: "Create your free HireCompass account to unlock permanent application syncing and custom AI insights." })}
@@ -156,6 +150,13 @@ export default function LandingFooter() {
             </Link>
             <Link href="#cookies" className="hover:text-slate-600 transition-colors">
               Cookie Settings
+            </Link>
+            <Link
+              href="/admin/login"
+              className="text-[11px] text-slate-400/40 hover:text-slate-500 transition-colors select-none"
+              title="Restricted platform administrator login"
+            >
+              Admin Access
             </Link>
           </div>
         </div>

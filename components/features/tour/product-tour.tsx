@@ -73,7 +73,7 @@ const TOUR_STEPS: TourStep[] = [
     content:
       "Practice 6-stage AI-assisted technical assessments simulating real hiring formats (Understanding -> Approach -> Prompting -> Code Generation -> Defect Review -> 100-Point Scorecard).",
     bullets: [
-      "29 curated DSA practice problems across all tracks",
+      "150 Capgemini DSA practice problems across 10 tracks",
       "Zero-bypass backend evaluation: prompts are tested for technical rigor",
       "Review past session transcripts and full line-by-line diffs",
     ],

@@ -18,6 +18,7 @@ import {
   Upload,
   Copy,
   FileSpreadsheet,
+  Lock,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Difficulty } from "@/types/sheet"
@@ -25,13 +26,19 @@ import { useSheetStore } from "@/hooks/useSheetStore"
 import { TopicAccordion } from "@/components/features/sheets/topic-accordion"
 import { CsvImportModal } from "@/components/features/sheets/csv-import-modal"
 import { useUser } from "@/hooks/useUser"
+import { useAuthModal } from "@/components/features/auth/auth-modal"
 import { saveSheetSessionSnapshot, clearSheetSessionSnapshot } from "@/lib/resume-session"
 
-export default function SheetDetailPage() {
-  const params = useParams()
+interface SheetDetailPageProps {
+  params: { id: string }
+}
+
+export default function SheetDetailPage({ params }: SheetDetailPageProps) {
   const router = useRouter()
-  const sheetId = params.id as string
-  const { user } = useUser()
+  const routeParams = useParams()
+  const sheetId = params?.id || (routeParams?.id as string) || ""
+  const { user, isAuthenticated, isLoading: isLoadingUser } = useUser()
+  const { openAuthModal } = useAuthModal()
 
   const { current, loading, error, fetchSheet } = useSheetStore()
 
@@ -43,11 +50,23 @@ export default function SheetDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [showCsvModal, setShowCsvModal] = useState(false)
 
+  // Auto-prompt guest user to log in or register (fire once)
+  const hasPromptedRef = React.useRef(false)
   useEffect(() => {
-    if (sheetId) {
+    if (!isLoadingUser && !isAuthenticated && !hasPromptedRef.current) {
+      hasPromptedRef.current = true
+      openAuthModal({
+        mode: "login",
+        reason: "Sign in or create an account to view problems and track your progress in this roadmap.",
+      })
+    }
+  }, [isLoadingUser, isAuthenticated, openAuthModal])
+
+  useEffect(() => {
+    if (sheetId && isAuthenticated) {
       fetchSheet(sheetId)
     }
-  }, [sheetId, fetchSheet])
+  }, [sheetId, isAuthenticated, fetchSheet])
 
   // Track active sheet session snapshot for Home page resume hub
   useEffect(() => {
@@ -75,6 +94,48 @@ export default function SheetDetailPage() {
       })
     }
   }, [current, sheetId])
+
+  if (!isLoadingUser && !isAuthenticated) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-4">
+        <div className="max-w-md w-full rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 p-8 text-center space-y-6 shadow-xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-300">
+          <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto shadow-inner">
+            <Lock className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-black text-slate-900 dark:text-white">
+              Authentication Required
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+              Please sign in or create a free account to track your progress on this roadmap, mark problems as solved, and save notes.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <button
+              onClick={() =>
+                openAuthModal({
+                  mode: "login",
+                  reason: "Sign in to access your problem roadmap and track your completion stats.",
+                  onSuccess: () => {
+                    fetchSheet(sheetId)
+                  },
+                })
+              }
+              className="w-full sm:w-auto px-6 py-2.5 rounded-2xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md hover:scale-105 transition-all"
+            >
+              Log In / Sign Up
+            </button>
+            <Link
+              href="/prep/problem-solving"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-2xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              Back to Roadmaps
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (loading && !current) {
     return (

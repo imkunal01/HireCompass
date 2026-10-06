@@ -115,7 +115,7 @@ export default function CommandPalette({ isOpen, onClose, onAddJob }: CommandPal
     {
       id: "sheets",
       name: "Problem Solving Sheets",
-      description: "Curated DSA, OS, CN, DBMS & System Design roadmaps",
+      description: "Capgemini 150 DSA roadmap & problem sheets",
       category: "Preparation & Testing",
       href: "/prep/problem-solving",
       icon: ListChecks,

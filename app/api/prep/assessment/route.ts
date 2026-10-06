@@ -76,12 +76,24 @@ export async function POST(request: NextRequest) {
       } else if (problemId && problemId !== "random") {
         problem = getProblemById(problemId)
       } else {
-        // Pick a random problem from the Capgemini set
-        problem = getRandomProblem()
+        // Query candidate's past assessment attempts to guarantee true non-repeating random rotation
+        const pastSessions = await getUserAssessmentSessions(session.user.id, "Capgemini")
+        const attemptedIds = (pastSessions || [])
+          .map((s) => s.problemId || s.problem?.id)
+          .filter(Boolean) as string[]
+
+        problem = getRandomProblem(attemptedIds)
       }
 
       if (!problem) {
         problem = getRandomProblem()
+      }
+
+      // Automatically supersede and abandon any existing ACTIVE sessions for this user
+      // so they never get trapped in a stale session reload loop
+      const existingActive = await getActiveAssessmentSession(session.user.id, "Capgemini")
+      if (existingActive) {
+        await abandonAssessmentSession(existingActive._id || existingActive.id || "", session.user.id)
       }
 
       const newSession = await createAssessmentSession(session.user.id, problem, difficulty)

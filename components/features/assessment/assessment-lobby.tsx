@@ -29,6 +29,8 @@ import {
   Layers,
   BookOpen,
   Filter,
+  Search,
+  Shuffle,
 } from "lucide-react"
 import {
   AssessmentProblem,
@@ -50,6 +52,12 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
   const [historyFilter, setHistoryFilter] = useState<"ALL" | "PASSED" | "ACTIVE" | "FAILED">("ALL")
   const [selectedTranscriptSession, setSelectedTranscriptSession] = useState<AssessmentSession | null>(null)
   const [copiedCode, setCopiedCode] = useState(false)
+
+  // Problem Catalog Search & Filter state
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState<string>("ALL")
+  const [catalogDifficulty, setCatalogDifficulty] = useState<string>("ALL")
+  const [visibleCount, setVisibleCount] = useState<number>(12)
 
   // Custom problem form state
   const [customTitle, setCustomTitle] = useState("")
@@ -139,12 +147,30 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
     },
   })
 
-  const handleLaunchRandom = () => {
+  const handleLaunchProblem = (problemId: string = "random") => {
     setIsStarting(true)
     startExamMutation.mutate({
-      problemId: "random",
+      problemId,
       difficulty: selectedDifficulty,
     })
+  }
+
+  const handleLaunchRandom = () => {
+    handleLaunchProblem("random")
+  }
+
+  const handleAbandonAndStartNew = (problemId: string = "random") => {
+    if (activeSession) {
+      if (confirm("Abandon active assessment and launch a new problem?")) {
+        abandonExamMutation.mutate(activeSession._id || activeSession.id || "", {
+          onSuccess: () => {
+            handleLaunchProblem(problemId)
+          },
+        })
+      }
+    } else {
+      handleLaunchProblem(problemId)
+    }
   }
 
   const handleAbandonActive = () => {
@@ -196,6 +222,39 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
     setCopiedCode(true)
     setTimeout(() => setCopiedCode(false), 2000)
   }
+
+  const problems = data?.problems || []
+
+  const categories = [
+    "ALL",
+    "Dynamic Programming",
+    "Arrays",
+    "Trees",
+    "Graphs",
+    "Sliding Window",
+    "Strings",
+    "Mathematics",
+    "Linked List",
+    "Stack & Queue",
+    "BST",
+  ]
+
+  const filteredProblems = problems.filter((p) => {
+    if (selectedCategory !== "ALL" && p.category.toLowerCase() !== selectedCategory.toLowerCase()) {
+      return false
+    }
+    if (catalogDifficulty !== "ALL" && p.difficulty.toLowerCase() !== catalogDifficulty.toLowerCase()) {
+      return false
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      const titleMatch = p.title.toLowerCase().includes(q)
+      const tagMatch = p.tags?.some((t) => t.toLowerCase().includes(q))
+      const catMatch = p.category.toLowerCase().includes(q)
+      if (!titleMatch && !tagMatch && !catMatch) return false
+    }
+    return true
+  })
 
   const filteredPastSessions = pastSessions.filter((sess) => {
     if (historyFilter === "ALL") return true
@@ -284,13 +343,21 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2.5 shrink-0">
+                <div className="flex flex-wrap items-center gap-2.5 shrink-0">
                   <button
                     onClick={handleAbandonActive}
                     disabled={abandonExamMutation.isPending}
                     className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors"
                   >
                     Abandon & Reset
+                  </button>
+                  <button
+                    onClick={() => handleAbandonAndStartNew("random")}
+                    disabled={abandonExamMutation.isPending || isStarting}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors"
+                  >
+                    <Dices className="w-3.5 h-3.5" />
+                    <span>Abandon & Roll New Random</span>
                   </button>
                   <button
                     onClick={() => onStartExam(activeSession)}
@@ -317,7 +384,7 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                     AI Coding Assessment Arena
                   </span>
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    29 Curated DSA Problems
+                    {problems.length > 0 ? `${problems.length} Curated DSA Problems` : "150 Curated DSA Problems"}
                   </span>
                 </div>
 
@@ -594,13 +661,13 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                           className={cn(
                             "text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border",
                             sess.status === "PASSED" &&
-                              "bg-emerald-50 text-emerald-700 border-emerald-200",
+                            "bg-emerald-50 text-emerald-700 border-emerald-200",
                             sess.status === "FAILED" &&
-                              "bg-rose-50 text-rose-700 border-rose-200",
+                            "bg-rose-50 text-rose-700 border-rose-200",
                             sess.status === "ACTIVE" &&
-                              "bg-blue-50 text-blue-700 border-blue-200",
+                            "bg-blue-50 text-blue-700 border-blue-200",
                             sess.status === "ABANDONED" &&
-                              "bg-slate-100 text-slate-600 border-slate-200"
+                            "bg-slate-100 text-slate-600 border-slate-200"
                           )}
                         >
                           {sess.status}
@@ -682,13 +749,13 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                     className={cn(
                       "text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border",
                       selectedTranscriptSession.status === "PASSED" &&
-                        "bg-emerald-50 text-emerald-700 border-emerald-200",
+                      "bg-emerald-50 text-emerald-700 border-emerald-200",
                       selectedTranscriptSession.status === "FAILED" &&
-                        "bg-rose-50 text-rose-700 border-rose-200",
+                      "bg-rose-50 text-rose-700 border-rose-200",
                       selectedTranscriptSession.status === "ACTIVE" &&
-                        "bg-blue-50 text-blue-700 border-blue-200",
+                      "bg-blue-50 text-blue-700 border-blue-200",
                       selectedTranscriptSession.status === "ABANDONED" &&
-                        "bg-slate-100 text-slate-600 border-slate-200"
+                      "bg-slate-100 text-slate-600 border-slate-200"
                     )}
                   >
                     {selectedTranscriptSession.status}
@@ -783,8 +850,8 @@ export function AssessmentLobby({ onStartExam }: AssessmentLobbyProps) {
                         isCandidate
                           ? "bg-gradient-to-r from-[#0070ad] to-[#005a8c] text-white rounded-tr-xs"
                           : msg.isBypassAttempt
-                          ? "bg-rose-50 text-rose-700 border border-rose-200 rounded-tl-xs"
-                          : "bg-white border border-slate-200 text-slate-900 rounded-tl-xs"
+                            ? "bg-rose-50 text-rose-700 border border-rose-200 rounded-tl-xs"
+                            : "bg-white border border-slate-200 text-slate-900 rounded-tl-xs"
                       )}
                     >
                       {msg.content}

@@ -15,12 +15,26 @@ import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import clientPromise from "@/lib/mongodb"
 import { signToken, isEmailAdmin } from "@/lib/session"
+import { ensureUserDefaultSheets } from "@/lib/sheets-db"
+import { getAuthSettings } from "@/lib/auth-settings"
 
 const BCRYPT_ROUNDS = 12
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60 // 30 days
 
 export async function POST(request: NextRequest) {
   try {
+    // ── Feature Flag Guard ────────────────────────────────────────────────
+    const authSettings = await getAuthSettings()
+    if (!authSettings.enablePasswordAuth) {
+      return NextResponse.json(
+        {
+          error:
+            "Password signup is temporarily disabled to prevent abuse. Please sign in or register using your verified Google account.",
+        },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const { name, email, password } = body
 
@@ -75,6 +89,11 @@ export async function POST(request: NextRequest) {
     })
 
     const userId = result.insertedId.toString()
+
+    // Provision default Capgemini DSA sheet for new user
+    await ensureUserDefaultSheets(db, userId).catch((err) =>
+      console.error("[signup] Failed to provision default sheets:", err)
+    )
 
     // ── Issue JWT cookie ──────────────────────────────────────────────────
     const sessionUser = { id: userId, name: name.trim(), email: normalizedEmail, role }

@@ -114,7 +114,7 @@ export default function LandingNavbar() {
                       <div className="text-xs font-semibold text-slate-800 group-hover:text-indigo-600">
                         Interview Prep Sheets
                       </div>
-                      <div className="text-[11px] text-slate-400">Curated DSA & core subjects</div>
+                      <div className="text-[11px] text-slate-400">Capgemini 150 DSA roadmap</div>
                     </div>
                   </Link>
 
