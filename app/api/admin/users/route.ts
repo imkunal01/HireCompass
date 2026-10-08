@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin, isEmailAdmin } from "@/lib/session"
 import clientPromise from "@/lib/mongodb"
 import bcrypt from "bcryptjs"
+import { getAssessmentGlobalSettings } from "@/lib/assessment-settings"
 
 const BCRYPT_ROUNDS = 12
 
@@ -63,6 +64,8 @@ export async function GET(request: NextRequest) {
     const cvMap = new Map(cvCounts.map((c) => [c._id, c.count]))
 
     const defaultLimit = process.env.FREE_AI_LIMIT ? parseInt(process.env.FREE_AI_LIMIT, 10) : 30
+    const globalAssessmentSettings = await getAssessmentGlobalSettings()
+    const defaultTokenLimit = globalAssessmentSettings.globalTokenLimit || 2000
 
     const users = rawUsers.map((u) => {
       const id = u._id.toString()
@@ -86,7 +89,7 @@ export async function GET(request: NextRequest) {
           lastUsedAt: u.aiUsage?.lastUsedAt?.toISOString?.() ?? u.aiUsage?.lastUsedAt ?? null,
         },
         hasCustomKey: Boolean(u.groqKey?.tag),
-        assessmentTokenLimit: typeof u.assessmentTokenLimit === "number" ? u.assessmentTokenLimit : 2000,
+        assessmentTokenLimit: typeof u.assessmentTokenLimit === "number" ? u.assessmentTokenLimit : defaultTokenLimit,
         opportunitiesCount: oppMap.get(id) || 0,
         resumesCount: cvMap.get(id) || 0,
         lastActiveAt: u.lastActiveAt ? (u.lastActiveAt instanceof Date ? u.lastActiveAt.toISOString() : String(u.lastActiveAt)) : null,
@@ -151,7 +154,10 @@ export async function POST(request: NextRequest) {
       role: role === "admin" ? "admin" : "user",
       aiAccess: ["DEFAULT", "UNRESTRICTED", "DISABLED"].includes(aiAccess) ? aiAccess : "DEFAULT",
       aiUsage: { count: 0, lastUsedAt: null },
-      assessmentTokenLimit: typeof assessmentTokenLimit === "number" && assessmentTokenLimit > 0 ? assessmentTokenLimit : 2000,
+      assessmentTokenLimit:
+        typeof assessmentTokenLimit === "number" && assessmentTokenLimit > 0
+          ? assessmentTokenLimit
+          : (await getAssessmentGlobalSettings()).globalTokenLimit || 2000,
       createdAt: now,
       updatedAt: now,
     }

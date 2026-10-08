@@ -680,6 +680,42 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
     * `npx tsc --noEmit`: Clean (0 errors).
     * `npm run lint`: Clean (0 errors).
 
+- **2026-10-08 (Phase 23 Complete — Assessment Token Attribution Fix & Recalibration)**:
+  - **Issue Investigated**:
+    * Candidates were being charged ~2,006+ tokens on their very first prompt (e.g. typing "hi"), causing immediate test failure with `TOKEN_LIMIT_EXCEEDED`.
+    * Root Cause: `evaluatorResult.tokensUsed` was reading Groq's `completion.usage.total_tokens`, which included the platform's internal hidden 1,800+ token evaluator system instructions + few-shot schema rules. Furthermore, even Groq's raw `completion_tokens` (~330 tokens) included internal JSON protocol keys (`missingRequirements`, `scorecard`, `seededDefect`, etc.) that are invisible to the candidate.
+  - **Resolution Delivered**:
+    * Recalibrated token consumption in `lib/assessment-engine.ts` and `app/api/prep/assessment/route.ts`:
+      - Candidate is billed strictly for: `Candidate Input Tokens` (`Math.max(1, Math.ceil(userInput.length / 4))`) + `AI Assistant Visible Response Tokens` (`Math.max(15, Math.ceil((aiMessage.length + generatedCode.length) / 4))`).
+      - All internal platform system prompts and invisible JSON evaluation schema keys are completely excluded.
+      - Typing "hi" or "hii" now costs only **~34–42 tokens** instead of 2,006+ tokens, leaving >1,950 tokens in the candidate's budget.
+    * Recalibrated all existing test sessions across the MongoDB database back to accurate token counts and restored falsely failed sessions back to `status: ACTIVE`.
+  - **Verification**:
+    * `npx tsc --noEmit`: Clean (0 errors).
+    * `npm run lint`: Clean (0 errors).
+
+- **2026-10-08 (Phase 24 Complete — Global Assessment Token Limit Configuration in Admin Panel)**:
+  - **User Requirements Delivered**:
+    1. **Centralized Assessment Settings Architecture (`lib/assessment-settings.ts`)**:
+       - Centralized configuration manager persisting to MongoDB `system_settings` collection under key `assessment_global_settings`.
+       - Built-in 15-second in-memory TTL cache (`CACHE_TTL_MS`) to protect the database under high concurrency.
+       - Bounds enforcement: 500 to 50,000 tokens (default: 2,000 tokens).
+    2. **Dedicated Admin API Endpoints**:
+       - `GET /api/admin/system/assessment-settings`: Returns active global token limit, default time limit, and modification audit metadata.
+       - `POST /api/admin/system/assessment-settings`: Validates and saves updated global assessment settings.
+       - `GET & POST /api/admin/assessments`: Integrated global settings directly into the assessments overview payload and added direct POST update handler.
+    3. **Universal Session & User Fallback Integration**:
+       - `app/api/prep/assessment/route.ts`: Newly initiated assessment sessions query `getAssessmentGlobalSettings().globalTokenLimit` as baseline, respecting individual candidate overrides if configured.
+       - `app/api/admin/users/route.ts`: Candidate listing and user registration fallback dynamically to the global token limit.
+    4. **Dual-Tab Admin Control Center UI**:
+       - **Assessments Tab (`components/features/admin/admin-assessments-tab.tsx`)**: Prominent top Aurora card "Global Assessment Token Budget" with preset chips (1,000, 1,500, 2,000, 3,000, 5,000 tokens), custom number input, and instant React Query mutation with toast notification.
+       - **System & AI Settings Tab (`app/(dashboard)/admin/page.tsx`)**: Dedicated full-width card "AI-Assisted Assessment Global Token Limit" alongside the authentication shield and quota controls.
+       - **Add/Edit User Modals**: Dynamically displays the active global limit in placeholders and helper hints.
+  - **Verification**:
+    * `npx tsc --noEmit`: Clean (0 errors).
+    * `npm run lint`: Clean (0 errors).
+
+
 
 
 

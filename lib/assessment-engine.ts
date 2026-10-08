@@ -200,7 +200,15 @@ RESPOND WITH STRICT JSON ONLY (no markdown fences, no extra text):
     const raw = completion.choices[0]?.message?.content?.trim() || "{}"
     const cleaned = raw.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/```$/, "").trim()
     const parsed = JSON.parse(cleaned) as EvaluatorEngineOutput
-    parsed.tokensUsed = completion.usage?.total_tokens || Math.max(50, Math.ceil((JSON.stringify(messagesToSend).length + raw.length) / 4))
+
+    // Candidate token attribution:
+    // Only charge candidate for their own prompt input + visible AI assistant response (message + code snippet).
+    // Platform overhead (1,800+ token evaluator system prompt, hidden JSON keys, rubric metadata) MUST NOT be charged.
+    const candidateInputTokens = Math.max(1, Math.ceil(userInput.trim().length / 4))
+    const visibleAiText = ((parsed.aiMessage || "") + (parsed.generatedCode ? "\n" + parsed.generatedCode : "")).trim()
+    const aiVisibleTokens = Math.max(15, Math.ceil(visibleAiText.length / 4))
+
+    parsed.tokensUsed = candidateInputTokens + aiVisibleTokens
 
     return parsed
   } catch (err: any) {
@@ -208,7 +216,10 @@ RESPOND WITH STRICT JSON ONLY (no markdown fences, no extra text):
 
     // Fallback resilient rule-based response if Groq fails
     const fallback = buildFallbackResponse(session, userInput)
-    fallback.tokensUsed = Math.max(30, Math.ceil((userInput.length + 300) / 4))
+    const candidateInputTokens = Math.max(1, Math.ceil(userInput.trim().length / 4))
+    const visibleAiFallbackText = ((fallback.aiMessage || "") + (fallback.generatedCode ? "\n" + fallback.generatedCode : "")).trim()
+    const aiFallbackTokens = Math.max(15, Math.ceil(visibleAiFallbackText.length / 4))
+    fallback.tokensUsed = candidateInputTokens + aiFallbackTokens
     return fallback
   }
 }

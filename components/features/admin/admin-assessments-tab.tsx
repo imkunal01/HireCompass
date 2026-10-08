@@ -1,7 +1,8 @@
 "use client"
 
-import React, { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import React, { useState, useEffect } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useToast } from "@/components/ui/toast"
 import {
   BrainCircuit,
   Search,
@@ -19,6 +20,9 @@ import {
   Loader2,
   Flame,
   Award,
+  Sliders,
+  ShieldCheck,
+  Save,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -28,6 +32,15 @@ interface AssessmentStats {
   totalFailed: number
   totalActive: number
   totalTokensUsed: number
+  globalTokenLimit?: number
+  defaultTimeLimitMinutes?: number
+}
+
+interface GlobalAssessmentSettings {
+  globalTokenLimit: number
+  defaultTimeLimitMinutes: number
+  updatedAt?: string
+  updatedBy?: string
 }
 
 interface CandidateRow {
@@ -53,14 +66,28 @@ interface CandidateRow {
 }
 
 export default function AdminAssessmentsTab() {
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
+  const [isEditingGlobalLimit, setIsEditingGlobalLimit] = useState(false)
+  const [globalLimitInput, setGlobalLimitInput] = useState<string>("")
 
   // 1. Fetch Candidates List & Aggregated Stats
   const { data, isLoading, refetch } = useQuery<{
-    stats: AssessmentStats
-    candidates: CandidateRow[]
+    stats?: AssessmentStats
+    overview?: {
+      totalAssessments?: number
+      totalPassed?: number
+      totalFailed?: number
+      totalActive?: number
+      totalTokensUsedAll?: number
+      globalTokenLimit?: number
+      defaultTimeLimitMinutes?: number
+    }
+    candidates?: CandidateRow[]
+    globalSettings?: GlobalAssessmentSettings
   }>({
     queryKey: ["admin-assessments"],
     queryFn: async () => {
@@ -87,6 +114,52 @@ export default function AdminAssessmentsTab() {
     enabled: Boolean(selectedUserId),
   })
 
+  const currentGlobalLimit =
+    data?.globalSettings?.globalTokenLimit ??
+    data?.overview?.globalTokenLimit ??
+    data?.stats?.globalTokenLimit ??
+    2000
+
+  // Keep input in sync with current server value when not actively editing
+  useEffect(() => {
+    if (!isEditingGlobalLimit) {
+      setGlobalLimitInput(String(currentGlobalLimit))
+    }
+  }, [currentGlobalLimit, isEditingGlobalLimit])
+
+  // Mutation to update global token limit
+  const updateGlobalLimitMutation = useMutation({
+    mutationFn: async (tokenLimit: number) => {
+      const res = await fetch("/api/admin/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ globalTokenLimit: tokenLimit }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || "Failed to update global token limit")
+      }
+      return res.json()
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-assessments"] })
+      queryClient.invalidateQueries({ queryKey: ["admin-assessment-settings"] })
+      setIsEditingGlobalLimit(false)
+      toast({
+        type: "success",
+        title: "Global Limit Saved",
+        message: `Assessment token budget set to ${Number(res?.settings?.globalTokenLimit || globalLimitInput).toLocaleString()} tokens.`,
+      })
+    },
+    onError: (err: any) => {
+      toast({
+        type: "error",
+        title: "Update Failed",
+        message: err.message,
+      })
+    },
+  })
+
   const filteredCandidates = (data?.candidates || []).filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -105,6 +178,126 @@ export default function AdminAssessmentsTab() {
 
   return (
     <div className="space-y-6">
+      {/* ── Global Assessment Token Limit Control Center ── */}
+      <div className="rounded-3xl border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/20 to-violet-50/30 p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="p-2.5 rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-600/20 shrink-0">
+              <Coins className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base font-black text-slate-900">
+                  Global Assessment Token Budget
+                </h3>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-800 border border-indigo-200">
+                  {currentGlobalLimit.toLocaleString()} Tokens Default
+                </span>
+                {data?.globalSettings?.updatedAt && (
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    Updated {new Date(data.globalSettings.updatedAt).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Baseline token allowance for all candidates starting an AI coding test. Individual user overrides in User Management take precedence.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            {!isEditingGlobalLimit ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setGlobalLimitInput(String(currentGlobalLimit))
+                  setIsEditingGlobalLimit(true)
+                }}
+                className="px-4 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <Sliders className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Configure Global Limit</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsEditingGlobalLimit(false)}
+                className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Editing drawer / controls */}
+        {isEditingGlobalLimit && (
+          <div className="pt-3 border-t border-indigo-100/70 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-slate-600 mr-1">Quick Presets:</span>
+              {[1000, 1500, 2000, 3000, 5000].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setGlobalLimitInput(String(preset))}
+                  className={cn(
+                    "px-3 py-1 rounded-xl text-xs font-mono font-bold border transition-all cursor-pointer",
+                    globalLimitInput === String(preset)
+                      ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                      : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300"
+                  )}
+                >
+                  {preset.toLocaleString()} tokens
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="relative flex-1 max-w-xs">
+                <input
+                  type="number"
+                  min={500}
+                  max={50000}
+                  step={250}
+                  value={globalLimitInput}
+                  onChange={(e) => setGlobalLimitInput(e.target.value)}
+                  placeholder="Enter token budget (e.g. 2000)..."
+                  className="w-full h-10 pl-3.5 pr-14 rounded-xl border border-slate-200 bg-white text-sm font-mono font-bold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-xs"
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
+                  tokens
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const val = parseInt(globalLimitInput, 10)
+                  if (!isNaN(val) && val >= 500 && val <= 50000) {
+                    updateGlobalLimitMutation.mutate(val)
+                  } else {
+                    toast({
+                      type: "error",
+                      title: "Invalid Input",
+                      message: "Please enter a token limit between 500 and 50,000.",
+                    })
+                  }
+                }}
+                disabled={updateGlobalLimitMutation.isPending || !globalLimitInput}
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {updateGlobalLimitMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4" />
+                )}
+                <span>Save Global Budget</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* ── Top Metric Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
         <div className="p-4 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-1">

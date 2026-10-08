@@ -10,7 +10,8 @@ import {
   Search, Plus, RotateCcw, Trash2, Edit3, CheckCircle2, XCircle,
   Download, Eye, Key, ShieldAlert, ChevronRight, Activity, Ban,
   Lock, RefreshCw, X, Loader2, Globe, Wifi, Radio, Laptop, Smartphone,
-  ExternalLink, Compass, ArrowUpRight, BrainCircuit, MessageSquarePlus
+  ExternalLink, Compass, ArrowUpRight, BrainCircuit, MessageSquarePlus,
+  Coins, Sliders
 } from "lucide-react"
 import AdminAssessmentsTab from "@/components/features/admin/admin-assessments-tab"
 import AdminBroadcastsTab from "@/components/features/admin/admin-broadcasts-tab"
@@ -392,6 +393,57 @@ export default function AdminDashboardPage() {
         message: isEnabled
           ? "Normal login/signup flow along with Google signup is now visible across the website."
           : "Password registration is now disabled. Only verified Google accounts can enter.",
+      })
+    },
+    onError: (err: any) => {
+      toast({ type: "error", title: "Update failed", message: err.message })
+    },
+  })
+
+  // 5. Global Assessment Settings Query & Mutation
+  const { data: assessmentSettings, isLoading: assessmentSettingsLoading, refetch: refetchAssessmentSettings } = useQuery<{
+    globalTokenLimit: number
+    defaultTimeLimitMinutes: number
+    updatedAt?: string
+    updatedBy?: string
+  }>({
+    queryKey: ["admin-assessment-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/system/assessment-settings")
+      if (!res.ok) throw new Error("Failed to load assessment settings")
+      return res.json()
+    },
+    enabled: user?.role === "admin",
+  })
+
+  const [systemGlobalLimitInput, setSystemGlobalLimitInput] = useState("")
+
+  useEffect(() => {
+    if (assessmentSettings?.globalTokenLimit) {
+      setSystemGlobalLimitInput(String(assessmentSettings.globalTokenLimit))
+    }
+  }, [assessmentSettings?.globalTokenLimit])
+
+  const updateGlobalAssessmentLimitMutation = useMutation({
+    mutationFn: async (globalTokenLimit: number) => {
+      const res = await fetch("/api/admin/system/assessment-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ globalTokenLimit }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || "Failed to update assessment settings")
+      }
+      return res.json()
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-assessment-settings"] })
+      queryClient.invalidateQueries({ queryKey: ["admin-assessments"] })
+      toast({
+        type: "success",
+        title: "Assessment Limit Saved",
+        message: `Global token limit set to ${data.settings?.globalTokenLimit?.toLocaleString()} tokens.`,
       })
     },
     onError: (err: any) => {
@@ -1556,6 +1608,105 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* ── Feature: Global AI Assessment Token Limit & Policy ── */}
+          <div className="md:col-span-2 rounded-3xl border border-slate-200/80 bg-white/95 backdrop-blur-xl p-6 sm:p-7 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-md shadow-amber-500/20">
+                  <Coins size={22} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base sm:text-lg font-black text-slate-900">
+                      AI-Assisted Assessment Global Token Limit
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
+                      {(assessmentSettings?.globalTokenLimit ?? 2000).toLocaleString()} Tokens Default
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Platform-wide baseline token allowance for coding assessments. If candidates exceed this limit without solving the problem, the assessment fails.
+                  </p>
+                </div>
+              </div>
+
+              {assessmentSettings?.updatedAt && (
+                <span className="text-[11px] text-slate-400 font-mono self-start sm:self-auto">
+                  Last updated: {new Date(assessmentSettings.updatedAt).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+
+            {/* Quick Presets & Control Bar */}
+            <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-3.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-bold text-slate-700 mr-1">Quick Presets:</span>
+                {[1000, 1500, 2000, 3000, 5000].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setSystemGlobalLimitInput(String(preset))}
+                    className={cn(
+                      "px-3 py-1 rounded-xl text-xs font-mono font-bold border transition-all cursor-pointer",
+                      systemGlobalLimitInput === String(preset)
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                        : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300"
+                    )}
+                  >
+                    {preset.toLocaleString()} tokens
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="relative flex-1 max-w-sm">
+                  <input
+                    type="number"
+                    min={500}
+                    max={50000}
+                    step={250}
+                    value={systemGlobalLimitInput}
+                    onChange={(e) => setSystemGlobalLimitInput(e.target.value)}
+                    placeholder="e.g. 2000"
+                    className="w-full h-10 pl-3.5 pr-14 rounded-xl border border-slate-200 bg-white text-sm font-mono font-bold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-xs"
+                  />
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
+                    tokens
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const parsed = parseInt(systemGlobalLimitInput, 10)
+                    if (!isNaN(parsed) && parsed >= 500 && parsed <= 50000) {
+                      updateGlobalAssessmentLimitMutation.mutate(parsed)
+                    } else {
+                      toast({
+                        type: "error",
+                        title: "Invalid Limit",
+                        message: "Limit must be between 500 and 50,000 tokens.",
+                      })
+                    }
+                  }}
+                  disabled={
+                    updateGlobalAssessmentLimitMutation.isPending ||
+                    !systemGlobalLimitInput ||
+                    parseInt(systemGlobalLimitInput, 10) === assessmentSettings?.globalTokenLimit
+                  }
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {updateGlobalAssessmentLimitMutation.isPending ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <CheckCircle2 size={14} />
+                  )}
+                  <span>Save Global Assessment Limit</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1673,7 +1824,7 @@ export default function AdminDashboardPage() {
                   value={formData.assessmentTokenLimit}
                   onChange={(e) => setFormData({ ...formData, assessmentTokenLimit: e.target.value })}
                   className="w-full h-10 px-3.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs"
-                  placeholder="Default: 2000 tokens"
+                  placeholder={`Default: ${(assessmentSettings?.globalTokenLimit ?? 2000).toLocaleString()} tokens`}
                 />
               </div>
 
@@ -1827,10 +1978,10 @@ export default function AdminDashboardPage() {
                   value={formData.assessmentTokenLimit}
                   onChange={(e) => setFormData({ ...formData, assessmentTokenLimit: e.target.value })}
                   className="w-full h-10 px-3.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs"
-                  placeholder="Default: 2000 tokens"
+                  placeholder={`Default: ${(assessmentSettings?.globalTokenLimit ?? 2000).toLocaleString()} tokens`}
                 />
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Budget of evaluator tokens for AI-assisted coding tests. Test fails if exceeded.
+                  Budget of evaluator tokens for AI-assisted coding tests. Global default: {(assessmentSettings?.globalTokenLimit ?? 2000).toLocaleString()} tokens.
                 </p>
               </div>
 

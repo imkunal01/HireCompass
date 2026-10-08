@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/session"
 import clientPromise from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
+import {
+  getAssessmentGlobalSettings,
+  updateAssessmentGlobalSettings,
+} from "@/lib/assessment-settings"
 
 export const dynamic = "force-dynamic"
 
@@ -153,6 +157,8 @@ export async function GET(request: NextRequest) {
       _id: s._id.toString(),
     }))
 
+    const globalSettings = await getAssessmentGlobalSettings()
+
     return NextResponse.json({
       overview: {
         totalAssessments,
@@ -161,7 +167,30 @@ export async function GET(request: NextRequest) {
         totalActive,
         totalTokensUsedAll,
         uniqueCandidates: userAgg.length,
+        globalTokenLimit: globalSettings.globalTokenLimit,
+        defaultTimeLimitMinutes: globalSettings.defaultTimeLimitMinutes,
       },
+      stats: {
+        totalSessions: totalAssessments,
+        totalPassed,
+        totalFailed,
+        totalActive,
+        totalTokensUsed: totalTokensUsedAll,
+        globalTokenLimit: globalSettings.globalTokenLimit,
+        defaultTimeLimitMinutes: globalSettings.defaultTimeLimitMinutes,
+      },
+      candidates: userRoster.map((u) => ({
+        id: u.userId,
+        name: u.name,
+        email: u.email,
+        totalAttempts: u.totalAttempts,
+        totalPassed: u.solvedCount,
+        totalFailed: u.failedCount,
+        totalTokensUsed: u.totalTokensUsed,
+        assessmentTokenLimit: u.assessmentTokenLimit,
+        recentSessions: [],
+      })),
+      globalSettings,
       userRoster,
       recentSessions,
     })
@@ -169,6 +198,47 @@ export async function GET(request: NextRequest) {
     console.error("[GET /api/admin/assessments]", error)
     return NextResponse.json(
       { error: error?.message || "Internal server error" },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { session, errorResponse } = await requireAdmin(request)
+    if (errorResponse) return errorResponse
+
+    const body = await request.json()
+    const { globalTokenLimit, defaultTimeLimitMinutes } = body
+
+    if (
+      typeof globalTokenLimit !== "number" ||
+      isNaN(globalTokenLimit) ||
+      globalTokenLimit < 500 ||
+      globalTokenLimit > 50000
+    ) {
+      return NextResponse.json(
+        { error: "Invalid globalTokenLimit: Must be a number between 500 and 50,000." },
+        { status: 400 }
+      )
+    }
+
+    const updated = await updateAssessmentGlobalSettings(
+      {
+        globalTokenLimit,
+        ...(typeof defaultTimeLimitMinutes === "number" ? { defaultTimeLimitMinutes } : {}),
+      },
+      session.user.email
+    )
+
+    return NextResponse.json({
+      success: true,
+      settings: updated,
+    })
+  } catch (error: any) {
+    console.error("[POST /api/admin/assessments]", error)
+    return NextResponse.json(
+      { error: error?.message || "Failed to update global token limit" },
       { status: 500 }
     )
   }

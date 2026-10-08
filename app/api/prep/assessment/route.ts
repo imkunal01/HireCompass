@@ -15,6 +15,7 @@ import {
   resetAssessmentSession,
 } from "@/lib/assessment-db"
 import { evaluateAssessmentTurn } from "@/lib/assessment-engine"
+import { getAssessmentGlobalSettings } from "@/lib/assessment-settings"
 import { AssessmentStage, AssessmentProblem, AssessmentScorecard } from "@/types/assessment"
 
 export const dynamic = "force-dynamic"
@@ -153,8 +154,9 @@ export async function POST(request: NextRequest) {
         problem = getRandomProblem()
       }
 
-      // Fetch user's custom assessmentTokenLimit if set by admin
-      let userTokenLimit = 2000
+      // Fetch global assessment settings and user custom override if set by admin
+      const globalAssessmentSettings = await getAssessmentGlobalSettings()
+      let userTokenLimit = globalAssessmentSettings.globalTokenLimit || 2000
       try {
         const userDoc = await db.collection("users").findOne(
           { _id: new ObjectId(session.user.id) },
@@ -345,7 +347,8 @@ export async function POST(request: NextRequest) {
         }
 
         const maxSecs = (assessmentSession.timeLimitMinutes || 30) * 60
-        const tokenBudget = assessmentSession.tokenLimit || 2000
+        const globalSettings = await getAssessmentGlobalSettings()
+        const tokenBudget = assessmentSession.tokenLimit || globalSettings.globalTokenLimit || 2000
 
         // Check 1: Time limit expiration check
         if ((assessmentSession.timeSpentSeconds || 0) >= maxSecs) {
@@ -438,8 +441,12 @@ export async function POST(request: NextRequest) {
           model: aiConfig.model,
         })
 
-        // Update tokens used in session
-        const turnTokens = evaluatorResult.tokensUsed || Math.max(40, Math.ceil((effectiveInput.length + 300) / 4))
+        // Update tokens used in session (candidate input + AI generated reply/code)
+        const visibleAiContent = ((evaluatorResult.aiMessage || "") + (evaluatorResult.generatedCode ? "\n" + evaluatorResult.generatedCode : "")).trim()
+        const turnTokens =
+          evaluatorResult.tokensUsed ||
+          (Math.max(1, Math.ceil(effectiveInput.trim().length / 4)) +
+           Math.max(15, Math.ceil(visibleAiContent.length / 4)))
         assessmentSession.tokensUsed = (assessmentSession.tokensUsed || 0) + turnTokens
 
         // Update session state based on authoritative evaluator output
