@@ -1,8 +1,11 @@
 import clientPromise from "@/lib/mongodb"
 
+export type TokenAccountingMode = "PROMPT_ONLY" | "COMBINED"
+
 export interface AssessmentGlobalSettings {
   globalTokenLimit: number
   defaultTimeLimitMinutes: number
+  tokenAccountingMode: TokenAccountingMode
   updatedAt?: string | Date
   updatedBy?: string
 }
@@ -13,10 +16,12 @@ let cacheTimestamp = 0
 const CACHE_TTL_MS = 15000 // 15-second in-memory cache to reduce database load
 const DEFAULT_GLOBAL_TOKEN_LIMIT = 2000
 const DEFAULT_TIME_LIMIT_MINUTES = 30
+const DEFAULT_TOKEN_ACCOUNTING_MODE: TokenAccountingMode = "PROMPT_ONLY"
 
 /**
  * Retrieves the global default configuration for AI-assisted coding assessments.
- * If not set by admin, defaults to 2,000 tokens and 30 minutes.
+ * By default, uses PROMPT_ONLY mode (Capgemini-aligned) where candidate prompts are counted
+ * and candidate is not penalized for AI output verbosity.
  */
 export async function getAssessmentGlobalSettings(): Promise<AssessmentGlobalSettings> {
   const now = Date.now()
@@ -45,9 +50,13 @@ export async function getAssessmentGlobalSettings(): Promise<AssessmentGlobalSet
         ? doc.defaultTimeLimitMinutes
         : DEFAULT_TIME_LIMIT_MINUTES
 
+    const mode: TokenAccountingMode =
+      doc?.tokenAccountingMode === "COMBINED" ? "COMBINED" : "PROMPT_ONLY"
+
     const settings: AssessmentGlobalSettings = {
       globalTokenLimit: limit,
       defaultTimeLimitMinutes: timeLimit,
+      tokenAccountingMode: mode,
       updatedAt: doc?.updatedAt || undefined,
       updatedBy: doc?.updatedBy || undefined,
     }
@@ -60,16 +69,21 @@ export async function getAssessmentGlobalSettings(): Promise<AssessmentGlobalSet
     return {
       globalTokenLimit: DEFAULT_GLOBAL_TOKEN_LIMIT,
       defaultTimeLimitMinutes: DEFAULT_TIME_LIMIT_MINUTES,
+      tokenAccountingMode: DEFAULT_TOKEN_ACCOUNTING_MODE,
     }
   }
 }
 
 /**
- * Updates the global assessment token limit and configuration.
+ * Updates the global assessment token limit, time limit, and accounting mode.
  * Admin-only operation.
  */
 export async function updateAssessmentGlobalSettings(
-  updates: { globalTokenLimit?: number; defaultTimeLimitMinutes?: number },
+  updates: {
+    globalTokenLimit?: number
+    defaultTimeLimitMinutes?: number
+    tokenAccountingMode?: TokenAccountingMode
+  },
   updatedBy?: string
 ): Promise<AssessmentGlobalSettings> {
   const client = await clientPromise
@@ -86,6 +100,9 @@ export async function updateAssessmentGlobalSettings(
       ? Math.min(180, Math.round(updates.defaultTimeLimitMinutes))
       : current.defaultTimeLimitMinutes
 
+  const tokenAccountingMode: TokenAccountingMode =
+    updates.tokenAccountingMode === "COMBINED" ? "COMBINED" : "PROMPT_ONLY"
+
   const now = new Date()
   await db.collection("system_settings").updateOne(
     { key: SETTINGS_KEY },
@@ -94,6 +111,7 @@ export async function updateAssessmentGlobalSettings(
         key: SETTINGS_KEY,
         globalTokenLimit,
         defaultTimeLimitMinutes,
+        tokenAccountingMode,
         updatedAt: now,
         updatedBy: updatedBy || "admin",
       },
@@ -104,6 +122,7 @@ export async function updateAssessmentGlobalSettings(
   cachedSettings = {
     globalTokenLimit,
     defaultTimeLimitMinutes,
+    tokenAccountingMode,
     updatedAt: now,
     updatedBy: updatedBy || "admin",
   }

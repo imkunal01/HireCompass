@@ -26,13 +26,14 @@ export async function POST(request: NextRequest) {
     if (errorResponse) return errorResponse
 
     const body = await request.json()
-    const { globalTokenLimit, defaultTimeLimitMinutes } = body
+    const { globalTokenLimit, defaultTimeLimitMinutes, tokenAccountingMode } = body
 
     if (
-      typeof globalTokenLimit !== "number" ||
-      isNaN(globalTokenLimit) ||
-      globalTokenLimit < 500 ||
-      globalTokenLimit > 50000
+      globalTokenLimit !== undefined &&
+      (typeof globalTokenLimit !== "number" ||
+        isNaN(globalTokenLimit) ||
+        globalTokenLimit < 500 ||
+        globalTokenLimit > 50000)
     ) {
       return NextResponse.json(
         { error: "Invalid globalTokenLimit: Must be a number between 500 and 50,000." },
@@ -40,10 +41,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (
+      tokenAccountingMode !== undefined &&
+      tokenAccountingMode !== "PROMPT_ONLY" &&
+      tokenAccountingMode !== "COMBINED"
+    ) {
+      return NextResponse.json(
+        { error: "Invalid tokenAccountingMode: Must be 'PROMPT_ONLY' or 'COMBINED'." },
+        { status: 400 }
+      )
+    }
+
     const updated = await updateAssessmentGlobalSettings(
       {
-        globalTokenLimit,
+        ...(typeof globalTokenLimit === "number" ? { globalTokenLimit } : {}),
         ...(typeof defaultTimeLimitMinutes === "number" ? { defaultTimeLimitMinutes } : {}),
+        ...(tokenAccountingMode ? { tokenAccountingMode } : {}),
       },
       session.user.email
     )

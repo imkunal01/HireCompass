@@ -404,6 +404,7 @@ export default function AdminDashboardPage() {
   const { data: assessmentSettings, isLoading: assessmentSettingsLoading, refetch: refetchAssessmentSettings } = useQuery<{
     globalTokenLimit: number
     defaultTimeLimitMinutes: number
+    tokenAccountingMode?: "PROMPT_ONLY" | "COMBINED"
     updatedAt?: string
     updatedBy?: string
   }>({
@@ -444,6 +445,36 @@ export default function AdminDashboardPage() {
         type: "success",
         title: "Assessment Limit Saved",
         message: `Global token limit set to ${data.settings?.globalTokenLimit?.toLocaleString()} tokens.`,
+      })
+    },
+    onError: (err: any) => {
+      toast({ type: "error", title: "Update failed", message: err.message })
+    },
+  })
+
+  const updateGlobalModeMutation = useMutation({
+    mutationFn: async (tokenAccountingMode: "PROMPT_ONLY" | "COMBINED") => {
+      const res = await fetch("/api/admin/system/assessment-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tokenAccountingMode }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || "Failed to update accounting mode")
+      }
+      return res.json()
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-assessment-settings"] })
+      queryClient.invalidateQueries({ queryKey: ["admin-assessments"] })
+      toast({
+        type: "success",
+        title: "Accounting Mode Updated",
+        message:
+          data.settings?.tokenAccountingMode === "PROMPT_ONLY"
+            ? "Candidate Prompts Only enabled. Typing 'hi' now consumes exactly 1 token."
+            : "Combined Mode enabled. Prompts + AI replies are charged.",
       })
     },
     onError: (err: any) => {
@@ -1624,6 +1655,16 @@ export default function AdminDashboardPage() {
                     <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
                       {(assessmentSettings?.globalTokenLimit ?? 2000).toLocaleString()} Tokens Default
                     </span>
+                    <span className={cn(
+                      "px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider border",
+                      (assessmentSettings?.tokenAccountingMode ?? "PROMPT_ONLY") === "PROMPT_ONLY"
+                        ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                        : "bg-amber-50 text-amber-800 border-amber-200"
+                    )}>
+                      {(assessmentSettings?.tokenAccountingMode ?? "PROMPT_ONLY") === "PROMPT_ONLY"
+                        ? "Prompts Only (Capgemini)"
+                        : "Combined (In + Out)"}
+                    </span>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Platform-wide baseline token allowance for coding assessments. If candidates exceed this limit without solving the problem, the assessment fails.
@@ -1704,6 +1745,66 @@ export default function AdminDashboardPage() {
                   )}
                   <span>Save Global Assessment Limit</span>
                 </button>
+              </div>
+
+              {/* Accounting Mode Toggle */}
+              <div className="pt-3 border-t border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-amber-500" />
+                    <span>Token Accounting Mode:</span>
+                    <strong className={cn(
+                      "font-mono",
+                      (assessmentSettings?.tokenAccountingMode ?? "PROMPT_ONLY") === "PROMPT_ONLY"
+                        ? "text-emerald-700"
+                        : "text-amber-700"
+                    )}>
+                      {(assessmentSettings?.tokenAccountingMode ?? "PROMPT_ONLY") === "PROMPT_ONLY"
+                        ? "Candidate Prompts Only (Capgemini Standard)"
+                        : "Combined (Prompts + AI Output)"}
+                    </strong>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    {(assessmentSettings?.tokenAccountingMode ?? "PROMPT_ONLY") === "PROMPT_ONLY"
+                      ? "Capgemini-aligned: only the candidate's typed words are charged against the budget. Typing 'hi' costs exactly 1 token."
+                      : "Both candidate prompts and visible AI assistant replies/code are charged together against the budget."}
+                  </p>
+                </div>
+
+                <div className="inline-flex rounded-xl p-1 bg-slate-100 border border-slate-200 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => updateGlobalModeMutation.mutate("PROMPT_ONLY")}
+                    disabled={
+                      updateGlobalModeMutation.isPending ||
+                      (assessmentSettings?.tokenAccountingMode ?? "PROMPT_ONLY") === "PROMPT_ONLY"
+                    }
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                      (assessmentSettings?.tokenAccountingMode ?? "PROMPT_ONLY") === "PROMPT_ONLY"
+                        ? "bg-white text-indigo-700 shadow-xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    )}
+                  >
+                    Candidate Prompts Only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateGlobalModeMutation.mutate("COMBINED")}
+                    disabled={
+                      updateGlobalModeMutation.isPending ||
+                      assessmentSettings?.tokenAccountingMode === "COMBINED"
+                    }
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                      assessmentSettings?.tokenAccountingMode === "COMBINED"
+                        ? "bg-white text-indigo-700 shadow-xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    )}
+                  >
+                    Combined (In + Out)
+                  </button>
+                </div>
               </div>
             </div>
           </div>

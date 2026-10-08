@@ -23,6 +23,7 @@ import {
   Sliders,
   ShieldCheck,
   Save,
+  Sparkles,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -39,6 +40,7 @@ interface AssessmentStats {
 interface GlobalAssessmentSettings {
   globalTokenLimit: number
   defaultTimeLimitMinutes: number
+  tokenAccountingMode?: "PROMPT_ONLY" | "COMBINED"
   updatedAt?: string
   updatedBy?: string
 }
@@ -120,6 +122,8 @@ export default function AdminAssessmentsTab() {
     data?.stats?.globalTokenLimit ??
     2000
 
+  const currentTokenMode = data?.globalSettings?.tokenAccountingMode || "PROMPT_ONLY"
+
   // Keep input in sync with current server value when not actively editing
   useEffect(() => {
     if (!isEditingGlobalLimit) {
@@ -149,6 +153,42 @@ export default function AdminAssessmentsTab() {
         type: "success",
         title: "Global Limit Saved",
         message: `Assessment token budget set to ${Number(res?.settings?.globalTokenLimit || globalLimitInput).toLocaleString()} tokens.`,
+      })
+    },
+    onError: (err: any) => {
+      toast({
+        type: "error",
+        title: "Update Failed",
+        message: err.message,
+      })
+    },
+  })
+
+  // Mutation to toggle token accounting mode (PROMPT_ONLY vs COMBINED)
+  const updateTokenModeMutation = useMutation({
+    mutationFn: async (mode: "PROMPT_ONLY" | "COMBINED") => {
+      const res = await fetch("/api/admin/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tokenAccountingMode: mode }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || "Failed to update accounting mode")
+      }
+      return res.json()
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-assessments"] })
+      queryClient.invalidateQueries({ queryKey: ["admin-assessment-settings"] })
+      const mode = res?.settings?.tokenAccountingMode
+      toast({
+        type: "success",
+        title: "Token Accounting Mode Updated",
+        message:
+          mode === "PROMPT_ONLY"
+            ? "Candidate Prompts Only enabled. Typing 'hi' now consumes exactly 1 token."
+            : "Combined Mode enabled. Both prompts and AI replies are billed.",
       })
     },
     onError: (err: any) => {
@@ -193,6 +233,14 @@ export default function AdminAssessmentsTab() {
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-800 border border-indigo-200">
                   {currentGlobalLimit.toLocaleString()} Tokens Default
                 </span>
+                <span className={cn(
+                  "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border",
+                  currentTokenMode === "PROMPT_ONLY"
+                    ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                    : "bg-amber-50 text-amber-800 border-amber-200"
+                )}>
+                  {currentTokenMode === "PROMPT_ONLY" ? "Prompts Only (Capgemini)" : "Combined (In + Out)"}
+                </span>
                 {data?.globalSettings?.updatedAt && (
                   <span className="text-[10px] text-slate-400 font-medium">
                     Updated {new Date(data.globalSettings.updatedAt).toLocaleDateString()}
@@ -216,7 +264,7 @@ export default function AdminAssessmentsTab() {
                 className="px-4 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <Sliders className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Configure Global Limit</span>
+                <span>Configure Budget & Mode</span>
               </button>
             ) : (
               <button
@@ -224,9 +272,59 @@ export default function AdminAssessmentsTab() {
                 onClick={() => setIsEditingGlobalLimit(false)}
                 className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition-all cursor-pointer"
               >
-                Cancel
+                Close
               </button>
             )}
+          </div>
+        </div>
+
+        {/* Accounting Mode Toggle Card */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white/90 border border-slate-200/80 shadow-2xs">
+          <div className="space-y-0.5">
+            <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>Token Accounting Mode:</span>
+              <strong className={cn(
+                "font-mono",
+                currentTokenMode === "PROMPT_ONLY" ? "text-emerald-700" : "text-amber-700"
+              )}>
+                {currentTokenMode === "PROMPT_ONLY" ? "Candidate Prompts Only" : "Combined (Prompts + AI Replies)"}
+              </strong>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              {currentTokenMode === "PROMPT_ONLY"
+                ? "Capgemini-aligned: only the candidate's typed words are charged against the budget. Typing 'hi' costs exactly 1 token."
+                : "Both candidate prompts and visible AI assistant replies/code are charged against the budget."}
+            </p>
+          </div>
+
+          <div className="inline-flex rounded-xl p-1 bg-slate-100 border border-slate-200 shrink-0">
+            <button
+              type="button"
+              onClick={() => updateTokenModeMutation.mutate("PROMPT_ONLY")}
+              disabled={updateTokenModeMutation.isPending || currentTokenMode === "PROMPT_ONLY"}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                currentTokenMode === "PROMPT_ONLY"
+                  ? "bg-white text-indigo-700 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              )}
+            >
+              Candidate Prompts Only
+            </button>
+            <button
+              type="button"
+              onClick={() => updateTokenModeMutation.mutate("COMBINED")}
+              disabled={updateTokenModeMutation.isPending || currentTokenMode === "COMBINED"}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                currentTokenMode === "COMBINED"
+                  ? "bg-white text-indigo-700 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              )}
+            >
+              Combined (In + Out)
+            </button>
           </div>
         </div>
 

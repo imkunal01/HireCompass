@@ -715,6 +715,22 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
     * `npx tsc --noEmit`: Clean (0 errors).
     * `npm run lint`: Clean (0 errors).
 
+- **2026-10-08 (Phase 25 Complete — Token Accounting Mode Toggle & Capgemini Alignment)**:
+  - **User Requirements Delivered**:
+    1. **Dual Token Accounting Modes (`tokenAccountingMode: "PROMPT_ONLY" | "COMBINED"`)**:
+       - **Candidate Prompts Only (Default & Capgemini-Aligned)**: Charges candidates strictly for their typed prompt input (`Math.max(1, Math.ceil(userInput.length / 4))`). Typing "hi" costs literally **1 token**, allowing candidates to write ~1,500 words of prompts without being penalized for the AI assistant's lengthy explanations or code output.
+       - **Combined Mode**: Charges candidate prompt tokens plus visible AI assistant response text and code snippets.
+    2. **Admin Panel Interactive Toggle**:
+       - Mounted segmented mode toggle buttons in both **Assessments Tab** (`components/features/admin/admin-assessments-tab.tsx`) and **System & AI Settings Tab** (`app/(dashboard)/admin/page.tsx`).
+       - Admins can switch between "Candidate Prompts Only" and "Combined" in 1 click with instantaneous feedback and toast confirmation.
+    3. **Database Recalibration**:
+       - Configured MongoDB `system_settings` to default to `tokenAccountingMode: "PROMPT_ONLY"`.
+       - Recalibrated all active candidate sessions in `assessment_sessions` so greetings like "hi" or "hii" reflect their true 1-token cost.
+  - **Verification**:
+    * `npx tsc --noEmit`: Clean (0 errors).
+    * `npm run lint`: Clean (0 errors).
+
+
 
 
 

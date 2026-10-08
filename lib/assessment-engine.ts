@@ -35,11 +35,13 @@ export async function evaluateAssessmentTurn({
   userInput,
   apiKey,
   model = "openai/gpt-oss-120b",
+  tokenAccountingMode = "PROMPT_ONLY",
 }: {
   session: AssessmentSession
   userInput: string
   apiKey: string
   model?: string
+  tokenAccountingMode?: "PROMPT_ONLY" | "COMBINED"
 }): Promise<EvaluatorEngineOutput> {
   const problem = session.problem
   const currentStage = session.currentStage
@@ -202,13 +204,17 @@ RESPOND WITH STRICT JSON ONLY (no markdown fences, no extra text):
     const parsed = JSON.parse(cleaned) as EvaluatorEngineOutput
 
     // Candidate token attribution:
-    // Only charge candidate for their own prompt input + visible AI assistant response (message + code snippet).
-    // Platform overhead (1,800+ token evaluator system prompt, hidden JSON keys, rubric metadata) MUST NOT be charged.
+    // When tokenAccountingMode is "PROMPT_ONLY" (Capgemini-aligned default):
+    // Only charge candidate for their typed prompt words. "hi" costs literally 1 token.
+    // When "COMBINED": charge prompt input + visible AI assistant response (message + code snippet).
     const candidateInputTokens = Math.max(1, Math.ceil(userInput.trim().length / 4))
-    const visibleAiText = ((parsed.aiMessage || "") + (parsed.generatedCode ? "\n" + parsed.generatedCode : "")).trim()
-    const aiVisibleTokens = Math.max(15, Math.ceil(visibleAiText.length / 4))
-
-    parsed.tokensUsed = candidateInputTokens + aiVisibleTokens
+    if (tokenAccountingMode === "COMBINED") {
+      const visibleAiText = ((parsed.aiMessage || "") + (parsed.generatedCode ? "\n" + parsed.generatedCode : "")).trim()
+      const aiVisibleTokens = Math.max(15, Math.ceil(visibleAiText.length / 4))
+      parsed.tokensUsed = candidateInputTokens + aiVisibleTokens
+    } else {
+      parsed.tokensUsed = candidateInputTokens
+    }
 
     return parsed
   } catch (err: any) {
@@ -217,9 +223,13 @@ RESPOND WITH STRICT JSON ONLY (no markdown fences, no extra text):
     // Fallback resilient rule-based response if Groq fails
     const fallback = buildFallbackResponse(session, userInput)
     const candidateInputTokens = Math.max(1, Math.ceil(userInput.trim().length / 4))
-    const visibleAiFallbackText = ((fallback.aiMessage || "") + (fallback.generatedCode ? "\n" + fallback.generatedCode : "")).trim()
-    const aiFallbackTokens = Math.max(15, Math.ceil(visibleAiFallbackText.length / 4))
-    fallback.tokensUsed = candidateInputTokens + aiFallbackTokens
+    if (tokenAccountingMode === "COMBINED") {
+      const visibleAiFallbackText = ((fallback.aiMessage || "") + (fallback.generatedCode ? "\n" + fallback.generatedCode : "")).trim()
+      const aiFallbackTokens = Math.max(15, Math.ceil(visibleAiFallbackText.length / 4))
+      fallback.tokensUsed = candidateInputTokens + aiFallbackTokens
+    } else {
+      fallback.tokensUsed = candidateInputTokens
+    }
     return fallback
   }
 }

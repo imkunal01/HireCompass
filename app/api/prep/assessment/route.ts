@@ -433,20 +433,24 @@ export async function POST(request: NextRequest) {
           timestamp: now,
         })
 
-        // Run evaluator turn
+        // Run evaluator turn with active token accounting mode
         const evaluatorResult = await evaluateAssessmentTurn({
           session: assessmentSession,
           userInput: effectiveInput,
           apiKey: aiConfig.apiKey,
           model: aiConfig.model,
+          tokenAccountingMode: globalSettings.tokenAccountingMode || "PROMPT_ONLY",
         })
 
-        // Update tokens used in session (candidate input + AI generated reply/code)
+        // Update tokens used in session according to tokenAccountingMode
+        const isCombined = globalSettings.tokenAccountingMode === "COMBINED"
+        const candidateInputTokens = Math.max(1, Math.ceil(effectiveInput.trim().length / 4))
         const visibleAiContent = ((evaluatorResult.aiMessage || "") + (evaluatorResult.generatedCode ? "\n" + evaluatorResult.generatedCode : "")).trim()
         const turnTokens =
           evaluatorResult.tokensUsed ||
-          (Math.max(1, Math.ceil(effectiveInput.trim().length / 4)) +
-           Math.max(15, Math.ceil(visibleAiContent.length / 4)))
+          (isCombined
+            ? candidateInputTokens + Math.max(15, Math.ceil(visibleAiContent.length / 4))
+            : candidateInputTokens)
         assessmentSession.tokensUsed = (assessmentSession.tokensUsed || 0) + turnTokens
 
         // Update session state based on authoritative evaluator output
