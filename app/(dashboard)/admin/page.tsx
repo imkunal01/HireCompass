@@ -10,8 +10,11 @@ import {
   Search, Plus, RotateCcw, Trash2, Edit3, CheckCircle2, XCircle,
   Download, Eye, Key, ShieldAlert, ChevronRight, Activity, Ban,
   Lock, RefreshCw, X, Loader2, Globe, Wifi, Radio, Laptop, Smartphone,
-  ExternalLink, Compass, ArrowUpRight
+  ExternalLink, Compass, ArrowUpRight, BrainCircuit, MessageSquarePlus
 } from "lucide-react"
+import AdminAssessmentsTab from "@/components/features/admin/admin-assessments-tab"
+import AdminBroadcastsTab from "@/components/features/admin/admin-broadcasts-tab"
+import AdminFeedbackTab from "@/components/features/admin/admin-feedback-tab"
 import "@/styles/animations.css"
 import { cn } from "@/lib/utils"
 import type { TrafficSummary } from "@/types/telemetry"
@@ -46,6 +49,7 @@ interface UserRecord {
   hasCustomKey: boolean
   opportunitiesCount: number
   resumesCount: number
+  assessmentTokenLimit?: number
   lastActiveAt?: string | null
   lastPath?: string | null
   isOnline?: boolean
@@ -92,7 +96,9 @@ export default function AdminDashboardPage() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
-  const [activeTab, setActiveTab] = useState<"users" | "traffic" | "resumes" | "system">("users")
+  const [activeTab, setActiveTab] = useState<
+    "users" | "traffic" | "assessments" | "broadcasts" | "feedback" | "resumes" | "system"
+  >("users")
   const [userSearch, setUserSearch] = useState("")
   const [roleFilter, setRoleFilter] = useState("ALL")
   const [aiAccessFilter, setAiAccessFilter] = useState("ALL")
@@ -139,6 +145,7 @@ export default function AdminDashboardPage() {
     role: "user" as "admin" | "user",
     aiAccess: "DEFAULT" as "DEFAULT" | "UNRESTRICTED" | "DISABLED",
     aiLimit: "",
+    assessmentTokenLimit: "2000",
   })
 
   // 1. Fetch Stats
@@ -264,6 +271,7 @@ export default function AdminDashboardPage() {
         body: JSON.stringify({
           ...data,
           aiLimit: data.aiLimit ? parseInt(data.aiLimit, 10) : undefined,
+          assessmentTokenLimit: data.assessmentTokenLimit ? parseInt(data.assessmentTokenLimit, 10) : 2000,
         }),
       })
       if (!res.ok) {
@@ -276,7 +284,7 @@ export default function AdminDashboardPage() {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] })
       queryClient.invalidateQueries({ queryKey: ["admin-stats"] })
       setIsAddUserOpen(false)
-      setFormData({ name: "", email: "", password: "", role: "user", aiAccess: "DEFAULT", aiLimit: "" })
+      setFormData({ name: "", email: "", password: "", role: "user", aiAccess: "DEFAULT", aiLimit: "", assessmentTokenLimit: "2000" })
       toast({ type: "success", title: "User created!", message: "New account has been registered successfully." })
     },
     onError: (err: any) => {
@@ -444,7 +452,7 @@ export default function AdminDashboardPage() {
 
         <button
           onClick={() => {
-            setFormData({ name: "", email: "", password: "", role: "user", aiAccess: "DEFAULT", aiLimit: "" })
+            setFormData({ name: "", email: "", password: "", role: "user", aiAccess: "DEFAULT", aiLimit: "", assessmentTokenLimit: "2000" })
             setIsAddUserOpen(true)
           }}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-500/25 transition-all"
@@ -523,6 +531,9 @@ export default function AdminDashboardPage() {
             icon: Globe,
             badge: (trafficData?.onlineUsersCount ?? 0) > 0 ? `${trafficData?.onlineUsersCount} online` : null,
           },
+          { id: "assessments", label: "AI Assessments & Transcripts", icon: BrainCircuit },
+          { id: "broadcasts", label: "Broadcast Center", icon: Radio },
+          { id: "feedback", label: "User Feedback & Suggestions", icon: MessageSquarePlus },
           { id: "resumes", label: "Resumes Oversight", icon: FileText },
           { id: "system", label: "System & AI Settings", icon: Cpu },
         ].map((tab) => (
@@ -724,6 +735,9 @@ export default function AdminDashboardPage() {
                               Default ({u.aiUsage.limit})
                             </span>
                           )}
+                          <div className="text-[10px] text-slate-400 mt-1 font-mono">
+                            Assessment: <strong className="text-slate-600 font-bold">{u.assessmentTokenLimit ?? 2000} tok</strong>
+                          </div>
                         </td>
 
                         {/* AI Usage Meter & Reset */}
@@ -785,6 +799,7 @@ export default function AdminDashboardPage() {
                                   role: u.role,
                                   aiAccess: u.aiAccess,
                                   aiLimit: u.hasCustomLimit && typeof u.customLimit === "number" ? String(u.customLimit) : "",
+                                  assessmentTokenLimit: typeof (u as any).assessmentTokenLimit === "number" ? String((u as any).assessmentTokenLimit) : "2000",
                                 })
                               }}
                               title="Edit user"
@@ -1544,6 +1559,15 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
+      {/* ════════════════════ TAB: ASSESSMENTS ════════════════════ */}
+      {activeTab === "assessments" && <AdminAssessmentsTab />}
+
+      {/* ════════════════════ TAB: BROADCASTS ════════════════════ */}
+      {activeTab === "broadcasts" && <AdminBroadcastsTab />}
+
+      {/* ════════════════════ TAB: FEEDBACK ════════════════════ */}
+      {activeTab === "feedback" && <AdminFeedbackTab />}
+
       {/* ── MODAL: Add New User ── */}
       {isAddUserOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
@@ -1640,6 +1664,19 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  Assessment Token Limit (Per Test)
+                </label>
+                <input
+                  type="number"
+                  value={formData.assessmentTokenLimit}
+                  onChange={(e) => setFormData({ ...formData, assessmentTokenLimit: e.target.value })}
+                  className="w-full h-10 px-3.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs"
+                  placeholder="Default: 2000 tokens"
+                />
+              </div>
+
               <div className="flex justify-end items-center gap-2.5 pt-3 border-t border-slate-100">
                 <button
                   type="button"
@@ -1690,6 +1727,7 @@ export default function AdminDashboardPage() {
                   role: formData.role,
                   aiAccess: formData.aiAccess,
                   aiLimit: formData.aiLimit ? parseInt(formData.aiLimit, 10) : null,
+                  assessmentTokenLimit: formData.assessmentTokenLimit ? parseInt(formData.assessmentTokenLimit, 10) : 2000,
                 }
                 if (formData.password.trim()) {
                   updates.password = formData.password.trim()
@@ -1778,6 +1816,22 @@ export default function AdminDashboardPage() {
                   className="w-full h-10 px-3.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs"
                   placeholder="e.g. 50"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  Assessment Token Limit (Per Test)
+                </label>
+                <input
+                  type="number"
+                  value={formData.assessmentTokenLimit}
+                  onChange={(e) => setFormData({ ...formData, assessmentTokenLimit: e.target.value })}
+                  className="w-full h-10 px-3.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs"
+                  placeholder="Default: 2000 tokens"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Budget of evaluator tokens for AI-assisted coding tests. Test fails if exceeded.
+                </p>
               </div>
 
               <div className="flex justify-end items-center gap-2.5 pt-3 border-t border-slate-100">

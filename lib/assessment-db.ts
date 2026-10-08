@@ -33,7 +33,9 @@ export async function ensureAssessmentIndexes(db: Db) {
 export async function createAssessmentSession(
   userId: string,
   problem: AssessmentProblem,
-  difficulty: AssessmentDifficulty = "standard"
+  difficulty: AssessmentDifficulty = "standard",
+  timeLimitMinutes: number = 30,
+  tokenLimit: number = 2000
 ): Promise<AssessmentSession> {
   const db = await getAssessmentDb()
   const sessionsCol = db.collection("assessment_sessions")
@@ -51,13 +53,21 @@ export async function createAssessmentSession(
     status: "ACTIVE",
     bypassAttemptsCount: 0,
     revisions: [],
+    timeLimitMinutes,
+    timeSpentSeconds: 0,
+    isPaused: false,
+    lastPausedAt: null,
+    tokenLimit,
+    tokensUsed: 0,
+    failReason: null,
     messages: [
       {
         id: "msg-init-0",
         role: "assistant",
-        content: `Welcome to the Capgemini AI-Assisted Coding Assessment Simulator.
+        content: `Welcome to the AI-Assisted Coding Assessment Simulator.
 
 Problem: **${problem.title}** (${problem.difficulty})
+Time Limit: **${timeLimitMinutes} minutes** | Token Budget: **${tokenLimit.toLocaleString()} tokens**
 
 Before I generate code, explain your understanding of the problem. State what the input represents, what output is required, and which edge cases or constraints you think matter.`,
         stage: "UNDERSTANDING",
@@ -198,6 +208,11 @@ export async function resetAssessmentSession(
     currentStage: "UNDERSTANDING",
     status: "ACTIVE",
     bypassAttemptsCount: 0,
+    timeSpentSeconds: 0,
+    tokensUsed: 0,
+    isPaused: false,
+    lastPausedAt: null,
+    failReason: null,
     candidateUnderstanding: undefined,
     candidateApproach: undefined,
     implementationPrompt: undefined,
@@ -213,6 +228,7 @@ export async function resetAssessmentSession(
         content: `Session restarted.
 
 Problem: **${existing.problem.title}** (${existing.problem.difficulty})
+Time Limit: **${existing.timeLimitMinutes || 30} minutes** | Token Budget: **${(existing.tokenLimit || 2000).toLocaleString()} tokens**
 
 Explain your understanding of the problem before proceeding: state the input, expected output, and key boundary conditions.`,
         stage: "UNDERSTANDING",

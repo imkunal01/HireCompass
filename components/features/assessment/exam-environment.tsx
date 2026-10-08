@@ -30,6 +30,9 @@ import {
   FileText,
   Lock,
   ArrowRight,
+  Pause,
+  Play,
+  Coins,
 } from "lucide-react"
 import {
   AssessmentSession,
@@ -131,7 +134,10 @@ export function ExamEnvironment({
   const [mobileView, setMobileView] = useState<"spec" | "chat">("spec")
   const [copiedCode, setCopiedCode] = useState(false)
   const [activeRevisionIdx, setActiveRevisionIdx] = useState<number>(0)
-  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+
+  // Timer & Token state: restored directly from authoritative database session
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(initialSession.timeSpentSeconds || 0)
+  const [isPaused, setIsPaused] = useState<boolean>(Boolean(initialSession.isPaused))
   const [showScoreModal, setShowScoreModal] = useState(false)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const [scratchpadText, setScratchpadText] = useState("")
@@ -139,6 +145,10 @@ export function ExamEnvironment({
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const timeLimitMinutes = session.timeLimitMinutes || initialSession.timeLimitMinutes || 30
+  const tokenLimit = session.tokenLimit || initialSession.tokenLimit || 2000
+  const tokensUsed = session.tokensUsed || 0
 
   // Enforce zero-cheat exam mode: hide Sweety and all floating chatbots on document.body
   useEffect(() => {
@@ -168,13 +178,98 @@ export function ExamEnvironment({
     }
   }, [session._id, session.id])
 
-  // Practice Timer
+  // Practice Timer: only ticks when active and not paused
   useEffect(() => {
+    if (isPaused || session.status !== "ACTIVE") return
+
     const timer = setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1)
+      setElapsedSeconds((prev) => {
+        const next = prev + 1
+        const limitSecs = timeLimitMinutes * 60
+        if (next >= limitSecs) {
+          handleTimeExpired(next)
+        }
+        return next
+      })
     }, 1000)
+
     return () => clearInterval(timer)
-  }, [])
+  }, [isPaused, session.status, timeLimitMinutes])
+
+  // Periodic Timer & State Sync every 15 seconds to server
+  useEffect(() => {
+    if (session.status !== "ACTIVE" || isPaused) return
+
+    const syncInterval = setInterval(() => {
+      fetch("/api/prep/assessment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "sync_timer",
+          sessionId: session._id || session.id,
+          timeSpentSeconds: elapsedSeconds,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.session) {
+            setSession(data.session)
+            onSessionUpdated?.(data.session)
+            if (data.session.status === "FAILED") {
+              setShowScoreModal(true)
+            }
+          }
+        })
+        .catch((e) => console.warn("[Timer Sync]", e))
+    }, 15000)
+
+    return () => clearInterval(syncInterval)
+  }, [session._id, session.id, isPaused, elapsedSeconds, session.status])
+
+  const handleTimeExpired = async (finalSeconds: number) => {
+    try {
+      const res = await fetch("/api/prep/assessment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "sync_timer",
+          sessionId: session._id || session.id,
+          timeSpentSeconds: finalSeconds,
+        }),
+      })
+      const data = await res.json()
+      if (data.session) {
+        setSession(data.session)
+        onSessionUpdated?.(data.session)
+        setShowScoreModal(true)
+      }
+    } catch (e) {
+      console.error("Time expired sync failed:", e)
+    }
+  }
+
+  const handleTogglePause = async () => {
+    const nextPaused = !isPaused
+    setIsPaused(nextPaused)
+    try {
+      const res = await fetch("/api/prep/assessment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: nextPaused ? "pause" : "resume",
+          sessionId: session._id || session.id,
+          timeSpentSeconds: elapsedSeconds,
+        }),
+      })
+      const data = await res.json()
+      if (data.session) {
+        setSession(data.session)
+        onSessionUpdated?.(data.session)
+      }
+    } catch (err) {
+      console.error("Failed to toggle pause:", err)
+    }
+  }
 
   // Keep active revision synced to latest
   useEffect(() => {
@@ -209,7 +304,7 @@ export function ExamEnvironment({
 
   const handleSendMessage = async (textToSend?: string) => {
     const message = (textToSend || userInput).trim()
-    if (!message || isLoading) return
+    if (!message || isLoading || isPaused) return
 
     setIsLoading(true)
     setUserInput("")
@@ -222,6 +317,7 @@ export function ExamEnvironment({
           action: "respond",
           sessionId: session._id || session.id,
           userInput: message,
+          timeSpentSeconds: elapsedSeconds,
         }),
       })
 
@@ -229,6 +325,9 @@ export function ExamEnvironment({
       if (res.ok && data.session) {
         setSession(data.session)
         onSessionUpdated?.(data.session)
+        if (data.session.status === "FAILED") {
+          setShowScoreModal(true)
+        }
       } else {
         alert(data.error || "Failed to process evaluation")
       }
@@ -446,19 +545,73 @@ export function ExamEnvironment({
           })}
         </div>
 
-        {/* Right: Timer, Fullscreen, Scorecard, and Exit Button */}
+        {/* Right: Timer, Pause, Tokens, Fullscreen, Scorecard, and Exit Button */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Exam Digital Clock */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-mono font-bold border border-slate-200 shadow-xs">
-            <Clock className="w-3.5 h-3.5 text-[#0070ad]" />
+          {/* Exam Digital Clock & Remaining Indicator */}
+          <div
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-bold border shadow-xs transition-colors",
+              isPaused
+                ? "bg-amber-50 text-amber-700 border-amber-200"
+                : elapsedSeconds >= timeLimitMinutes * 60 - 300
+                ? "bg-rose-50 text-rose-700 border-rose-200 animate-pulse"
+                : "bg-slate-100 text-slate-700 border-slate-200"
+            )}
+            title={`Time Limit: ${timeLimitMinutes} minutes`}
+          >
+            <Clock className={cn("w-3.5 h-3.5", isPaused ? "text-amber-600" : "text-[#0070ad]")} />
             <span>{formatTimer(elapsedSeconds)}</span>
+            <span className="text-slate-400 font-normal text-[10px]">/ {timeLimitMinutes}:00</span>
+          </div>
+
+          {/* Pause / Resume Button */}
+          {session.status === "ACTIVE" && (
+            <button
+              onClick={handleTogglePause}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer",
+                isPaused
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs"
+                  : "bg-white hover:bg-slate-100 text-slate-700 border-slate-200 shadow-xs"
+              )}
+              title={isPaused ? "Resume Exam Timer" : "Pause Exam Timer"}
+            >
+              {isPaused ? (
+                <>
+                  <Play className="w-3.5 h-3.5 fill-white text-white" />
+                  <span className="hidden sm:inline">Resume</span>
+                </>
+              ) : (
+                <>
+                  <Pause className="w-3.5 h-3.5 text-slate-600" />
+                  <span className="hidden sm:inline">Pause</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Live Token Meter */}
+          <div
+            className={cn(
+              "hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold border shadow-xs",
+              tokensUsed >= tokenLimit * 0.85
+                ? "bg-rose-50 text-rose-700 border-rose-200"
+                : tokensUsed >= tokenLimit * 0.6
+                ? "bg-amber-50 text-amber-700 border-amber-200"
+                : "bg-slate-100 text-slate-700 border-slate-200"
+            )}
+            title={`Token Budget: ${tokenLimit.toLocaleString()} tokens`}
+          >
+            <Coins className="w-3.5 h-3.5 text-amber-500" />
+            <span>{tokensUsed.toLocaleString()}</span>
+            <span className="text-slate-400 font-normal text-[10px]">/ {tokenLimit.toLocaleString()}</span>
           </div>
 
           {/* Bypass Flags Warning */}
           {session.bypassAttemptsCount > 0 && (
-            <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold">
+            <div className="hidden md:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold">
               <ShieldAlert className="w-3.5 h-3.5" />
-              <span>{session.bypassAttemptsCount} Bypass Flags</span>
+              <span>{session.bypassAttemptsCount} Flags</span>
             </div>
           )}
 
@@ -1131,9 +1284,11 @@ export function ExamEnvironment({
                       handleSendMessage()
                     }
                   }}
-                  disabled={isLoading}
+                  disabled={isLoading || isPaused}
                   placeholder={
-                    session.currentStage === "UNDERSTANDING"
+                    isPaused
+                      ? "Assessment is currently PAUSED. Click 'Resume' in the proctoring bar above to continue."
+                      : session.currentStage === "UNDERSTANDING"
                       ? "Explain your problem understanding: input, output, constraints, edge cases..."
                       : session.currentStage === "APPROACH"
                       ? "State your proposed algorithm, data structure, and O(...) complexity..."
@@ -1146,23 +1301,35 @@ export function ExamEnvironment({
                       : "Type your response..."
                   }
                   rows={2}
-                  className="w-full bg-transparent resize-none outline-none text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 p-1 font-medium"
+                  className={cn(
+                    "w-full bg-transparent resize-none outline-none text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 p-1 font-medium",
+                    isPaused && "opacity-50 cursor-not-allowed"
+                  )}
                 />
 
                 <div className="flex items-center justify-between pt-1.5 border-t border-slate-200/80 px-1">
-                  <span className="text-[10px] text-slate-400 sm:hidden">
-                    Stage {currentStepIdx + 1} of 6
-                  </span>
-                  <span className="text-[10px] text-slate-400 hidden sm:inline">
-                    Be specific & avoid blind bypasses
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 sm:hidden">
+                      Stage {currentStepIdx + 1}/6
+                    </span>
+                    <span className="text-[10px] text-slate-400 hidden sm:inline">
+                      Stage {currentStepIdx + 1} of 6
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      Tokens:{" "}
+                      <strong className={cn(tokenLimit - tokensUsed < 400 ? "text-rose-600 font-bold" : "text-slate-700")}>
+                        {tokensUsed.toLocaleString()}/{tokenLimit.toLocaleString()}
+                      </strong>
+                    </span>
+                  </div>
 
                   <button
                     onClick={() => handleSendMessage()}
-                    disabled={!userInput.trim() || isLoading}
+                    disabled={!userInput.trim() || isLoading || isPaused}
                     className="inline-flex items-center gap-1.5 px-4.5 py-1.5 sm:py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white shadow-md shadow-indigo-600/25 transition-all hover:scale-[1.02] cursor-pointer disabled:cursor-not-allowed"
                   >
-                    <span>Submit</span>
+                    <span>{isPaused ? "Paused" : "Submit"}</span>
                     <Send className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -1171,6 +1338,48 @@ export function ExamEnvironment({
           )}
         </section>
       </div>
+
+      {/* ── 3.5 Active Pause Overlay ── */}
+      {isPaused && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 space-y-5 text-center shadow-2xl">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto shadow-xs">
+              <Clock className="w-8 h-8" />
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                Stopwatch Paused
+              </span>
+              <h3 className="text-xl font-black text-slate-900">
+                Assessment Paused
+              </h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                The test timer is frozen at{" "}
+                <strong className="text-slate-900 font-mono font-bold">
+                  {formatTimer(elapsedSeconds)}
+                </strong>{" "}
+                of <strong className="text-slate-900 font-mono font-bold">{timeLimitMinutes}:00</strong>. Take a break and click resume when ready.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs font-mono">
+              <span className="text-slate-500">Tokens Budget</span>
+              <span className="font-bold text-slate-800">
+                {tokensUsed.toLocaleString()} / {tokenLimit.toLocaleString()} used
+              </span>
+            </div>
+
+            <button
+              onClick={handleTogglePause}
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#0070ad] to-[#00a3e0] hover:from-[#005a8c] hover:to-[#008cc0] text-white font-bold text-sm shadow-md shadow-[#0070ad]/25 transition-all hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Play className="w-4 h-4 fill-white" />
+              <span>Resume Assessment</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── 4. End Exam Confirmation Modal ── */}
       {showExitConfirm && (

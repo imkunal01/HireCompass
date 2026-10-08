@@ -44,6 +44,8 @@ import { JobDrawer } from "@/components/features/kanban/job-drawer"
 import { ToastProvider } from "@/components/ui/toast"
 import { useResumeSessions } from "@/hooks/useResumeSessions"
 import { ResumeSessionsHub } from "@/components/features/dashboard/resume-sessions-hub"
+import DashboardFeedbackWidget from "@/components/features/dashboard/dashboard-feedback-widget"
+import DashboardBroadcastBanner from "@/components/features/dashboard/dashboard-broadcast-banner"
 
 const EMPTY_STATS: DashboardStats = {
   totalSaved: 0,
@@ -793,6 +795,11 @@ export default function DashboardPage() {
         </div>
 
         {/* ═══════════════════════════════════════════════════
+            ROW 1.2: ACTIVE GLOBAL PLATFORM BROADCASTS (Visible to all users)
+        ═══════════════════════════════════════════════════ */}
+        <DashboardBroadcastBanner />
+
+        {/* ═══════════════════════════════════════════════════
             ROW 1.5: RESUME WHERE YOU LEFT OFF (IN-PROGRESS SESSIONS HUB)
         ═══════════════════════════════════════════════════ */}
         <ResumeSessionsHub
@@ -1444,6 +1451,11 @@ export default function DashboardPage() {
           </div>
 
         </div>
+
+        {/* ═══════════════════════════════════════════════════
+            ROW 6: COMMUNITY FEEDBACK & WEBSITE SUGGESTIONS
+        ═══════════════════════════════════════════════════ */}
+        <DashboardFeedbackWidget />
 
       </div>
 

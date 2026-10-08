@@ -62,6 +62,7 @@ export async function evaluateAssessmentTurn({
       unlockNextStage: false,
       aiMessage: BYPASS_RESPONSE_TEXT,
       isBypassAttempt: true,
+      tokensUsed: 15,
     }
   }
 
@@ -199,13 +200,16 @@ RESPOND WITH STRICT JSON ONLY (no markdown fences, no extra text):
     const raw = completion.choices[0]?.message?.content?.trim() || "{}"
     const cleaned = raw.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/```$/, "").trim()
     const parsed = JSON.parse(cleaned) as EvaluatorEngineOutput
+    parsed.tokensUsed = completion.usage?.total_tokens || Math.max(50, Math.ceil((JSON.stringify(messagesToSend).length + raw.length) / 4))
 
     return parsed
   } catch (err: any) {
     console.error("[assessment-engine] LLM call failed:", err)
 
     // Fallback resilient rule-based response if Groq fails
-    return buildFallbackResponse(session, userInput)
+    const fallback = buildFallbackResponse(session, userInput)
+    fallback.tokensUsed = Math.max(30, Math.ceil((userInput.length + 300) / 4))
+    return fallback
   }
 }
 

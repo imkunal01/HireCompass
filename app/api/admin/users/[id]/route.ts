@@ -25,6 +25,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       role,
       aiAccess,
       aiLimit,
+      assessmentTokenLimit,
       resetAiUsage,
       name,
       email,
@@ -65,6 +66,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     } else if (aiLimit === null || aiLimit === "" || (typeof aiLimit === "string" && aiLimit.trim() === "")) {
       unsetFields.aiLimit = ""
+    }
+
+    if (typeof assessmentTokenLimit === "number" && !isNaN(assessmentTokenLimit) && assessmentTokenLimit > 0) {
+      updateSet.assessmentTokenLimit = assessmentTokenLimit
+    } else if (assessmentTokenLimit === null) {
+      unsetFields.assessmentTokenLimit = ""
     }
 
     if (resetAiUsage === true) {

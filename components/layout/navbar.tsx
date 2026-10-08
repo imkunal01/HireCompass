@@ -42,7 +42,9 @@ import { useUser } from "@/hooks/useUser"
 import { useAuthModal } from "@/components/features/auth/auth-modal"
 import { useStore } from "@/hooks/useStore"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Loader2 } from "lucide-react"
+import { Loader2, Radio } from "lucide-react"
+import { BroadcastMessage } from "@/types/broadcast"
+import { openBroadcastModal } from "@/components/layout/broadcast-banner-modal"
 import CommandPalette from "@/components/ui/command-palette"
 import type { Reminder } from "@/types/reminder"
 
@@ -111,6 +113,19 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
     },
   })
 
+  const { data: personalBroadcastData } = useQuery<{
+    personalBroadcast: BroadcastMessage | null
+    isDismissed: boolean
+  }>({
+    queryKey: ["broadcast-personal"],
+    queryFn: async () => {
+      const res = await fetch("/api/broadcasts/personal")
+      if (!res.ok) return { personalBroadcast: null, isDismissed: false }
+      return res.json()
+    },
+    refetchInterval: 25000,
+  })
+
   useEffect(() => {
     setMounted(true)
     if (typeof window === "undefined" || !("Notification" in window)) {
@@ -171,9 +186,11 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
         <div className="flex items-center gap-2">
           <Bell className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
           <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">Notifications</span>
-          {reminders.length > 0 && (
+          {(reminders.length > 0 || Boolean(personalBroadcastData?.personalBroadcast)) && (
             <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white shadow-xs">
-              {reminders.length > 9 ? "9+" : reminders.length}
+              {(reminders.length + (personalBroadcastData?.personalBroadcast ? 1 : 0)) > 9
+                ? "9+"
+                : reminders.length + (personalBroadcastData?.personalBroadcast ? 1 : 0)}
             </span>
           )}
         </div>
@@ -197,6 +214,41 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       </div>
+
+      {/* Direct Personal Admin Message */}
+      {personalBroadcastData?.personalBroadcast && (
+        <div
+          onClick={() => {
+            openBroadcastModal(personalBroadcastData.personalBroadcast!)
+            onClose()
+          }}
+          className="p-3.5 bg-gradient-to-r from-violet-50/95 via-indigo-50/90 to-purple-50/90 dark:from-violet-950/40 dark:via-indigo-950/40 dark:to-purple-950/30 border-b border-indigo-100 dark:border-indigo-900/60 cursor-pointer hover:bg-violet-100/70 dark:hover:bg-violet-900/50 transition-all flex items-start gap-3 group"
+        >
+          <div className="w-8 h-8 rounded-xl bg-violet-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+            <Radio className="w-4 h-4 animate-pulse" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-900/70 px-2 py-0.5 rounded-full">
+                Direct Message from Admin
+              </span>
+              <span className="text-[10px] text-slate-400">
+                {new Date(personalBroadcastData.personalBroadcast.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </div>
+            <h5 className="text-xs font-bold text-slate-900 dark:text-white truncate mt-1">
+              {personalBroadcastData.personalBroadcast.title}
+            </h5>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
+              {personalBroadcastData.personalBroadcast.message}
+            </p>
+            <div className="flex items-center gap-1 text-[11px] font-bold text-violet-600 dark:text-violet-400 mt-1.5">
+              <span>Click to open message dialog</span>
+              <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notification permission banner */}
       {notifPermission === "default" && (
@@ -338,11 +390,28 @@ export default function Navbar() {
     refetchInterval: 60000,
   })
 
+  const { data: personalBroadcastData } = useQuery<{
+    personalBroadcast: BroadcastMessage | null
+    isDismissed: boolean
+  }>({
+    queryKey: ["broadcast-personal"],
+    queryFn: async () => {
+      const res = await fetch("/api/broadcasts/personal")
+      if (!res.ok) return { personalBroadcast: null, isDismissed: false }
+      return res.json()
+    },
+    enabled: Boolean(isAuthenticated && user),
+    refetchInterval: 25000,
+  })
+
+  const hasPersonalBroadcast = Boolean(personalBroadcastData?.personalBroadcast)
+
   const pendingCount = React.useMemo(() => {
-    return pendingReminders?.filter(
+    const reminderDue = pendingReminders?.filter(
       (r) => new Date(r.eventDate || r.registrationDeadline || r.dueAt) <= new Date(Date.now() + 86400000)
     ).length ?? 0
-  }, [pendingReminders])
+    return reminderDue + (hasPersonalBroadcast ? 1 : 0)
+  }, [pendingReminders, hasPersonalBroadcast])
 
   // Global ⌘K shortcut listener
   useEffect(() => {
@@ -813,9 +882,14 @@ export default function Navbar() {
                 aria-label="Notifications"
               >
                 <Bell className="h-4 w-4" />
-                {pendingCount > 0 && (
+                {hasPersonalBroadcast ? (
+                  <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-violet-600 ring-2 ring-white dark:ring-slate-900" />
+                  </span>
+                ) : pendingCount > 0 ? (
                   <span className="absolute top-1.5 right-1.5 flex h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900" />
-                )}
+                ) : null}
               </button>
 
               {notifOpen && <NotificationDropdown onClose={() => setNotifOpen(false)} />}

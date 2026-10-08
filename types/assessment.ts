@@ -121,6 +121,13 @@ export interface AssessmentSession {
   revisions: CodeRevision[]
   messages: AssessmentMessage[]
   evaluation?: AssessmentScorecard | null
+  timeLimitMinutes?: number // user chosen limit in minutes (e.g. 15, 30, 45, 60)
+  timeSpentSeconds?: number // accumulated elapsed seconds
+  isPaused?: boolean // whether timer is paused
+  lastPausedAt?: string | null
+  tokenLimit?: number // max token budget (e.g. 2000 or admin-configured)
+  tokensUsed?: number // accumulated tokens used in this session
+  failReason?: "TIME_EXCEEDED" | "TOKEN_LIMIT_EXCEEDED" | "EVALUATION_FAILED" | null
   startedAt: string
   updatedAt: string
 }
@@ -139,4 +146,5 @@ export interface EvaluatorEngineOutput {
   isBypassAttempt?: boolean
   defectAcknowledged?: boolean
   scorecard?: AssessmentScorecard | null
+  tokensUsed?: number
 }

@@ -86,6 +86,7 @@ export async function GET(request: NextRequest) {
           lastUsedAt: u.aiUsage?.lastUsedAt?.toISOString?.() ?? u.aiUsage?.lastUsedAt ?? null,
         },
         hasCustomKey: Boolean(u.groqKey?.tag),
+        assessmentTokenLimit: typeof u.assessmentTokenLimit === "number" ? u.assessmentTokenLimit : 2000,
         opportunitiesCount: oppMap.get(id) || 0,
         resumesCount: cvMap.get(id) || 0,
         lastActiveAt: u.lastActiveAt ? (u.lastActiveAt instanceof Date ? u.lastActiveAt.toISOString() : String(u.lastActiveAt)) : null,
@@ -117,7 +118,7 @@ export async function POST(request: NextRequest) {
     if (errorResponse) return errorResponse
 
     const body = await request.json()
-    const { name, email, password, role = "user", aiAccess = "DEFAULT", aiLimit } = body
+    const { name, email, password, role = "user", aiAccess = "DEFAULT", aiLimit, assessmentTokenLimit } = body
 
     if (!name || typeof name !== "string" || name.trim().length < 2) {
       return NextResponse.json({ error: "Name must be at least 2 characters." }, { status: 400 })
@@ -150,6 +151,7 @@ export async function POST(request: NextRequest) {
       role: role === "admin" ? "admin" : "user",
       aiAccess: ["DEFAULT", "UNRESTRICTED", "DISABLED"].includes(aiAccess) ? aiAccess : "DEFAULT",
       aiUsage: { count: 0, lastUsedAt: null },
+      assessmentTokenLimit: typeof assessmentTokenLimit === "number" && assessmentTokenLimit > 0 ? assessmentTokenLimit : 2000,
       createdAt: now,
       updatedAt: now,
     }

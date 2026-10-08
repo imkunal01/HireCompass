@@ -640,6 +640,46 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
     * `npx tsc --noEmit`: Clean (0 errors).
     * `npm run lint`: Clean (0 errors).
 
+- **2026-10-08 (Phase 21 Complete — AI-Assisted Assessment Enhancements, Admin Control Suite, Global Broadcast System & User Feedback)**:
+  - **User Requirements Delivered**:
+    1. **AI-Assisted Coding (Candidate Experience)**:
+       - **Problem Selection**: Candidates can either launch randomized assessments or pick any specific problem directly from the DSA Sheet with search, difficulty filtering, and 1-click launch.
+       - **Persistent Stopwatch & Pause State**: Timer elapsed state (`timeSpentSeconds`) is maintained in the MongoDB database and synced every 15s. The timer only pauses when explicitly requested, never resetting upon page reloads, tab switches, or test resumes. Added stopwatch time limit selection (15m, 30m, 45m, 60m).
+       - **Strict Token Budget & Failure Rule**: Enforced a per-assessment token budget (default 2,000 tokens, or admin-configured per user). If the candidate exceeds the chosen stopwatch time or exhausts tokens without solving the problem, the assessment transitions to `FAILED` with a clear scorecard.
+    2. **Admin Control Suite**:
+       - **Assessment Oversight & Transcripts**: Admin dashboard tab (`assessments`) displaying full candidate assessment metrics (attempts, solved count, failed count, tokens consumed) with drill-down transcripts showing turn-by-turn candidate prompts, code snapshots, and AI evaluator replies.
+       - **Per-User Assessment Token Limit**: Admin can view and configure each user's `assessmentTokenLimit` directly in the User Management modal.
+       - **Global & Targeted Broadcast System**: Admin can dispatch broadcast messages either globally (to all users) or targeted to a specific candidate (`broadcasts` tab).
+       - **Universal Screen-Pop Modal (`components/layout/broadcast-banner-modal.tsx`)**: Broadcasts pop up on the user's screen regardless of what page they are browsing, with 1-click dismissal so they can continue working seamlessly.
+    3. **User Feedback & Suggestions Engine**:
+       - **Dashboard Feedback & Suggestions Card (`components/features/dashboard/dashboard-feedback-widget.tsx`)**: Dedicated widget on `/dashboard` allowing users to rate their experience (1-5 stars), toggle between General Feedback and Feature Suggestions, choose a category, and submit notes.
+       - **Automatic Visit-Based Feedback Prompt (`components/features/feedback/feedback-auto-prompt.tsx`)**: Automatically prompts candidates after 2-3 visits to the website with a rating dialog.
+       - **Admin Feedback Review Hub (`components/features/admin/admin-feedback-tab.tsx`)**: Dedicated tab in the Admin Control Center for reviewing, filtering, and deleting user feedbacks and feature suggestions.
+  - **Verification**:
+    * `npx tsc --noEmit`: Clean (0 errors).
+    * `npm run lint`: Clean (0 errors).
+
+- **2026-10-08 (Phase 22 Complete — Dashboard Global Broadcast Retention & Personal Admin Message Reminders)**:
+  - **User Requirements Delivered**:
+    1. **Persistent Dashboard Visibility for Global Broadcasts**:
+       - Created `GET /api/broadcasts/global` returning active platform-wide broadcasts regardless of popup dismissal.
+       - Built `DashboardBroadcastBanner` (`components/features/dashboard/dashboard-broadcast-banner.tsx`) mounted at the top of `/dashboard`. Even after dismissing the popup alert, global broadcasts remain visible on the Dashboard with expand/collapse and "View in popup dialog" options.
+    2. **Personal Admin Message Notification & Inactivity Reminders**:
+       - Created `GET /api/broadcasts/personal` to fetch targeted admin messages for the authenticated candidate.
+       - Integrated direct personal message notifications in `Navbar` (`components/layout/navbar.tsx`):
+         * Notification Bell icon displays a pulsating violet alert badge when a direct message exists.
+         * Top of the `NotificationDropdown` displays a prominent "Direct Message from Admin" card with 1-click trigger to open the message dialog box.
+       - Built `PersonalBroadcastReminder` (`components/layout/personal-broadcast-reminder.tsx`):
+         * Floating reminder toast/card slides in if the user was inactive or opened the website late, reminding them of unread direct messages from the administrator.
+         * 1-click "Open Message Dialog" button launches `BroadcastBannerModal` directly.
+    3. **Admin Reping & Resend Dispatch Engine**:
+       - Created `POST /api/admin/broadcasts/[id]` to reping/resend any broadcast message.
+       - Clears `dismissedBy: []`, updates `createdAt: new Date()`, and increments `repingCount` so the modal alert immediately pops up again on the candidate's screen.
+       - Added **"Resend / Reping"** and **"Copy into Composer"** action buttons on broadcast cards in `AdminBroadcastsTab` (`components/features/admin/admin-broadcasts-tab.tsx`).
+  - **Verification**:
+    * `npx tsc --noEmit`: Clean (0 errors).
+    * `npm run lint`: Clean (0 errors).
+
 
 
 

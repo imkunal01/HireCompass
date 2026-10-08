@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
+import clientPromise from "@/lib/mongodb"
+import { ObjectId } from "mongodb"
 import { getUserAiConfig, incrementUserAiUsage } from "@/lib/ai-quota"
 import { verifyAiRequestSecurity, createAiRateLimitResponse } from "@/lib/ai-security"
 import { CAPGEMINI_PROBLEMS, getProblemById, getRandomProblem } from "@/lib/assessment-problems"
@@ -13,7 +15,7 @@ import {
   resetAssessmentSession,
 } from "@/lib/assessment-db"
 import { evaluateAssessmentTurn } from "@/lib/assessment-engine"
-import { AssessmentStage, AssessmentProblem } from "@/types/assessment"
+import { AssessmentStage, AssessmentProblem, AssessmentScorecard } from "@/types/assessment"
 
 export const dynamic = "force-dynamic"
 
@@ -65,7 +67,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { action, problemId, difficulty = "standard", sessionId, userInput, customProblem } = body
+    const {
+      action,
+      problemId,
+      difficulty = "standard",
+      timeLimitMinutes = 30,
+      sessionId,
+      userInput,
+      customProblem,
+      timeSpentSeconds,
+    } = body
+
+    const client = await clientPromise
+    const db = client.db()
 
     // ─── 1. Action: START ───────────────────────────────────────────────
     if (action === "start") {
@@ -75,6 +89,56 @@ export async function POST(request: NextRequest) {
         problem = customProblem
       } else if (problemId && problemId !== "random") {
         problem = getProblemById(problemId)
+        if (!problem) {
+          problem = CAPGEMINI_PROBLEMS.find(
+            (p) =>
+              p.id.toLowerCase() === problemId.toLowerCase() ||
+              p.title.toLowerCase() === problemId.toLowerCase()
+          )
+        }
+        // If still not found, check sheet_items collection
+        if (!problem) {
+          try {
+            const query = ObjectId.isValid(problemId)
+              ? { _id: new ObjectId(problemId) }
+              : { title: new RegExp(`^${problemId}$`, "i") }
+            const sheetItem = await db.collection("sheet_items").findOne(query)
+            if (sheetItem) {
+              const matchedCapgemini = CAPGEMINI_PROBLEMS.find(
+                (p) => p.title.toLowerCase() === sheetItem.title.toLowerCase()
+              )
+              if (matchedCapgemini) {
+                problem = matchedCapgemini
+              } else {
+                problem = {
+                  id: sheetItem._id.toString(),
+                  title: sheetItem.title,
+                  company: "Capgemini",
+                  category: sheetItem.topic || "DSA",
+                  difficulty: (["Easy", "Medium", "Hard"].includes(sheetItem.difficulty)
+                    ? sheetItem.difficulty
+                    : "Medium") as "Easy" | "Medium" | "Hard",
+                  tags: sheetItem.tags || [sheetItem.topic || "DSA"],
+                  description: `Implement an optimal solution for "${sheetItem.title}". Formulate data structures, analyze algorithmic complexity, and structure your implementation.`,
+                  inputFormat: "Standard problem input",
+                  outputFormat: "Standard problem output",
+                  constraints: ["Time complexity must be optimal for constraints", "Space complexity must be minimized"],
+                  examples: [
+                    {
+                      input: "Sample input",
+                      output: "Sample output",
+                      explanation: "Standard evaluation example",
+                    },
+                  ],
+                  keyEdgeCases: ["Empty input condition", "Boundary value limits"],
+                  expectedComplexity: { time: "O(n)", space: "O(n)" },
+                }
+              }
+            }
+          } catch (e) {
+            console.warn("[assessment] Could not lookup sheet item:", e)
+          }
+        }
       } else {
         // Query candidate's past assessment attempts to guarantee true non-repeating random rotation
         const pastSessions = await getUserAssessmentSessions(session.user.id, "Capgemini")
@@ -89,18 +153,129 @@ export async function POST(request: NextRequest) {
         problem = getRandomProblem()
       }
 
+      // Fetch user's custom assessmentTokenLimit if set by admin
+      let userTokenLimit = 2000
+      try {
+        const userDoc = await db.collection("users").findOne(
+          { _id: new ObjectId(session.user.id) },
+          { projection: { assessmentTokenLimit: 1 } }
+        )
+        if (typeof userDoc?.assessmentTokenLimit === "number" && userDoc.assessmentTokenLimit > 0) {
+          userTokenLimit = userDoc.assessmentTokenLimit
+        }
+      } catch (err) {
+        console.warn("[assessment] User token limit fetch fallback:", err)
+      }
+
+      const parsedLimit = Math.max(5, Math.min(180, parseInt(String(timeLimitMinutes || 30), 10)))
+
       // Automatically supersede and abandon any existing ACTIVE sessions for this user
-      // so they never get trapped in a stale session reload loop
       const existingActive = await getActiveAssessmentSession(session.user.id, "Capgemini")
       if (existingActive) {
         await abandonAssessmentSession(existingActive._id || existingActive.id || "", session.user.id)
       }
 
-      const newSession = await createAssessmentSession(session.user.id, problem, difficulty)
+      const newSession = await createAssessmentSession(
+        session.user.id,
+        problem,
+        difficulty,
+        parsedLimit,
+        userTokenLimit
+      )
       return NextResponse.json({ session: newSession })
     }
 
-    // ─── 2. Action: ABANDON ─────────────────────────────────────────────
+    // ─── 2. Action: PAUSE ───────────────────────────────────────────────
+    if (action === "pause") {
+      if (!sessionId) {
+        return NextResponse.json({ error: "Session ID is required" }, { status: 400 })
+      }
+      const assessmentSession = await getAssessmentSession(sessionId, session.user.id)
+      if (!assessmentSession) {
+        return NextResponse.json({ error: "Session not found" }, { status: 404 })
+      }
+      assessmentSession.isPaused = true
+      assessmentSession.lastPausedAt = new Date().toISOString()
+      if (typeof timeSpentSeconds === "number") {
+        assessmentSession.timeSpentSeconds = Math.max(0, timeSpentSeconds)
+      }
+      assessmentSession.updatedAt = new Date().toISOString()
+      await updateAssessmentSession(assessmentSession)
+      return NextResponse.json({ session: assessmentSession })
+    }
+
+    // ─── 3. Action: RESUME ──────────────────────────────────────────────
+    if (action === "resume") {
+      if (!sessionId) {
+        return NextResponse.json({ error: "Session ID is required" }, { status: 400 })
+      }
+      const assessmentSession = await getAssessmentSession(sessionId, session.user.id)
+      if (!assessmentSession) {
+        return NextResponse.json({ error: "Session not found" }, { status: 404 })
+      }
+      assessmentSession.isPaused = false
+      assessmentSession.lastPausedAt = null
+      assessmentSession.updatedAt = new Date().toISOString()
+      await updateAssessmentSession(assessmentSession)
+      return NextResponse.json({ session: assessmentSession })
+    }
+
+    // ─── 4. Action: SYNC_TIMER ──────────────────────────────────────────
+    if (action === "sync_timer") {
+      if (!sessionId) {
+        return NextResponse.json({ error: "Session ID is required" }, { status: 400 })
+      }
+      const assessmentSession = await getAssessmentSession(sessionId, session.user.id)
+      if (!assessmentSession) {
+        return NextResponse.json({ error: "Session not found" }, { status: 404 })
+      }
+
+      if (typeof timeSpentSeconds === "number") {
+        assessmentSession.timeSpentSeconds = Math.max(0, timeSpentSeconds)
+      }
+
+      const totalAllowedSecs = (assessmentSession.timeLimitMinutes || 30) * 60
+      if (
+        assessmentSession.status === "ACTIVE" &&
+        (assessmentSession.timeSpentSeconds || 0) >= totalAllowedSecs
+      ) {
+        // Time limit reached!
+        assessmentSession.status = "FAILED"
+        assessmentSession.failReason = "TIME_EXCEEDED"
+        const failedScorecard: AssessmentScorecard = {
+          aiLiteracy: 8,
+          promptQuality: 8,
+          problemSolving: 8,
+          reviewAndAdapt: 6,
+          totalScore: 30,
+          passed: false,
+          summary: `Time limit exceeded (${assessmentSession.timeLimitMinutes} minutes). The candidate did not complete all assessment stages within the allotted time limit.`,
+          strengths: ["Initiated problem assessment workflow"],
+          gaps: ["Pacing: Could not complete reasoning, code review, and refinement within the allocated stopwatch time limit."],
+          stageBreakdown: {
+            understanding: { score: 8, verdict: "PARTIAL", notes: "Incomplete due to time expiration" },
+            approach: { score: 8, verdict: "PARTIAL", notes: "Incomplete due to time expiration" },
+            prompting: { score: 8, verdict: "PARTIAL", notes: "Incomplete due to time expiration" },
+            review: { score: 6, verdict: "PARTIAL", notes: "Incomplete due to time expiration" },
+            refinement: { score: 0, verdict: "INSUFFICIENT", notes: "Stage not reached before time expired" },
+          },
+        }
+        assessmentSession.evaluation = failedScorecard
+        assessmentSession.messages.push({
+          id: `msg-timeout-${Date.now()}`,
+          role: "assistant",
+          content: `⏱️ **Time Limit Reached (${assessmentSession.timeLimitMinutes}m):** The allocated test stopwatch has expired before completing all problem stages. This assessment session has ended and is marked as FAILED.`,
+          stage: assessmentSession.currentStage,
+          timestamp: new Date().toISOString(),
+        })
+      }
+
+      assessmentSession.updatedAt = new Date().toISOString()
+      await updateAssessmentSession(assessmentSession)
+      return NextResponse.json({ session: assessmentSession })
+    }
+
+    // ─── 5. Action: ABANDON ─────────────────────────────────────────────
     if (action === "abandon") {
       if (!sessionId) {
         return NextResponse.json({ error: "Session ID is required" }, { status: 400 })
@@ -114,7 +289,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ session: abandoned })
     }
 
-    // ─── 3. Action: RESET ───────────────────────────────────────────────
+    // ─── 6. Action: RESET ───────────────────────────────────────────────
     if (action === "reset") {
       if (!sessionId) {
         return NextResponse.json({ error: "Session ID is required" }, { status: 400 })
@@ -128,7 +303,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ session: reset })
     }
 
-    // ─── 4. Action: RESPOND ─────────────────────────────────────────────
+    // ─── 7. Action: RESPOND ─────────────────────────────────────────────
     if (action === "respond") {
       if (!sessionId || typeof userInput !== "string") {
         return NextResponse.json(
@@ -164,6 +339,72 @@ export async function POST(request: NextRequest) {
           )
         }
 
+        // Sync elapsed time if sent in payload
+        if (typeof timeSpentSeconds === "number") {
+          assessmentSession.timeSpentSeconds = Math.max(0, timeSpentSeconds)
+        }
+
+        const maxSecs = (assessmentSession.timeLimitMinutes || 30) * 60
+        const tokenBudget = assessmentSession.tokenLimit || 2000
+
+        // Check 1: Time limit expiration check
+        if ((assessmentSession.timeSpentSeconds || 0) >= maxSecs) {
+          assessmentSession.status = "FAILED"
+          assessmentSession.failReason = "TIME_EXCEEDED"
+          assessmentSession.evaluation = {
+            aiLiteracy: 10,
+            promptQuality: 10,
+            problemSolving: 10,
+            reviewAndAdapt: 5,
+            totalScore: 35,
+            passed: false,
+            summary: `Time limit exceeded (${assessmentSession.timeLimitMinutes} minutes). Problem was not solved within the allotted time limit.`,
+            strengths: ["Engagement with AI assistant"],
+            gaps: ["Exceeded time limit before completing all assessment stages."],
+            stageBreakdown: {
+              understanding: { score: 10, verdict: "PARTIAL", notes: "Time limit expired" },
+              approach: { score: 10, verdict: "PARTIAL", notes: "Time limit expired" },
+              prompting: { score: 10, verdict: "PARTIAL", notes: "Time limit expired" },
+              review: { score: 5, verdict: "PARTIAL", notes: "Time limit expired" },
+              refinement: { score: 0, verdict: "INSUFFICIENT", notes: "Stage not reached" },
+            },
+          }
+          await updateAssessmentSession(assessmentSession)
+          return NextResponse.json({
+            session: assessmentSession,
+            error: "Assessment failed: Time limit exceeded.",
+          })
+        }
+
+        // Check 2: Token limit check before LLM invocation
+        if ((assessmentSession.tokensUsed || 0) >= tokenBudget) {
+          assessmentSession.status = "FAILED"
+          assessmentSession.failReason = "TOKEN_LIMIT_EXCEEDED"
+          assessmentSession.evaluation = {
+            aiLiteracy: 12,
+            promptQuality: 10,
+            problemSolving: 10,
+            reviewAndAdapt: 6,
+            totalScore: 38,
+            passed: false,
+            summary: `Token budget limit exceeded (${assessmentSession.tokensUsed}/${tokenBudget} tokens). The candidate ran out of tokens before solving the problem.`,
+            strengths: ["Interactive prompting"],
+            gaps: ["Excessive turn verbosity; exhausted token quota before achieving a verified solution."],
+            stageBreakdown: {
+              understanding: { score: 12, verdict: "PARTIAL", notes: "Tokens exhausted" },
+              approach: { score: 10, verdict: "PARTIAL", notes: "Tokens exhausted" },
+              prompting: { score: 10, verdict: "PARTIAL", notes: "Tokens exhausted" },
+              review: { score: 6, verdict: "PARTIAL", notes: "Tokens exhausted" },
+              refinement: { score: 0, verdict: "INSUFFICIENT", notes: "Tokens exhausted" },
+            },
+          }
+          await updateAssessmentSession(assessmentSession)
+          return NextResponse.json({
+            session: assessmentSession,
+            error: "Assessment failed: Token budget exhausted.",
+          })
+        }
+
         // Check AI config and quotas
         const aiConfig = await getUserAiConfig(session.user.id)
         if (aiConfig.usage.isLimitReached) {
@@ -196,6 +437,10 @@ export async function POST(request: NextRequest) {
           apiKey: aiConfig.apiKey,
           model: aiConfig.model,
         })
+
+        // Update tokens used in session
+        const turnTokens = evaluatorResult.tokensUsed || Math.max(40, Math.ceil((effectiveInput.length + 300) / 4))
+        assessmentSession.tokensUsed = (assessmentSession.tokensUsed || 0) + turnTokens
 
         // Update session state based on authoritative evaluator output
         if (evaluatorResult.isBypassAttempt) {
@@ -238,8 +483,32 @@ export async function POST(request: NextRequest) {
           assessmentSession.seededDefect.candidateIdentifiedDescription = effectiveInput
         }
 
-        // If final scorecard produced
-        if (evaluatorResult.scorecard) {
+        // Check if token limit was exceeded on this turn without passing
+        const isSolved = evaluatorResult.scorecard?.passed === true
+        if (!isSolved && (assessmentSession.tokensUsed || 0) >= tokenBudget) {
+          assessmentSession.status = "FAILED"
+          assessmentSession.failReason = "TOKEN_LIMIT_EXCEEDED"
+          assessmentSession.evaluation = {
+            aiLiteracy: 12,
+            promptQuality: 10,
+            problemSolving: 10,
+            reviewAndAdapt: 6,
+            totalScore: 38,
+            passed: false,
+            summary: `Token budget limit reached (${assessmentSession.tokensUsed}/${tokenBudget} tokens). Assessment failed because the problem was not solved within the allocated token budget.`,
+            strengths: ["Iterative prompt collaboration"],
+            gaps: ["Token budget exhausted prior to final verification."],
+            stageBreakdown: {
+              understanding: { score: 12, verdict: "PARTIAL", notes: "Exceeded token limit" },
+              approach: { score: 10, verdict: "PARTIAL", notes: "Exceeded token limit" },
+              prompting: { score: 10, verdict: "PARTIAL", notes: "Exceeded token limit" },
+              review: { score: 6, verdict: "PARTIAL", notes: "Exceeded token limit" },
+              refinement: { score: 0, verdict: "INSUFFICIENT", notes: "Stage not completed" },
+            },
+          }
+          evaluatorResult.scorecard = assessmentSession.evaluation
+        } else if (evaluatorResult.scorecard) {
+          // If final scorecard produced by evaluator
           assessmentSession.evaluation = evaluatorResult.scorecard
           assessmentSession.status = evaluatorResult.scorecard.passed ? "PASSED" : "FAILED"
           if (evaluatorResult.scorecard.passed) {
@@ -259,6 +528,17 @@ export async function POST(request: NextRequest) {
           missingRequirements: evaluatorResult.missingRequirements,
           codeSnippet: evaluatorResult.generatedCode,
         })
+
+        // If token limit was exceeded, append notification warning message
+        if (assessmentSession.status === "FAILED" && assessmentSession.failReason === "TOKEN_LIMIT_EXCEEDED") {
+          assessmentSession.messages.push({
+            id: `msg-token-exhausted-${Date.now()}`,
+            role: "assistant",
+            content: `🚫 **Token Budget Exhausted (${assessmentSession.tokensUsed}/${tokenBudget} tokens):** You have exceeded the allocated token allowance for this assessment without reaching the final verified solution. This assessment has been concluded as FAILED.`,
+            stage: assessmentSession.currentStage,
+            timestamp: new Date().toISOString(),
+          })
+        }
 
         assessmentSession.updatedAt = new Date().toISOString()
 
