@@ -1065,7 +1065,7 @@ CRON_SECRET="your-random-cron-secret-token"
 
 2. **Clone and Install**:
    ```bash
-   git clone https://github.com/your-username/HireCompass.git
+   git clone https://github.com/imkunal01/HireCompass.git
    cd HireCompass
    npm install
    ```
