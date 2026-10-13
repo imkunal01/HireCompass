@@ -204,7 +204,7 @@ export default function SheetDetailPage({ params }: SheetDetailPageProps) {
   }, [allItems, difficultyFilter, statusFilter, searchQuery])
 
   // Fast Navigation Handlers
-  const handleSelectTopic = (index: number) => {
+  const handleSelectTopic = useCallback((index: number) => {
     setActiveTopicIndex(index)
     if (viewMode !== "focus") {
       setViewMode("focus")
@@ -212,19 +212,19 @@ export default function SheetDetailPage({ params }: SheetDetailPageProps) {
     if (problemViewportRef.current) {
       problemViewportRef.current.scrollTo({ top: 0, behavior: "smooth" })
     }
-  }
+  }, [viewMode])
 
-  const handleNextTopic = () => {
+  const handleNextTopic = useCallback(() => {
     if (activeTopicIndex < topics.length - 1) {
       handleSelectTopic(activeTopicIndex + 1)
     }
-  }
+  }, [activeTopicIndex, topics.length, handleSelectTopic])
 
-  const handlePrevTopic = () => {
+  const handlePrevTopic = useCallback(() => {
     if (activeTopicIndex > 0) {
       handleSelectTopic(activeTopicIndex - 1)
     }
-  }
+  }, [activeTopicIndex, handleSelectTopic])
 
   // Jump to Next Unsolved Problem (Lightning Fast)
   const handleJumpToNextUnsolved = useCallback(() => {
