@@ -21,6 +21,8 @@ export interface PlannerTask {
   description?: string
   notes?: string
   aiTips?: string[]
+  isLocked?: boolean // Fixed/held time slot protected from auto-shifts
+  isHeld?: boolean   // Temporarily held/paused task
 }
 
 export type StrategyVibe = "deep_work" | "balanced_flow" | "momentum_velocity"
@@ -56,6 +58,10 @@ export interface DayPlan {
   tasks: PlannerTask[]
   status: "active" | "completed" | "abandoned"
   focusMinutesLogged: number
+  sessionDurationMinutes?: number
+  breakHoldingMinutes?: number
+  breakMode?: "fit_inside" | "extend_window"
+  lastReshufflePrompt?: string
   createdAt: string
   updatedAt: string
 }
@@ -69,9 +75,14 @@ export interface DayPlannerStats {
 
 export interface GeneratePlannerRequest {
   rawInput: string
-  availableHours: number
-  energyLevel: EnergyLevel
-  intensity: IntensityMode
+  availableHours?: number
+  energyLevel?: EnergyLevel
+  intensity?: IntensityMode
+  sessionDurationMinutes?: number
+  breakHoldingMinutes?: number
+  breakMode?: "fit_inside" | "extend_window"
+  clientCurrentMinutes?: number // Local minutes from midnight (e.g. 780 for 1:00 PM)
+  clientTimeStr?: string        // E.g. "01:00 PM"
   syncedEvents?: {
     interviews?: Array<{ company: string; role?: string; time?: string; type?: string }>
     reminders?: Array<{ message: string; dueAt?: string; company?: string }>
@@ -82,8 +93,17 @@ export interface ReshuffleRequest {
   planId?: string
   reason: "running_late_30" | "running_late_60" | "fatigued_light" | "cut_short_2h" | "custom"
   customPrompt?: string
+  originalPrompt?: string
   tasks: PlannerTask[]
   remainingAvailableMinutes?: number
+  clientCurrentMinutes?: number
+}
+
+export interface ModifyPlanRequest {
+  instruction: string
+  tasks: PlannerTask[]
+  originalPrompt?: string
+  clientCurrentMinutes?: number
 }
 
 export interface AssistRequest {

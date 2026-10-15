@@ -27,6 +27,7 @@ export default function PlannerPage() {
   const [isActivating, setIsActivating] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [currentRequest, setCurrentRequest] = useState<GeneratePlannerRequest | null>(null)
+  const [lastPrompt, setLastPrompt] = useState<string>("")
 
   // Fetch today's plan on mount
   const fetchTodayPlan = useCallback(async () => {
@@ -37,6 +38,9 @@ export default function PlannerPage() {
         const data = await res.json()
         if (data.plan) {
           setActivePlan(data.plan)
+          if (data.plan.rawInput) {
+            setLastPrompt(data.plan.rawInput)
+          }
         }
         if (data.stats) {
           setStats(data.stats)
@@ -93,6 +97,9 @@ export default function PlannerPage() {
         availableHours: currentRequest?.availableHours || 4,
         energyLevel: currentRequest?.energyLevel || "morning_peak",
         intensity: currentRequest?.intensity || "balanced",
+        sessionDurationMinutes: currentRequest?.sessionDurationMinutes,
+        breakHoldingMinutes: currentRequest?.breakHoldingMinutes,
+        breakMode: currentRequest?.breakMode,
         selectedStrategyId: option.id,
         strategyName: option.strategyName,
         strategyTagline: option.tagline,
@@ -142,6 +149,9 @@ export default function PlannerPage() {
   // Reset today's plan
   const handleResetPlan = async () => {
     try {
+      if (activePlan?.rawInput) {
+        setLastPrompt(activePlan.rawInput)
+      }
       await fetch("/api/planner/today", { method: "DELETE" })
       setActivePlan(null)
       setStrategyOptions(null)
@@ -162,7 +172,7 @@ export default function PlannerPage() {
             Day Planner
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xl">
-            Tell AI your goals & available focus hours. Pick your blueprint strategy, then track tasks with built-in timers and smart reshuffling.
+            Type your goals naturally. AI constructs your schedule starting accurately from right now and lets you confirm time windows.
           </p>
         </div>
 
@@ -205,7 +215,11 @@ export default function PlannerPage() {
           isActivating={isActivating}
         />
       ) : (
-        <PlannerIntake onGenerate={handleGenerate} isLoading={isGenerating} />
+        <PlannerIntake
+          onGenerate={handleGenerate}
+          isLoading={isGenerating}
+          initialPrompt={lastPrompt || currentRequest?.rawInput}
+        />
       )}
     </div>
   )

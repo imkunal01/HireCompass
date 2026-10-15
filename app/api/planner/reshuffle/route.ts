@@ -5,39 +5,46 @@ import { ReshuffleRequest, PlannerTask } from "@/types/planner"
 
 export const dynamic = "force-dynamic"
 
-function fallbackReshuffle(tasks: PlannerTask[], delayMinutes: number, lighten: boolean): PlannerTask[] {
+function fallbackReshuffle(
+  tasks: PlannerTask[],
+  delayMinutes: number,
+  lighten: boolean,
+  clientCurrentMinutes?: number
+): PlannerTask[] {
   const completed = tasks.filter((t) => t.completed)
   const remaining = tasks.filter((t) => !t.completed)
 
   let adjustedRemaining = remaining
   if (lighten) {
-    // Drop or trim low priority tasks
     adjustedRemaining = remaining
       .filter((t) => t.priority !== "low" || t.category === "break")
       .map((t) => ({
         ...t,
-        durationMinutes: Math.max(15, Math.round(t.durationMinutes * 0.8)),
+        durationMinutes: Math.max(15, Math.round((t.durationMinutes || 30) * 0.8)),
       }))
   }
 
-  // Recalculate start and end times starting from current time
-  const now = new Date()
-  let currentMoment = new Date(now.getTime() + delayMinutes * 60000)
+  let startMinutes = typeof clientCurrentMinutes === "number" ? clientCurrentMinutes : 0
+  if (typeof clientCurrentMinutes !== "number") {
+    const now = new Date()
+    startMinutes = now.getHours() * 60 + now.getMinutes()
+  }
+  let currentPointerMinutes = startMinutes + delayMinutes
 
-  const formatTime = (d: Date) => {
-    let hours = d.getHours()
-    const minutes = d.getMinutes()
+  const formatMinutesToTime = (totalMinutes: number) => {
+    const hours = Math.floor(totalMinutes / 60) % 24
+    const minutes = totalMinutes % 60
     const ampm = hours >= 12 ? "PM" : "AM"
-    hours = hours % 12 || 12
-    const minStr = minutes < 10 ? `0${minutes}` : minutes
-    return `${hours < 10 ? `0${hours}` : hours}:${minStr} ${ampm}`
+    const displayHour = hours % 12 || 12
+    const minStr = minutes < 10 ? `0${minutes}` : `${minutes}`
+    const hourStr = displayHour < 10 ? `0${displayHour}` : `${displayHour}`
+    return `${hourStr}:${minStr} ${ampm}`
   }
 
   const updatedRemaining = adjustedRemaining.map((task) => {
-    const startStr = formatTime(currentMoment)
-    const endMoment = new Date(currentMoment.getTime() + task.durationMinutes * 60000)
-    const endStr = formatTime(endMoment)
-    currentMoment = endMoment
+    const startStr = formatMinutesToTime(currentPointerMinutes)
+    currentPointerMinutes += task.durationMinutes || 30
+    const endStr = formatMinutesToTime(currentPointerMinutes)
     return {
       ...task,
       startTime: startStr,
@@ -56,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: ReshuffleRequest = await request.json()
-    const { reason, customPrompt, tasks } = body
+    const { reason, customPrompt, tasks, originalPrompt, clientCurrentMinutes } = body
 
     if (!Array.isArray(tasks) || tasks.length === 0) {
       return NextResponse.json({ error: "No tasks provided to reshuffle" }, { status: 400 })
@@ -84,8 +91,17 @@ export async function POST(request: NextRequest) {
       instruction = `User custom request: "${customPrompt}". Adapt remaining tasks accordingly.`
     }
 
+    let clientTimeStr = "Current Time"
+    if (typeof clientCurrentMinutes === "number") {
+      const h = Math.floor(clientCurrentMinutes / 60) % 24
+      const m = clientCurrentMinutes % 60
+      const ampm = h >= 12 ? "PM" : "AM"
+      const dh = h % 12 || 12
+      clientTimeStr = `${dh < 10 ? `0${dh}` : dh}:${m < 10 ? `0${m}` : m} ${ampm}`
+    }
+
     if (!isGeminiConfigured()) {
-      const reshuffled = fallbackReshuffle(tasks, delayMinutes, isLighten)
+      const reshuffled = fallbackReshuffle(tasks, delayMinutes, isLighten, clientCurrentMinutes)
       return NextResponse.json({ tasks: reshuffled, message: "Schedule adapted with standard fallback" })
     }
 
@@ -93,6 +109,8 @@ export async function POST(request: NextRequest) {
 The user needs to dynamically reshuffle their remaining day schedule without feeling guilty.
 
 Status:
+- Original User Goal/Prompt: "${originalPrompt || "Not specified"}"
+- Candidate Local Current Time: ${clientTimeStr}
 - Completed tasks: ${completed.length} (These MUST NOT be changed or removed).
 - Remaining incomplete tasks:
 ${incomplete.map((t) => `- [${t.priority}] ${t.title} (${t.durationMinutes}m, category: ${t.category})`).join("\n")}
@@ -100,7 +118,11 @@ ${incomplete.map((t) => `- [${t.priority}] ${t.title} (${t.durationMinutes}m, ca
 Reshuffle Context / Instruction:
 ${instruction}
 
-Current Time: ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+IMPORTANT TIME ACCURACY:
+- Anchor the first remaining task to the candidate's exact current local time (${clientTimeStr}).
+- Calculate continuous, non-overlapping startTime and endTime strings (e.g. "${clientTimeStr}" -> next window).
+
+Current Time: ${clientTimeStr}
 
 TASK:
 Rebalance and reschedule the INCOMPLETE tasks.

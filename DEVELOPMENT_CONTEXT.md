@@ -100,6 +100,7 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
 | **Phase 8** | System Polish, Quota Guardrails & Verification | 🟢 Completed | Full verification: npm run lint clean (0 errors), responsive navigation, theme consistency, and IDOR/quota security checks. |
 | **Phase 9** | Company Section — Capgemini AI Coding Simulator | 🟢 Completed | Built /api/prep/assessment, lib/assessment-engine.ts, lib/assessment-problems.ts, lib/assessment-db.ts, CapgeminiSimulator, CompanyTab in /prep, and /prep/company/capgemini route. |
 | **Phase 19** | Sheets Feature — Complete Structural Redesign & Zero-Page-Scroll Architecture | 🟢 Completed | Re-architected Problem Solving Sheets into an IDE-like Zero-Page-Scroll viewport with docked command bar, instant topic navigation ribbon, fast click-to-switch sidebar rail, independent internal scroll viewport, tri-split difficulty matrix HUD, and hotkeys. |
+| **Phase 20** | Day Planner — User Time Freedom (Select, Append, Reduce, Hold & In-Between Breaks) | 🟢 Completed | Implemented complete user control over session duration (45m, 1h, 1.5h, 2h deep blocks, custom), break holding in-between sessions (10m, 15m, 30m, 45m), gross vs net break accounting, live visual schedule architecture preview, inline duration selector, +15m/+30m appending, -15m reducing, in-between break inserters, slot locking (🔒), and task pausing (⏸️). |
 
 ---
 
@@ -751,12 +752,80 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
   - **Verification**:
     * `npx tsc --noEmit`: Clean (0 errors).
     * `npm run lint`: Clean (0 errors, 0 warnings in sheets).
+- **2026-10-15 (Phase 20 Complete — Day Planner: Complete User Time Freedom: Selecting, Appending, Reducing & Holding Time)**:
+  - **User Problem Addressed**:
+    * Candidates need complete autonomy over time allocation. When setting available focus hours (e.g. 4 hours for 2 subjects), candidates want each subject session to be configurable (e.g. 2-hour blocks each) while also taking dedicated held breaks in-between without rigid algorithmic splits.
+  - **Architectural & Type Upgrades (`types/planner.ts` & `app/api/planner/today/route.ts`)**:
+    * Added `sessionDurationMinutes`, `breakHoldingMinutes`, and `breakMode` (`"fit_inside" | "extend_window"`) to `GeneratePlannerRequest` and `DayPlan`.
+    * Added `isLocked` (held fixed slot immune to auto-ripples) and `isHeld` (temporarily paused task) to `PlannerTask`.
+    * Persisted user duration preferences and break modes in MongoDB `daily_plans`.
+  - **Intake & Architecture Blueprint Engine (`components/features/planner/planner-intake.tsx`)**:
+    * **Available Time Slider with Quick Presets**: Quick buttons (`2h`, `3h`, `4h`, `6h`) + stepper buttons (`-30m`, `+30m`).
+    * **Session Duration Freedom ("Selecting Time")**: Presets for `Auto (AI)`, `45m (Sprint)`, `1h (60m)`, `1.5h (90m)`, and `2h (120m)` plus custom minute stepper.
+    * **Held Break & Buffer Management ("Holding Time")**: Break presets for `None (0m)`, `10m Quick`, `15m Standard`, `30m Deep Break`, `45m Meal/Walk`, and custom minutes.
+    * **Break Accounting Mode Toggle**: Supports `Extend Window` (4h pure study + 30m held break = 4h 30m total span) vs `Fit Inside` (4h window includes held break).
+    * **Interactive Time Architecture Visualizer**: Live segmented ribbon displaying computed blocks (e.g., `[ Subject 1 (2h 00m) ] [ ☕ Held Break (30m) ] [ Subject 2 (2h 00m) ]`), start/end timestamps, and pure focus vs held break totals.
+  - **AI & Intelligent Fallback Engine (`app/api/planner/generate/route.ts`)**:
+    * Structured Gemini/Groq prompt with explicit user session duration & break holding constraints.
+    * Upgraded `generateFallbackOptions` to parse user topics, partition study sessions to exact requested block sizes (e.g. 120m), insert designated held breaks in-between, and compute progressive start/end times.
+  - **Active Live Cockpit Control Matrix (`components/features/planner/planner-cockpit.tsx`)**:
+    * **Interactive Duration Selector**: Clickable duration pill on every task card opening an inline popover with 15m/30m/45m/60m/90m/120m/custom presets and instant timeline rippling.
+    * **Appending Time**: Quick `+15m` and `+30m` buttons on each task row, plus global `+ Append 30m Day` in the cockpit HUD.
+    * **Reducing Time**: `-15m` reduction button on task rows with sequential schedule auto-pull.
+    * **Holding Time (In-Between Breaks)**: Subtle between-task hover divider providing 1-click `+ Hold 15m Break` and `+ Hold 30m Break` buttons between any adjacent sessions.
+    * **Slot Locking (`🔒 Lock`) & Session Pausing (`⏸️ Hold`)**: Allows candidates to lock a session's exact time slot or pause it without deleting.
+    * **Cockpit HUD Summary**: Displays live Study Focus, Held Breaks, Schedule Span, and a 1-click `Realign from Now` sequential recalculator.
+  - **Verification**:
+    * `npx tsc --noEmit`: Clean (0 errors).
+    * `npm run lint`: Clean (0 errors).
 
+- **2026-10-15 (Phase 21 Complete — Conversational AI Planner: Natural Goal Input, Real-World Global Time Accuracy, Confirmation Deck, AI Todo Modifier Modal & Prompt Persistence Across Reschedules)**:
+  - **User Requirements Delivered**:
+    1. **Natural Goal Input & Removal of Cluttered Intake Controls**:
+       - Removed manual morning/evening energy curves, intensity toggles, and manual hour sliders from the intake view (`components/features/planner/planner-intake.tsx`).
+       - Users simply type what they want to accomplish naturally in free-form language (e.g. *"DSA 2 hours, System Design 2 hours, take a break in between"*).
+       - Backend extraction engine (`app/api/planner/generate/route.ts`) parses durations, topics, and break requests directly from the user's prompt text.
+    2. **Real-World Global Time Accuracy**:
+       - Replaced hardcoded default 9:00 AM start times.
+       - Captured candidate's exact browser local time (`clientCurrentMinutes` and `clientTimeStr`) and passed to `/api/planner/generate`, `/api/planner/modify`, and `/api/planner/reshuffle`.
+       - Anchored task 1 directly to the candidate's real-world current local time (rounded up to the next 5 minutes or exact), ensuring active tasks reflect the true time of day without appearing expired.
+    3. **Pre-Launch Time Window Confirmation Deck**:
+       - Transformed blueprint selection (`components/features/planner/planner-strategy-cards.tsx`) into a two-part view: Strategy Selector + interactive "Confirm Time Windows" staging deck.
+       - Users inspect exact start/end windows for each task, adjust durations with `-15m`, `+15m`, and quick presets (`30m`, `45m`, `1h`, `1.5h`, `2h`), insert in-between breaks, and launch when confirmed.
+    4. **Ask AI Todo Modifier Popup Modal**:
+       - Created dedicated AI Todo modification endpoint (`app/api/planner/modify/route.ts`) and modal (`components/features/planner/planner-ai-modify-modal.tsx`).
+       - Provided inspiration chips, prompt input, structured diff preview with before/after comparisons, and a 1-click "Apply Changes to Todo" action.
+       - Wired trigger button prominently into the Cockpit Hero Header (`Sparkles` "Ask AI") and onto individual task rows.
+    5. **Prompt Persistence Across Reshuffle & Reschedule**:
+       - Active prompts are preserved in `lastPrompt` state in `app/(dashboard)/planner/page.tsx` and passed as `initialPrompt` to `PlannerIntake`, so resetting a plan never wipes the user's input.
+       - In `PlannerReshuffleModal` and `PlannerAiModifyModal`, an active goal alert banner displays the user's original prompt, prefilling custom text inputs to maintain continuity.
+  - **Verification**:
+    * `npx tsc --noEmit`: Clean (0 errors).
+    * `npm run lint`: Clean (0 errors).
 
-
-
-
-
-
-
+- **2026-10-15 (Phase 22 Complete — Day Planner Comprehensive UI/UX Redesign: Linear/Raycast Cockpit, Single-Row Task Hierarchy, Unified Time-Window Staging, Ambient Glassmorphism & Zero-Overflow Layout)**:
+  - **User Problem Addressed**:
+    * The previous Day Planner UI suffered from extreme horizontal overcrowding (13 competing badges and buttons per task row), redundant blueprint walls with messy secondary adjustment decks, and visual clutter that broke on standard desktop viewports.
+  - **Architectural & Design Upgrades Delivered**:
+    1. **Ambient Glassmorphic Intake Hero (`components/features/planner/planner-intake.tsx`)**:
+       - Engineered an ambient gradient aura backdrop (`indigo-500/10` to `violet-500/10` with `backdrop-blur-xl`).
+       - Clean, distraction-free prompt composer with responsive character counts and inspirational one-click goal presets.
+       - Compact HireCompass context sync dock highlighting active applications, review sheets, and target goals.
+    2. **Unified Pre-Launch Confirmation Deck (`components/features/planner/planner-strategy-cards.tsx`)**:
+       - Replaced the overwhelming 3-card card walls and separate adjustment deck with a sleek cadence pill switcher (`Balanced Rhythm`, `Focus Sprints`, `Deep Work Blocks`).
+       - Added an intuitive visual schedule ribbon showing sequential flow (e.g. `[ DSA (2h) ] ── [ ☕ Break (30m) ] ── [ System Design (2h) ]`).
+       - Modern task cards with start/end badges, category tags, fine-grained duration steppers (`-15m / +15m`), and 1-click hover break inserters.
+       - High-visibility primary action button: *"Confirm & Launch Cockpit"*.
+    3. **Linear/Raycast Single-Row Task Cockpit (`components/features/planner/planner-cockpit.tsx`)**:
+       - **Unified Hero Command Bar**: Real-time digital clock with pulsing live indicator, progress percentage bar, session metrics (Focus, Breaks, Total Span), and primary actions (`Ask AI`, `Reshuffle`, `Reset`).
+       - **Zero-Overflow Row Architecture**: Eliminated the 13 competing horizontal buttons. Each task is now a clean single row:
+         * Left: Completion checkbox, category color dot, start/end time badge, and task title.
+         * Right: Interactive duration chip (click to open quick preset popover), 1-click play/pause timer widget, quick "Ask AI" button, and a unified `MoreHorizontal` (`•••`) menu.
+       - **Contextual Popover (`•••`)**: Cleanly houses secondary actions (Zen Mode, Lock Slot, Put on Hold, Interview Drill, Delete Task) with global outside-click dismiss.
+       - **Rest & Break Dividers**: Subtle between-task hover divider allowing instant 15m/30m break injection.
+    4. **Polished AI Todo Modifier Modal (`components/features/planner/planner-ai-modify-modal.tsx`)**:
+       - Dark/light mode glassmorphic modal with structured diff preview, emerald badges for additions, and 1-click apply.
+  - **Verification**:
+    * `npx tsc --noEmit`: Clean (0 errors).
+    * `npm run lint`: Clean (0 errors across all planner components).
 

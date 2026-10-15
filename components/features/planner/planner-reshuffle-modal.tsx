@@ -9,6 +9,7 @@ import {
   Scissors,
   Sparkles,
   Loader2,
+  FileText,
 } from "lucide-react"
 import { ReshuffleRequest, PlannerTask } from "@/types/planner"
 import { cn } from "@/lib/utils"
@@ -18,6 +19,8 @@ interface Props {
   onClose: () => void
   onReshuffle: (req: ReshuffleRequest) => Promise<void>
   isLoading: boolean
+  originalPrompt?: string
+  lastReshufflePrompt?: string
 }
 
 export default function PlannerReshuffleModal({
@@ -25,25 +28,37 @@ export default function PlannerReshuffleModal({
   onClose,
   onReshuffle,
   isLoading,
+  originalPrompt,
+  lastReshufflePrompt,
 }: Props) {
   const [reason, setReason] = useState<ReshuffleRequest["reason"]>("running_late_30")
-  const [customPrompt, setCustomPrompt] = useState("")
+  // Keep previous prompt active
+  const initialCustom = lastReshufflePrompt || originalPrompt || ""
+  const [customPrompt, setCustomPrompt] = useState(initialCustom)
 
   const completedCount = tasks.filter((t) => t.completed).length
   const remainingCount = tasks.length - completedCount
 
   const handleApply = async () => {
+    const now = new Date()
+    const clientCurrentMinutes = now.getHours() * 60 + now.getMinutes()
+
     await onReshuffle({
       reason,
-      customPrompt: reason === "custom" ? customPrompt : undefined,
+      customPrompt: reason === "custom" ? customPrompt : customPrompt || undefined,
+      originalPrompt,
+      clientCurrentMinutes,
       tasks,
     })
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
       <div
-        className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 md:p-8 flex flex-col gap-5 relative"
+        className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 md:p-8 flex flex-col gap-5 relative max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close */}
@@ -64,9 +79,21 @@ export default function PlannerReshuffleModal({
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Your {completedCount} completed tasks stay intact. The remaining {remainingCount} tasks will be
-            recalculated intelligently by AI.
+            recalculated accurately by AI starting right now.
           </p>
         </div>
+
+        {/* Active Goal / Previous Prompt Banner (Preserved & Visible) */}
+        {originalPrompt && (
+          <div className="bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/70 dark:border-indigo-900/50 rounded-xl p-3 text-xs text-slate-700 dark:text-slate-300 flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1">
+              <FileText size={11} /> Active Previous Goal / Prompt:
+            </span>
+            <p className="italic text-slate-800 dark:text-slate-200 leading-relaxed">
+              &quot;{originalPrompt}&quot;
+            </p>
+          </div>
+        )}
 
         {/* Options */}
         <div className="flex flex-col gap-2">
@@ -74,7 +101,7 @@ export default function PlannerReshuffleModal({
             {
               id: "running_late_30",
               title: "Running 30 mins behind",
-              desc: "Shift start/end times and adjust intervals",
+              desc: "Shift start/end times accurately from current moment",
               icon: Clock,
               iconColor: "text-amber-500",
             },
@@ -101,8 +128,8 @@ export default function PlannerReshuffleModal({
             },
             {
               id: "custom",
-              title: "Custom adjustment",
-              desc: "Specify what changed in your own words",
+              title: "Custom adjustment / edit prompt",
+              desc: "Modify what you want to achieve with remaining time",
               icon: Sparkles,
               iconColor: "text-violet-500",
             },
@@ -127,14 +154,30 @@ export default function PlannerReshuffleModal({
           ))}
         </div>
 
+        {/* Custom text area — keeps previous prompt active and editable! */}
         {reason === "custom" && (
-          <input
-            type="text"
-            className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="e.g. Call ran late by 45m, only need to study graphs..."
-            value={customPrompt}
-            onChange={(e) => setCustomPrompt(e.target.value)}
-          />
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                Edit or append to your previous prompt:
+              </span>
+              {originalPrompt && (
+                <button
+                  type="button"
+                  onClick={() => setCustomPrompt(originalPrompt)}
+                  className="text-indigo-600 dark:text-indigo-400 hover:underline text-[10px]"
+                >
+                  Reset to Original
+                </button>
+              )}
+            </div>
+            <textarea
+              className="w-full min-h-[75px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="e.g. Call ran late by 45m, only need to study graphs..."
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+            />
+          </div>
         )}
 
         <button
@@ -146,7 +189,7 @@ export default function PlannerReshuffleModal({
           {isLoading ? (
             <>
               <Loader2 size={15} className="animate-spin" />
-              Rebalancing day...
+              Rebalancing day starting from now...
             </>
           ) : (
             <>

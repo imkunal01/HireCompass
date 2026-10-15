@@ -5,37 +5,70 @@ import { GeneratePlannerRequest, PlannerStrategyOption, PlannerTask } from "@/ty
 
 export const dynamic = "force-dynamic"
 
+function formatMinutesToTime(totalMins: number): string {
+  const h = Math.floor(totalMins / 60) % 24
+  const m = totalMins % 60
+  const ampm = h >= 12 ? "PM" : "AM"
+  const displayH = h % 12 || 12
+  const minStr = m < 10 ? `0${m}` : m
+  return `${displayH < 10 ? `0${displayH}` : displayH}:${minStr} ${ampm}`
+}
+
 /**
- * Intelligent fallback that extracts actual topics/goals from user's raw text
- * so even in offline/rate-limit fallback mode, the plan directly matches what the user entered!
+ * Intelligent fallback that extracts actual topics/goals & durations from user's raw text
+ * and starts accurately from the user's real-world current local time!
  */
 function generateFallbackOptions(
   rawInput: string,
-  availableHours: number,
-  energyLevel: string
+  clientCurrentMinutes?: number,
+  sessionDurationMinutes?: number,
+  breakHoldingMinutes?: number,
+  breakMode?: "fit_inside" | "extend_window"
 ): PlannerStrategyOption[] {
-  const totalMins = Math.max(60, Math.round(availableHours * 60))
   const cleanInput = rawInput.trim()
+
+  // Auto-detect durations from user prompt text (e.g. "2 hours", "90m", "45 mins")
+  const hourMatch = cleanInput.match(/(\d+(?:\.\d+)?)\s*(?:hours|hrs|hr|h)\b/i)
+  const minMatch = cleanInput.match(/(\d+)\s*(?:minutes|mins|min|m)\b/i)
+  const promptDurationMins = hourMatch
+    ? Math.round(parseFloat(hourMatch[1]) * 60)
+    : minMatch
+    ? parseInt(minMatch[1], 10)
+    : undefined
+
+  // Auto-detect break duration from user prompt
+  const breakPromptMatch = cleanInput.match(/(?:break|pause|rest)\s*(?:of\s*)?(\d+)?\s*(?:min|m)?/i)
+  const promptBreakMins = breakPromptMatch
+    ? parseInt(breakPromptMatch[1], 10) || 30
+    : cleanInput.toLowerCase().includes("break")
+    ? 30
+    : undefined
+
+  const effectiveSessionMins = sessionDurationMinutes || promptDurationMins || 120
+  const effectiveBreakMins = breakHoldingMinutes !== undefined ? breakHoldingMinutes : promptBreakMins !== undefined ? promptBreakMins : 20
 
   // Extract key topics from user text (split by 'and', commas, plus, newlines, semicolons)
   const rawParts = cleanInput
     ? cleanInput
         .split(/[,;\n\+]|\band\b/i)
-        .map((s) => s.trim().replace(/^[-*•\d.)\s]+/, ""))
-        .filter((s) => s.length > 2)
-    : ["Core Technical Topic", "Interview Problem Solving", "Job Applications"]
+        .map((s) => s.trim().replace(/^[-*•\d.)\s]+/, "").replace(/\b\d+\s*(?:hours|hrs|hr|h|mins|min|m)\b/gi, "").trim())
+        .filter((s) => s.length > 2 && !/^(?:take|a)?\s*break$/i.test(s))
+    : ["Core Technical Focus", "Interview Problem Solving", "Job Applications"]
 
-  const topics = rawParts.length > 0 ? rawParts : ["Primary Goal", "Secondary Practice"]
+  let topics = rawParts.length > 0 ? rawParts : ["Primary Subject Focus", "Secondary Practice"]
+
+  if (topics.length === 1 && effectiveSessionMins >= 90) {
+    topics = [`${topics[0]}: Core Architecture & Theory`, `${topics[0]}: Deep Practice & Edge Cases`]
+  }
+
+  // ACCURATE GLOBAL TIME: Anchor to client's exact current local minute (rounded to next 5m)
+  const now = new Date()
+  const baseStartMins = clientCurrentMinutes !== undefined
+    ? Math.ceil(clientCurrentMinutes / 5) * 5
+    : Math.ceil((now.getHours() * 60 + now.getMinutes()) / 5) * 5
 
   const formatTime = (totalMinutesFromStart: number) => {
-    const startHour = energyLevel === "night_owl" ? 18 : 9 // 9 AM or 6 PM
-    const startMins = startHour * 60 + totalMinutesFromStart
-    const h = Math.floor(startMins / 60) % 24
-    const m = startMins % 60
-    const ampm = h >= 12 ? "PM" : "AM"
-    const displayH = h % 12 || 12
-    const minStr = m < 10 ? `0${m}` : m
-    return `${displayH < 10 ? `0${displayH}` : displayH}:${minStr} ${ampm}`
+    return formatMinutesToTime(baseStartMins + totalMinutesFromStart)
   }
 
   // Helper to construct a task sequence
@@ -50,7 +83,7 @@ function generateFallbackOptions(
   ): PlannerStrategyOption => {
     let currentMin = 0
     const tasks: PlannerTask[] = []
-    const slotDuration = Math.max(30, Math.round((totalMins * 0.82) / Math.max(1, order.length)))
+    const slotDuration = effectiveSessionMins
 
     order.forEach((topic, idx) => {
       const isCoding = /leetcode|code|coding|dsa|algo|problem/i.test(topic)
@@ -75,21 +108,21 @@ function generateFallbackOptions(
         aiTips: ["Break down into sub-problems", "Keep distractions muted during the block"],
       })
 
-      // Insert 15m break after second task if time permits
-      if (idx === 1 && currentMin + 20 < totalMins) {
+      // Insert held break between major subject sessions
+      if (effectiveBreakMins > 0 && idx < order.length - 1) {
         const breakStart = formatTime(currentMin)
-        currentMin += 15
+        currentMin += effectiveBreakMins
         const breakEnd = formatTime(currentMin)
         tasks.push({
-          id: `${strategyId}-break`,
-          title: "Hydration & Cognitive Recharge",
+          id: `${strategyId}-break-${idx + 1}`,
+          title: "Held Break & Cognitive Recharge",
           category: "break",
-          durationMinutes: 15,
+          durationMinutes: effectiveBreakMins,
           startTime: breakStart,
           endTime: breakEnd,
           priority: "low",
           completed: false,
-          description: "Step away from screen, drink water and stretch.",
+          description: "Step away from screen, hydrate, and let concepts consolidate.",
         })
       }
     })
@@ -106,7 +139,7 @@ function generateFallbackOptions(
       totalFocusMinutes: focusMins,
       totalBreakMinutes: breakMins,
       cognitiveLoad,
-      whyThisWorks: `Prioritizes ${topics[0]} while giving structure to complete all ${topics.length} commitments today.`,
+      whyThisWorks: `Constructed based on your exact goals: ${slotDuration}m deep blocks starting at ${formatTime(0)} with ${effectiveBreakMins}m recharge breaks.`,
       tasks,
     }
   }
@@ -115,7 +148,7 @@ function generateFallbackOptions(
     buildPlan(
       "strat-1",
       "Deep Focus First (Eat The Frog)",
-      "Tackle your hardest topic during peak energy hours, followed by application and review.",
+      "Tackle your hardest topic first, followed by scheduled break and second subject session.",
       "deep_work",
       "zap",
       "High",
@@ -124,7 +157,7 @@ function generateFallbackOptions(
     buildPlan(
       "strat-2",
       "Pomodoro & Balanced Flow",
-      "Structured 45m deep study sprints with restorative pauses for sustained stamina.",
+      "Structured deep study sprints with restorative pauses for sustained stamina.",
       "balanced_flow",
       "clock",
       "Medium",
@@ -150,7 +183,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body: GeneratePlannerRequest = await request.json()
-    const { rawInput, availableHours, energyLevel, intensity, syncedEvents } = body
+    const {
+      rawInput,
+      availableHours,
+      sessionDurationMinutes,
+      breakHoldingMinutes,
+      breakMode,
+      clientCurrentMinutes,
+      clientTimeStr,
+      syncedEvents,
+    } = body
 
     if (!rawInput && !syncedEvents) {
       return NextResponse.json(
@@ -159,10 +201,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const hours = Number(availableHours) || 4
+    // Accurate real-world local time
+    const now = new Date()
+    const currentMins = clientCurrentMinutes !== undefined
+      ? clientCurrentMinutes
+      : now.getHours() * 60 + now.getMinutes()
+
+    const startFromTimeStr = clientTimeStr || formatMinutesToTime(Math.ceil(currentMins / 5) * 5)
 
     if (!isGeminiConfigured()) {
-      const fallbackOptions = generateFallbackOptions(rawInput || "Tech prep", hours, energyLevel || "morning_peak")
+      const fallbackOptions = generateFallbackOptions(
+        rawInput || "Tech prep",
+        clientCurrentMinutes,
+        sessionDurationMinutes,
+        breakHoldingMinutes,
+        breakMode
+      )
       return NextResponse.json({ options: fallbackOptions })
     }
 
@@ -179,37 +233,43 @@ export async function POST(request: NextRequest) {
       .join("\n")
 
     const prompt = `You are an elite productivity executive coach for tech candidates.
-Plan a realistic, high-impact day schedule for a student or engineer based on their EXACT input.
+Plan a realistic, high-impact day schedule for a student or engineer based on their EXACT natural text input.
 
 USER'S EXACT GOALS & INPUT:
 "${rawInput}"
 
-PARAMETERS:
-- Available Time: ${hours} hours (${hours * 60} minutes total)
-- Peak Energy: ${energyLevel || "morning_peak"}
-- Pace: ${intensity || "balanced"}
-${syncedContextStr ? `\nFixed Calendar Constraints:\n${syncedContextStr}` : ""}
+CRITICAL REQUIREMENT — GLOBAL TIME ACCURACY:
+- Current real-world local time right now is: ${startFromTimeStr}
+- The very first task MUST start at ${startFromTimeStr} (rounded to next 5 mins).
+- Under NO circumstances start at 9:00 AM unless the current time is actually 9:00 AM.
+- Consecutive tasks must flow continuously (endTime of task 1 = startTime of task 2).
 
-CRITICAL INSTRUCTIONS:
-1. MATCH USER PROMPT SPECIFICALLY:
-   - Extract the EXACT topics, tools, problem sets, and jobs mentioned in the user prompt (e.g. if they say "React Server components and 2 leetcode graph questions and apply to 3 jobs", each of those MUST be separate tasks named after those exact topics).
-   - NEVER use vague titles like "Deep Dive: Core Concept" or "Study Block 1".
+CRITICAL INSTRUCTIONS ON PARSING USER INTENT:
+1. Extract the EXACT topics, durations, and breaks mentioned in the user prompt:
+   - If they wrote "DSA 2 hours, System design 2 hours, take a break in between", create:
+     * Task 1: DSA (120 mins) starting at ${startFromTimeStr}
+     * Task 2: Break (30 mins)
+     * Task 3: System Design (120 mins)
+   - If they mentioned specific tools, languages, or problem sets, create tasks titled with those exact names.
+   - NEVER use vague titles like "Study Block 1" or "Core Concept".
 2. STRUCTURE 3 BLUEPRINTS:
-   - Option 1: "Deep Focus First (Eat The Frog)" (vibe: "deep_work") — hardest technical topic scheduled first during peak mental energy.
+   - Option 1: "Deep Focus First (Eat The Frog)" (vibe: "deep_work") — hardest technical topic scheduled first.
    - Option 2: "Pomodoro & Balanced Flow" (vibe: "balanced_flow") — balanced intervals with planned break.
-   - Option 3: "Momentum & Velocity" (vibe: "momentum_velocity") — start with quick wins (e.g. applications/review) to build momentum before deep study.
-3. Keep each blueprint between 4 and 6 total tasks (including 1 or 2 breaks).
+   - Option 3: "Momentum & Velocity" (vibe: "momentum_velocity") — start with quick wins before deep study.
+3. Keep each blueprint cleanly structured (primary subject blocks with dedicated held breaks in-between).
 4. For each task:
    - id: string ("t1", "t2", etc.)
-   - title: concise, specific title derived directly from user's input
+   - title: concise, specific title derived directly from user's input (or "Held Break & Cognitive Recharge" for breaks)
    - category: "study" | "interview_prep" | "application" | "coding" | "break" | "review"
-   - durationMinutes: integer (e.g. 30, 45, 60, 90)
-   - startTime: format "09:00 AM" (progressive times)
-   - endTime: format "10:00 AM"
+   - durationMinutes: integer (e.g. 120, 60, 45, 30, 20, 15)
+   - startTime: format "01:00 PM" (continuous times starting from ${startFromTimeStr})
+   - endTime: format "03:00 PM"
    - priority: "high" | "medium" | "low"
    - completed: false
-   - description: 1 concise sentence (max 15 words) on what to accomplish
+   - description: 1 concise sentence on what to accomplish
    - aiTips: array of 2 short actionable bullet points
+
+${syncedContextStr ? `Fixed Calendar Constraints:\n${syncedContextStr}\n` : ""}
 
 Output valid JSON only matching schema:
 {
@@ -220,7 +280,7 @@ Output valid JSON only matching schema:
       "tagline": "...",
       "vibe": "deep_work",
       "icon": "zap",
-      "totalFocusMinutes": 210,
+      "totalFocusMinutes": 240,
       "totalBreakMinutes": 30,
       "cognitiveLoad": "High",
       "whyThisWorks": "...",
@@ -232,8 +292,8 @@ Output valid JSON only matching schema:
       "tagline": "...",
       "vibe": "balanced_flow",
       "icon": "clock",
-      "totalFocusMinutes": 200,
-      "totalBreakMinutes": 40,
+      "totalFocusMinutes": 240,
+      "totalBreakMinutes": 30,
       "cognitiveLoad": "Medium",
       "whyThisWorks": "...",
       "tasks": [ ... ]
@@ -244,8 +304,8 @@ Output valid JSON only matching schema:
       "tagline": "...",
       "vibe": "momentum_velocity",
       "icon": "flame",
-      "totalFocusMinutes": 220,
-      "totalBreakMinutes": 20,
+      "totalFocusMinutes": 240,
+      "totalBreakMinutes": 30,
       "cognitiveLoad": "Medium",
       "whyThisWorks": "...",
       "tasks": [ ... ]
@@ -254,7 +314,6 @@ Output valid JSON only matching schema:
 }`
 
     try {
-      // Use 4096 tokens to prevent JSON truncation
       const result = await extractJSON<{ options: PlannerStrategyOption[] }>(
         prompt,
         undefined,
@@ -267,7 +326,13 @@ Output valid JSON only matching schema:
       throw new Error("Invalid options format returned from AI")
     } catch (aiErr) {
       console.warn("[POST /api/planner/generate] AI error, using smart fallback:", aiErr)
-      const fallbackOptions = generateFallbackOptions(rawInput || "Tech prep", hours, energyLevel || "morning_peak")
+      const fallbackOptions = generateFallbackOptions(
+        rawInput || "Tech prep",
+        clientCurrentMinutes,
+        sessionDurationMinutes,
+        breakHoldingMinutes,
+        breakMode
+      )
       return NextResponse.json({ options: fallbackOptions })
     }
   } catch (error) {

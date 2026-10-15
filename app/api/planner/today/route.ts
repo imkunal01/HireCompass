@@ -117,6 +117,9 @@ export async function POST(request: NextRequest) {
       tasks: body.tasks || [],
       status: body.status || "active",
       focusMinutesLogged: body.focusMinutesLogged || 0,
+      sessionDurationMinutes: body.sessionDurationMinutes,
+      breakHoldingMinutes: body.breakHoldingMinutes,
+      breakMode: body.breakMode,
       updatedAt: now.toISOString(),
     }
 

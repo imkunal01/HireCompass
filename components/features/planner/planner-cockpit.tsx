@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useMemo } from "react"
 import {
   Check,
   Clock,
@@ -13,14 +13,24 @@ import {
   FileText,
   Hourglass,
   Maximize2,
-  PlusCircle,
-  AlertCircle,
+  Coffee,
+  Lock,
+  Unlock,
+  Minus,
+  Sliders,
+  Timer,
+  ChevronDown,
+  PauseCircle,
+  CalendarCheck,
+  BookOpen,
+  MoreHorizontal,
 } from "lucide-react"
 import { DayPlan, PlannerTask, TaskCategory, ReshuffleRequest } from "@/types/planner"
 import { audioSynthesizer } from "./audio-generator"
 import PlannerFocusModal from "./planner-focus-modal"
 import PlannerReshuffleModal from "./planner-reshuffle-modal"
 import PlannerAiAssistModal from "./planner-ai-assist-modal"
+import PlannerAiModifyModal from "./planner-ai-modify-modal"
 import { cn } from "@/lib/utils"
 
 interface Props {
@@ -43,10 +53,80 @@ function parseTimeToToday(timeStr?: string): Date | null {
   return d
 }
 
+function parseTimeToMinutes(timeStr?: string): number | null {
+  if (!timeStr) return null
+  const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i)
+  if (!match) return null
+  let hours = parseInt(match[1], 10)
+  const minutes = parseInt(match[2], 10)
+  const ampm = match[3].toUpperCase()
+  if (ampm === "PM" && hours < 12) hours += 12
+  if (ampm === "AM" && hours === 12) hours = 0
+  return hours * 60 + minutes
+}
+
+function formatMinutesToTime(totalMins: number): string {
+  const h = Math.floor(totalMins / 60) % 24
+  const m = totalMins % 60
+  const ampm = h >= 12 ? "PM" : "AM"
+  const displayH = h % 12 || 12
+  const minStr = m < 10 ? `0${m}` : m
+  return `${displayH < 10 ? `0${displayH}` : displayH}:${minStr} ${ampm}`
+}
+
 function formatDuration(totalSeconds: number): string {
   const mins = Math.floor(totalSeconds / 60)
   const secs = totalSeconds % 60
   return `${mins < 10 ? `0${mins}` : mins}:${secs < 10 ? `0${secs}` : secs}`
+}
+
+/**
+ * Sequentially recalculates startTime and endTime for all tasks,
+ * ensuring continuous and gapless scheduling while respecting locked tasks.
+ */
+function recalculateTimeline(taskList: PlannerTask[], forcedStartMinutes?: number): PlannerTask[] {
+  if (!taskList || taskList.length === 0) return []
+
+  // Determine starting anchor minutes
+  let currentPointerMinutes = forcedStartMinutes ?? 540 // default 9:00 AM
+
+  if (forcedStartMinutes === undefined) {
+    const firstUncompleted = taskList.find((t) => !t.completed && t.startTime)
+    if (firstUncompleted?.startTime) {
+      const parsed = parseTimeToMinutes(firstUncompleted.startTime)
+      if (parsed !== null) currentPointerMinutes = parsed
+    } else {
+      const firstWithTime = taskList.find((t) => t.startTime)
+      if (firstWithTime?.startTime) {
+        const parsed = parseTimeToMinutes(firstWithTime.startTime)
+        if (parsed !== null) currentPointerMinutes = parsed
+      }
+    }
+  }
+
+  return taskList.map((task) => {
+    if (task.completed) return task
+
+    // If task is locked with existing start & end, maintain its slot and advance pointer to its end
+    if (task.isLocked && task.startTime && task.endTime) {
+      const parsedEnd = parseTimeToMinutes(task.endTime)
+      if (parsedEnd !== null && parsedEnd > currentPointerMinutes) {
+        currentPointerMinutes = parsedEnd
+      }
+      return task
+    }
+
+    const duration = task.durationMinutes || 30
+    const startStr = formatMinutesToTime(currentPointerMinutes)
+    currentPointerMinutes += duration
+    const endStr = formatMinutesToTime(currentPointerMinutes)
+
+    return {
+      ...task,
+      startTime: startStr,
+      endTime: endStr,
+    }
+  })
 }
 
 export default function PlannerCockpit({
@@ -58,9 +138,37 @@ export default function PlannerCockpit({
   const [activeAssistTask, setActiveAssistTask] = useState<PlannerTask | null>(null)
   const [isReshuffleOpen, setIsReshuffleOpen] = useState(false)
   const [isReshuffling, setIsReshuffling] = useState(false)
+  const [isAiModifyOpen, setIsAiModifyOpen] = useState(false)
+  const [aiModifyInstruction, setAiModifyInstruction] = useState<string>("")
+
+  const handleApplyModifiedTasks = async (modifiedTasks: PlannerTask[]) => {
+    await onUpdatePlan({
+      ...plan,
+      tasks: modifiedTasks,
+    })
+  }
+
+  // Quick add task inputs
   const [newTitle, setNewTitle] = useState("")
-  const [newDuration, setNewDuration] = useState(30)
+  const [newDuration, setNewDuration] = useState(60)
   const [newCategory, setNewCategory] = useState<TaskCategory>("study")
+
+  // Interactive duration editor popover state
+  const [editingDurationTaskId, setEditingDurationTaskId] = useState<string | null>(null)
+  const [customDurationInput, setCustomDurationInput] = useState<number>(60)
+
+  // Task row action menu state
+  const [openMenuTaskId, setOpenMenuTaskId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest(".task-menu-container")) {
+        setOpenMenuTaskId(null)
+      }
+    }
+    window.addEventListener("click", handleOutsideClick)
+    return () => window.removeEventListener("click", handleOutsideClick)
+  }, [])
 
   // Live real-world clock
   const [currentTime, setCurrentTime] = useState<Date>(new Date())
@@ -72,11 +180,29 @@ export default function PlannerCockpit({
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false)
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  const tasks = plan.tasks || []
+  const tasks = useMemo(() => plan.tasks || [], [plan.tasks])
   const completedCount = tasks.filter((t) => t.completed).length
   const totalCount = tasks.length
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
   const isAllComplete = totalCount > 0 && completedCount === totalCount
+
+  // Computed summary metrics
+  const totalFocusMins = useMemo(
+    () => tasks.filter((t) => t.category !== "break" && !t.isHeld).reduce((s, t) => s + (t.durationMinutes || 0), 0),
+    [tasks]
+  )
+  const totalBreakMins = useMemo(
+    () => tasks.filter((t) => t.category === "break" && !t.isHeld).reduce((s, t) => s + (t.durationMinutes || 0), 0),
+    [tasks]
+  )
+  const totalDayScheduleSpan = useMemo(() => {
+    const firstTask = tasks[0]
+    const lastTask = tasks[tasks.length - 1]
+    if (firstTask?.startTime && lastTask?.endTime) {
+      return `${firstTask.startTime} – ${lastTask.endTime}`
+    }
+    return `${((totalFocusMins + totalBreakMins) / 60).toFixed(1)}h total`
+  }, [tasks, totalFocusMins, totalBreakMins])
 
   // Clock tick every 1s
   useEffect(() => {
@@ -152,7 +278,7 @@ export default function PlannerCockpit({
 
   // Find currently active task based on schedule
   const activeWindowTask = tasks.find((t) => {
-    if (t.completed) return false
+    if (t.completed || t.isHeld) return false
     const info = getWindowInfo(t)
     return info.isCurrentWindow
   })
@@ -188,7 +314,6 @@ export default function PlannerCockpit({
         const nextCompleted = !t.completed
         if (nextCompleted) {
           audioSynthesizer?.playCelebrationChime()
-          // Stop timer if this task was actively running
           if (activeTimerTaskId === taskId) {
             setIsTimerRunning(false)
             setActiveTimerTaskId(null)
@@ -241,6 +366,133 @@ export default function PlannerCockpit({
     onUpdatePlan({ ...plan, tasks: updatedTasks })
   }
 
+  // ─── Freedom of Selecting Duration ───
+  const handleSelectDuration = (taskId: string, newMins: number) => {
+    const targetMins = Math.max(5, newMins)
+    const modified = tasks.map((t) => (t.id === taskId ? { ...t, durationMinutes: targetMins } : t))
+    const rippled = recalculateTimeline(modified)
+
+    if (activeTimerTaskId === taskId) {
+      setTimerSecondsLeft(targetMins * 60)
+      setInitialTimerSeconds(targetMins * 60)
+    }
+
+    onUpdatePlan({ ...plan, tasks: rippled })
+    setEditingDurationTaskId(null)
+  }
+
+  // ─── Freedom of Appending Time ───
+  const handleAppendTaskDuration = (taskId: string, minutes: number) => {
+    const modified = tasks.map((t) => {
+      if (t.id === taskId) {
+        const nextMins = (t.durationMinutes || 30) + minutes
+        return { ...t, durationMinutes: nextMins }
+      }
+      return t
+    })
+    const rippled = recalculateTimeline(modified)
+
+    if (activeTimerTaskId === taskId) {
+      setTimerSecondsLeft((prev) => prev + minutes * 60)
+      setInitialTimerSeconds((prev) => prev + minutes * 60)
+    }
+
+    onUpdatePlan({ ...plan, tasks: rippled })
+  }
+
+  // ─── Freedom of Reducing Time ───
+  const handleReduceTaskDuration = (taskId: string, minutes: number) => {
+    const modified = tasks.map((t) => {
+      if (t.id === taskId) {
+        const currentMins = t.durationMinutes || 30
+        const nextMins = Math.max(10, currentMins - minutes)
+        return { ...t, durationMinutes: nextMins }
+      }
+      return t
+    })
+    const rippled = recalculateTimeline(modified)
+
+    if (activeTimerTaskId === taskId) {
+      setTimerSecondsLeft((prev) => Math.max(30, prev - minutes * 60))
+    }
+
+    onUpdatePlan({ ...plan, tasks: rippled })
+  }
+
+  // ─── Freedom of Holding Time: Lock Slot ───
+  const handleToggleLock = (taskId: string) => {
+    const updatedTasks = tasks.map((t) => (t.id === taskId ? { ...t, isLocked: !t.isLocked } : t))
+    onUpdatePlan({ ...plan, tasks: updatedTasks })
+  }
+
+  // ─── Freedom of Holding Time: Put on Hold / Pause ───
+  const handleToggleHold = (taskId: string) => {
+    const updatedTasks = tasks.map((t) => {
+      if (t.id === taskId) {
+        const nextHeld = !t.isHeld
+        if (nextHeld && activeTimerTaskId === taskId) {
+          setIsTimerRunning(false)
+          setActiveTimerTaskId(null)
+        }
+        return { ...t, isHeld: nextHeld }
+      }
+      return t
+    })
+    onUpdatePlan({ ...plan, tasks: updatedTasks })
+  }
+
+  // ─── Freedom of Holding Time: Insert Break In-Between Sessions ───
+  const handleInsertBreakAt = (afterIndex: number, breakMinutes: number) => {
+    const newBreakTask: PlannerTask = {
+      id: "break-" + Date.now(),
+      title: "Held Break & Cognitive Recharge",
+      category: "break",
+      durationMinutes: breakMinutes,
+      priority: "low",
+      completed: false,
+      description: "Step away from screen, drink water, and let concepts consolidate.",
+    }
+
+    const updated = [...tasks]
+    updated.splice(afterIndex + 1, 0, newBreakTask)
+    const rippled = recalculateTimeline(updated)
+
+    onUpdatePlan({ ...plan, tasks: rippled })
+  }
+
+  // ─── Append Extra Available Time to the Whole Day ───
+  const handleAppendDayTime = (minutes: number) => {
+    const newAvailableHours = (plan.availableHours || 4) + minutes / 60
+    const updatedTasks = [...tasks]
+
+    // Either append to last task or add an extra focus buffer block
+    const bufferTask: PlannerTask = {
+      id: "task-buffer-" + Date.now(),
+      title: "Consolidation & Practice Buffer",
+      category: "review",
+      durationMinutes: minutes,
+      priority: "medium",
+      completed: false,
+      description: "Appended focus window for extra practice and reflection.",
+    }
+    updatedTasks.push(bufferTask)
+    const rippled = recalculateTimeline(updatedTasks)
+
+    onUpdatePlan({
+      ...plan,
+      availableHours: Math.round(newAvailableHours * 10) / 10,
+      tasks: rippled,
+    })
+  }
+
+  // ─── Re-align Schedule Starting From Now ───
+  const handleRealignFromNow = () => {
+    const now = new Date()
+    const nowMins = now.getHours() * 60 + now.getMinutes()
+    const rippled = recalculateTimeline(tasks, nowMins)
+    onUpdatePlan({ ...plan, tasks: rippled })
+  }
+
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTitle.trim()) return
@@ -249,14 +501,17 @@ export default function PlannerCockpit({
       id: "task-" + Date.now(),
       title: newTitle.trim(),
       category: newCategory,
-      durationMinutes: Number(newDuration) || 30,
+      durationMinutes: Number(newDuration) || 60,
       priority: "medium",
       completed: false,
     }
 
+    const updated = [...tasks, newTask]
+    const rippled = recalculateTimeline(updated)
+
     onUpdatePlan({
       ...plan,
-      tasks: [...tasks, newTask],
+      tasks: rippled,
     })
 
     setNewTitle("")
@@ -268,7 +523,8 @@ export default function PlannerCockpit({
       setActiveTimerTaskId(null)
     }
     const updatedTasks = tasks.filter((t) => t.id !== taskId)
-    onUpdatePlan({ ...plan, tasks: updatedTasks })
+    const rippled = recalculateTimeline(updatedTasks)
+    onUpdatePlan({ ...plan, tasks: rippled })
   }
 
   const handleReshuffle = async (req: ReshuffleRequest) => {
@@ -285,6 +541,7 @@ export default function PlannerCockpit({
           await onUpdatePlan({
             ...plan,
             tasks: data.tasks,
+            lastReshufflePrompt: req.customPrompt || plan.lastReshufflePrompt,
           })
           setIsReshuffleOpen(false)
         }
@@ -310,7 +567,7 @@ export default function PlannerCockpit({
         return "bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20"
       case "break":
       default:
-        return "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20"
+        return "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 font-semibold"
     }
   }
 
@@ -321,76 +578,149 @@ export default function PlannerCockpit({
   })
 
   return (
-    <div className="flex flex-col gap-5">
-      {/* ─── Hero Cockpit Strip ─── */}
-      <div className="bg-white dark:bg-slate-900/90 rounded-2xl md:rounded-3xl border border-slate-200/80 dark:border-slate-800/90 p-5 md:p-6 shadow-sm dark:shadow-xl flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-              Active Blueprint
-            </span>
-            <h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-slate-100">
-              {plan.strategyName || "Today's Agenda"}
-            </h2>
-          </div>
-          {plan.strategyTagline && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xl">
-              {plan.strategyTagline}
-            </p>
-          )}
-        </div>
+    <div className="relative max-w-4xl mx-auto w-full flex flex-col gap-6">
+      {/* Ambient background glow */}
+      <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-96 h-48 bg-gradient-to-r from-indigo-500/15 via-violet-500/15 to-purple-500/15 blur-3xl -z-10 rounded-full pointer-events-none" />
 
-        {/* Progress, Clock & Actions */}
-        <div className="flex items-center gap-5 flex-wrap">
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/60 font-mono text-xs text-slate-700 dark:text-slate-300">
-            <Clock size={13} className="text-indigo-500" />
-            <span>{formattedClock}</span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                {completedCount} / {totalCount} Done
+      {/* ─── Unified Hero Command Cockpit ─── */}
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xl p-5 md:p-6 flex flex-col gap-4">
+        {/* Top Tier: Title, Real-Time Clock, Progress & Actions */}
+        <div className="flex items-center justify-between flex-wrap gap-4 pb-3 border-b border-slate-100 dark:border-slate-800/80">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                Active Agenda
               </span>
-              <div className="w-32 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mt-0.5">
+              <h2 className="text-lg md:text-xl font-black text-slate-900 dark:text-slate-100">
+                {plan.strategyName || "Today's Agenda"}
+              </h2>
+            </div>
+            {plan.strategyTagline && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {plan.strategyTagline}
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Live Clock with Pulsing Dot */}
+            <div className="flex items-center gap-2 bg-slate-100/80 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700/60 font-mono text-xs text-slate-700 dark:text-slate-300 shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{formattedClock}</span>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="flex items-center gap-2.5 bg-slate-50 dark:bg-slate-800/50 px-3 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700/60">
+              <div className="w-20 md:w-28 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-300"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
+              <span className="text-xs font-bold font-mono text-indigo-600 dark:text-indigo-400">
+                {completedCount}/{totalCount} ({progressPercent}%)
+              </span>
             </div>
-            <span className="text-sm font-bold font-mono text-indigo-600 dark:text-indigo-400">
-              {progressPercent}%
+
+            {/* Actions: Ask AI, Reshuffle, Reset */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAiModifyInstruction("")
+                  setIsAiModifyOpen(true)
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02]"
+                title="Ask AI to modify tasks, adjust durations, or update your todo"
+              >
+                <Sparkles size={13} />
+                <span>Ask AI</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsReshuffleOpen(true)}
+                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
+                title="Rebalance remaining tasks"
+              >
+                <RotateCw size={13} className="text-amber-500" />
+                <span>Reshuffle</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm("Start fresh with a new plan for today?")) {
+                    onResetPlan()
+                  }
+                }}
+                className="px-2.5 py-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs transition-colors"
+                title="Reset plan"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Tier: Metrics & Quick Utilities */}
+        <div className="flex items-center justify-between flex-wrap gap-3 text-xs">
+          <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 font-medium flex-wrap">
+            <span className="flex items-center gap-1.5">
+              <Timer size={13} className="text-indigo-500" />
+              Focus:
+              <strong className="text-indigo-600 dark:text-indigo-400 font-bold font-mono">
+                {Math.floor(totalFocusMins / 60)}h {totalFocusMins % 60}m
+              </strong>
+            </span>
+            <span>•</span>
+            <span className="flex items-center gap-1.5">
+              <Coffee size={13} className="text-amber-500" />
+              Breaks:
+              <strong className="text-amber-600 dark:text-amber-400 font-bold font-mono">
+                {totalBreakMins}m
+              </strong>
+            </span>
+            <span>•</span>
+            <span className="flex items-center gap-1.5">
+              <CalendarCheck size={13} className="text-emerald-500" />
+              Span:
+              <strong className="text-slate-900 dark:text-slate-100 font-bold font-mono">
+                {totalDayScheduleSpan}
+              </strong>
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <button
               type="button"
-              onClick={() => setIsReshuffleOpen(true)}
-              className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-              title="Rebalance remaining tasks"
+              onClick={() => handleAppendDayTime(30)}
+              className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-semibold flex items-center gap-1 transition-colors"
             >
-              <RotateCw size={13} className="text-amber-500" />
-              <span>Reshuffle</span>
+              <Plus size={11} className="text-indigo-500" /> +30m Focus
             </button>
 
             <button
               type="button"
-              onClick={() => {
-                if (window.confirm("Start fresh with a new plan for today?")) {
-                  onResetPlan()
-                }
-              }}
-              className="px-2.5 py-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs transition-colors"
+              onClick={() => handleInsertBreakAt(tasks.length - 1, 15)}
+              className="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[11px] font-semibold hover:bg-amber-100 flex items-center gap-1 transition-colors"
             >
-              Reset
+              <Coffee size={11} /> +15m Break
+            </button>
+
+            <button
+              type="button"
+              onClick={handleRealignFromNow}
+              className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-semibold flex items-center gap-1 transition-colors"
+              title="Re-cascade all times sequentially starting right now"
+            >
+              <RotateCw size={11} className="text-indigo-500" /> Realign from Now
             </button>
           </div>
         </div>
       </div>
 
-      {/* ─── Prominent Active Task Window Card (if in window or timer running) ─── */}
+      {/* ─── Prominent Active Task Window Card ─── */}
       {(activeTimerTaskId || activeWindowTask) && (
         (() => {
           const displayedTask = activeTimerTaskId
@@ -469,7 +799,7 @@ export default function PlannerCockpit({
                 {/* Big Live Digital Timer */}
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 bg-white dark:bg-slate-900 px-4 py-2 rounded-2xl border border-indigo-500/40 shadow-sm">
-                    <Hourglass size={18} className="text-indigo-500 animate-spin-slow" />
+                    <Hourglass size={18} className="text-indigo-500" />
                     <span className="text-2xl md:text-3xl font-black font-mono tracking-tight text-indigo-600 dark:text-indigo-400">
                       {formatDuration(secondsToDisplay)}
                     </span>
@@ -535,27 +865,32 @@ export default function PlannerCockpit({
         </div>
       )}
 
-      {/* ─── Tasks Timeline Agenda ─── */}
-      <div className="flex flex-col gap-3">
-        {tasks.map((task) => {
+      {/* ─── Task Timeline Agenda (Clean Linear-Style Rows) ─── */}
+      <div className="flex flex-col gap-2.5">
+        {tasks.map((task, idx) => {
           const windowInfo = getWindowInfo(task)
           const isTimerActiveForTask = activeTimerTaskId === task.id
-          const isTaskInActiveWindow = windowInfo.isCurrentWindow && !task.completed
+          const isTaskInActiveWindow = windowInfo.isCurrentWindow && !task.completed && !task.isHeld
+          const isBreak = task.category === "break"
+          const isMenuOpen = openMenuTaskId === task.id
 
           return (
-            <div
-              key={task.id}
-              className={cn(
-                "bg-white dark:bg-slate-900/90 rounded-2xl border p-4 shadow-sm flex flex-col gap-3 transition-all duration-150",
-                isTaskInActiveWindow || isTimerActiveForTask
-                  ? "border-indigo-500/60 shadow-md shadow-indigo-500/5 ring-1 ring-indigo-500/30"
-                  : "border-slate-200/80 dark:border-slate-800/90",
-                task.completed && "opacity-55 bg-slate-50 dark:bg-slate-900/40"
-              )}
-            >
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-3.5 flex-1 min-w-0">
-                  {/* Checkbox */}
+            <React.Fragment key={task.id}>
+              {/* Task Row Card */}
+              <div
+                className={cn(
+                  "bg-white dark:bg-slate-900/90 rounded-2xl border p-3.5 md:p-4 shadow-xs flex items-center justify-between gap-4 transition-all relative",
+                  isTaskInActiveWindow || isTimerActiveForTask
+                    ? "border-indigo-500/60 shadow-md ring-1 ring-indigo-500/30"
+                    : isBreak
+                    ? "border-amber-200/80 dark:border-amber-900/40 bg-amber-50/20 dark:bg-amber-950/10"
+                    : "border-slate-200/90 dark:border-slate-800",
+                  task.completed && "opacity-50 bg-slate-50 dark:bg-slate-900/40",
+                  task.isHeld && "border-dashed border-amber-400/70"
+                )}
+              >
+                {/* Left: Checkbox + Time Slot + Title */}
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   <button
                     type="button"
                     onClick={() => handleToggleTask(task.id)}
@@ -563,6 +898,8 @@ export default function PlannerCockpit({
                       "w-5 h-5 rounded-md border-2 flex items-center justify-center text-white transition-all shrink-0",
                       task.completed
                         ? "bg-emerald-500 border-emerald-500"
+                        : isBreak
+                        ? "border-amber-300 dark:border-amber-700 hover:border-amber-500 bg-amber-50 dark:bg-slate-800"
                         : "border-slate-300 dark:border-slate-600 hover:border-indigo-500 bg-slate-50 dark:bg-slate-800"
                     )}
                     aria-label={`Mark "${task.title}" as ${task.completed ? "incomplete" : "complete"}`}
@@ -570,26 +907,39 @@ export default function PlannerCockpit({
                     {task.completed && <Check size={13} strokeWidth={3} />}
                   </button>
 
-                  {/* Time slot badge */}
+                  {/* Time Window Pill */}
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2 py-1 rounded-md border border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-200/60 dark:border-slate-700/60">
                       {task.startTime && task.endTime ? `${task.startTime} – ${task.endTime}` : `${task.durationMinutes}m`}
                     </span>
                     {isTaskInActiveWindow && (
-                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 uppercase tracking-wider flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        Window Active
-                      </span>
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Active Window" />
+                    )}
+                    {task.isLocked && (
+                      <span title="Locked Slot"><Lock size={11} className="text-purple-500" /></span>
+                    )}
+                    {task.isHeld && (
+                      <span title="On Hold"><PauseCircle size={11} className="text-amber-500" /></span>
                     )}
                   </div>
 
-                  {/* Content */}
-                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={cn("text-sm font-bold text-slate-900 dark:text-slate-100", task.completed && "line-through text-slate-400")}>
+                  {/* Title & Category */}
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "text-sm font-bold text-slate-900 dark:text-slate-100 truncate",
+                          task.completed && "line-through text-slate-400"
+                        )}
+                      >
                         {task.title}
                       </span>
-                      <span className={cn("text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border", getCategoryTag(task.category))}>
+                      <span
+                        className={cn(
+                          "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border shrink-0",
+                          getCategoryTag(task.category)
+                        )}
+                      >
                         {task.category.replace("_", " ")}
                       </span>
                       {task.notes && (
@@ -598,103 +948,218 @@ export default function PlannerCockpit({
                         </span>
                       )}
                     </div>
-                    {task.description && <p className="text-xs text-slate-500 dark:text-slate-400">{task.description}</p>}
+                    {task.description && (
+                      <p className="text-xs text-slate-400 truncate mt-0.5">
+                        {task.description}
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                {/* Actions & Timer Widget */}
+                {/* Right: Clean 3-Action Group (Duration Pill + Timer + Ask AI + Menu) */}
                 <div className="flex items-center gap-2 shrink-0">
-                  {/* Inline Timer Widget */}
-                  {!task.completed && (
-                    <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700/70">
-                      <Clock size={12} className={cn("text-slate-400", isTimerActiveForTask && isTimerRunning && "text-indigo-500 animate-pulse")} />
-                      <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-300 min-w-[42px] text-center">
-                        {isTimerActiveForTask
-                          ? formatDuration(timerSecondsLeft)
-                          : isTaskInActiveWindow
-                          ? formatDuration(windowInfo.remainingSecondsInWindow)
-                          : `${task.durationMinutes || 30}:00`}
-                      </span>
-
-                      {/* Play/Pause Button */}
-                      <button
-                        type="button"
-                        onClick={() => handleStartTaskTimer(task)}
-                        className="p-1 rounded-md text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                        title={isTimerActiveForTask && isTimerRunning ? "Pause timer" : "Start timer for this task"}
-                      >
-                        {isTimerActiveForTask && isTimerRunning ? (
-                          <Pause size={12} />
-                        ) : (
-                          <Play size={12} />
-                        )}
-                      </button>
-
-                      {isTimerActiveForTask && (
-                        <button
-                          type="button"
-                          onClick={() => handleAddMinutesToTimer(5)}
-                          className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline px-1"
-                          title="Add 5 minutes"
-                        >
-                          +5m
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Focus Modal Button */}
+                  {/* Clickable Duration Chip */}
                   {!task.completed && (
                     <button
                       type="button"
-                      onClick={() => setActiveFocusModalTask(task)}
-                      className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1 transition-colors"
-                      title="Open Focus Zen Mode"
+                      onClick={() => {
+                        if (editingDurationTaskId === task.id) {
+                          setEditingDurationTaskId(null)
+                        } else {
+                          setEditingDurationTaskId(task.id)
+                          setCustomDurationInput(task.durationMinutes || 60)
+                        }
+                      }}
+                      className={cn(
+                        "px-2.5 py-1 rounded-xl text-xs font-bold font-mono border transition-all flex items-center gap-1",
+                        editingDurationTaskId === task.id
+                          ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                          : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                      )}
+                      title="Adjust duration"
                     >
-                      <Maximize2 size={12} />
-                      <span className="hidden sm:inline">Zen</span>
+                      <Timer size={11} className="text-indigo-500" />
+                      <span>{task.durationMinutes >= 60 ? `${(task.durationMinutes / 60).toFixed(1)}h` : `${task.durationMinutes}m`}</span>
+                      <ChevronDown size={10} />
                     </button>
                   )}
 
-                  {/* Ask AI */}
+                  {/* Play / Pause Timer */}
+                  {!task.completed && !task.isHeld && (
+                    <button
+                      type="button"
+                      onClick={() => handleStartTaskTimer(task)}
+                      className={cn(
+                        "w-8 h-8 rounded-xl flex items-center justify-center border transition-all",
+                        isTimerActiveForTask && isTimerRunning
+                          ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-500/20"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:text-indigo-600"
+                      )}
+                      title={isTimerActiveForTask && isTimerRunning ? "Pause timer" : "Start timer"}
+                    >
+                      {isTimerActiveForTask && isTimerRunning ? <Pause size={12} /> : <Play size={12} />}
+                    </button>
+                  )}
+
+                  {/* Ask AI to modify task */}
                   <button
                     type="button"
-                    onClick={() => setActiveAssistTask(task)}
-                    className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs font-semibold flex items-center gap-1 transition-colors"
-                    title="AI Concept Drill & Questions"
+                    onClick={() => {
+                      setAiModifyInstruction(`Modify or adjust task "${task.title}": `)
+                      setIsAiModifyOpen(true)
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 text-xs font-semibold flex items-center gap-1 transition-colors"
+                    title="Ask AI to modify or adjust this task"
                   >
                     <Sparkles size={11} className="text-indigo-500" />
                     <span className="hidden sm:inline">Ask AI</span>
                   </button>
 
-                  {/* Delete */}
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteTask(task.id)}
-                    className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-500 flex items-center justify-center transition-colors"
-                    title="Remove task"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  {/* More Menu Dropdown Toggle */}
+                  <div className="relative task-menu-container">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpenMenuTaskId(isMenuOpen ? null : task.id)
+                      }}
+                      className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center justify-center transition-colors"
+                      title="More options"
+                    >
+                      <MoreHorizontal size={14} />
+                    </button>
+
+                    {/* Dropdown Popover */}
+                    {isMenuOpen && (
+                      <div
+                        className="absolute right-0 top-10 z-30 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-2xl p-1.5 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-100"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {!task.completed && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveFocusModalTask(task)
+                              setOpenMenuTaskId(null)
+                            }}
+                            className="w-full px-3 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium flex items-center gap-2 text-left transition-colors"
+                          >
+                            <Maximize2 size={13} className="text-indigo-500" />
+                            <span>Zen Focus Mode</span>
+                          </button>
+                        )}
+
+                        {!task.completed && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleToggleLock(task.id)
+                              setOpenMenuTaskId(null)
+                            }}
+                            className="w-full px-3 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium flex items-center gap-2 text-left transition-colors"
+                          >
+                            {task.isLocked ? (
+                              <>
+                                <Unlock size={13} className="text-purple-500" />
+                                <span>Unlock Time Slot</span>
+                              </>
+                            ) : (
+                              <>
+                                <Lock size={13} className="text-purple-500" />
+                                <span>Lock Time Slot</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+
+                        {!task.completed && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleToggleHold(task.id)
+                              setOpenMenuTaskId(null)
+                            }}
+                            className="w-full px-3 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium flex items-center gap-2 text-left transition-colors"
+                          >
+                            <PauseCircle size={13} className="text-amber-500" />
+                            <span>{task.isHeld ? "Resume Task" : "Put on Hold"}</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveAssistTask(task)
+                            setOpenMenuTaskId(null)
+                          }}
+                          className="w-full px-3 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium flex items-center gap-2 text-left transition-colors"
+                        >
+                          <BookOpen size={13} className="text-blue-500" />
+                          <span>Interview Drill</span>
+                        </button>
+
+                        <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleDeleteTask(task.id)
+                            setOpenMenuTaskId(null)
+                          }}
+                          className="w-full px-3 py-1.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-xs font-medium flex items-center gap-2 text-left transition-colors"
+                        >
+                          <Trash2 size={13} />
+                          <span>Delete Task</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Inline Duration Selector Popover */}
+                {editingDurationTaskId === task.id && (
+                  <div className="absolute right-0 top-14 z-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 shadow-xl flex flex-col gap-2 w-64 animate-in fade-in duration-100">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                      <Sliders size={12} className="text-indigo-500" /> Select Duration:
+                    </span>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[15, 30, 45, 60, 90, 120].map((mins) => (
+                        <button
+                          key={mins}
+                          type="button"
+                          onClick={() => {
+                            handleSelectDuration(task.id, mins)
+                            setEditingDurationTaskId(null)
+                          }}
+                          className={cn(
+                            "px-2 py-1 rounded-lg text-xs font-bold font-mono transition-colors",
+                            task.durationMinutes === mins
+                              ? "bg-indigo-600 text-white"
+                              : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300"
+                          )}
+                        >
+                          {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Progress bar for time window if active or running */}
-              {(isTaskInActiveWindow || isTimerActiveForTask) && (
-                <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-all duration-1000"
-                    style={{
-                      width: `${
-                        isTimerActiveForTask && initialTimerSeconds > 0
-                          ? Math.min(100, Math.max(0, Math.round(((initialTimerSeconds - timerSecondsLeft) / initialTimerSeconds) * 100)))
-                          : windowInfo.elapsedPercent
-                      }%`,
-                    }}
-                  />
+              {/* In-Between Subtle Break Inserter */}
+              {idx < tasks.length - 1 && (
+                <div className="flex items-center justify-center -my-1 py-0.5">
+                  <button
+                    type="button"
+                    onClick={() => handleInsertBreakAt(idx, 15)}
+                    className="px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-amber-600 hover:border-amber-300 text-[10px] font-medium flex items-center gap-1 transition-all shadow-xs"
+                  >
+                    <Coffee size={10} className="text-amber-500" />
+                    <span>+ 15m Break Here</span>
+                  </button>
                 </div>
               )}
-            </div>
+            </React.Fragment>
           )
         })}
       </div>
@@ -707,7 +1172,7 @@ export default function PlannerCockpit({
         <Plus size={15} className="text-indigo-500 shrink-0" />
         <input
           type="text"
-          placeholder="Add extra topic or spontaneous sprint..."
+          placeholder="Add extra topic or spontaneous sprint (e.g. System Design Cache, 2 LeetCode)..."
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
           className="flex-1 min-w-[200px] bg-transparent text-xs text-slate-900 dark:text-slate-100 outline-none placeholder:text-slate-400"
@@ -716,31 +1181,33 @@ export default function PlannerCockpit({
         <select
           value={newCategory}
           onChange={(e) => setNewCategory(e.target.value as TaskCategory)}
-          className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs rounded-lg px-2 py-1 outline-none"
+          className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs rounded-lg px-2 py-1 outline-none font-medium"
         >
           <option value="study">Study</option>
           <option value="coding">Coding</option>
           <option value="interview_prep">Interview Prep</option>
           <option value="application">Application</option>
-          <option value="break">Break</option>
+          <option value="break">Held Break</option>
           <option value="review">Review</option>
         </select>
 
         <select
           value={newDuration}
           onChange={(e) => setNewDuration(Number(e.target.value))}
-          className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs rounded-lg px-2 py-1 outline-none"
+          className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs rounded-lg px-2 py-1 outline-none font-mono"
         >
           <option value={15}>15m</option>
           <option value={30}>30m</option>
           <option value={45}>45m</option>
-          <option value={60}>60m</option>
+          <option value={60}>1 hour (60m)</option>
+          <option value={90}>1.5 hours (90m)</option>
+          <option value={120}>2 hours (120m)</option>
         </select>
 
         <button
           type="submit"
           disabled={!newTitle.trim()}
-          className="px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
+          className="px-3.5 py-1 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-500 disabled:opacity-50 transition-colors shadow-xs"
         >
           Add Step
         </button>
@@ -769,6 +1236,18 @@ export default function PlannerCockpit({
           onClose={() => setIsReshuffleOpen(false)}
           onReshuffle={handleReshuffle}
           isLoading={isReshuffling}
+          originalPrompt={plan.rawInput}
+          lastReshufflePrompt={plan.lastReshufflePrompt}
+        />
+      )}
+
+      {isAiModifyOpen && (
+        <PlannerAiModifyModal
+          tasks={tasks}
+          onClose={() => setIsAiModifyOpen(false)}
+          onApplyModifiedTasks={handleApplyModifiedTasks}
+          originalPrompt={plan.rawInput}
+          initialInstruction={aiModifyInstruction}
         />
       )}
     </div>
