@@ -14,7 +14,25 @@ import {
   Coffee,
   CheckCircle2,
   CalendarCheck,
+  GripVertical,
 } from "lucide-react"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { PlannerStrategyOption, PlannerTask } from "@/types/planner"
 import { cn } from "@/lib/utils"
 
@@ -66,6 +84,160 @@ function recalculateTimeline(taskList: PlannerTask[]): PlannerTask[] {
   })
 }
 
+interface SortableTaskRowProps {
+  task: PlannerTask
+  idx: number
+  onTweakDuration: (taskId: string, deltaMins: number) => void
+  onRemoveTask: (taskId: string) => void
+  onInsertBreakAt: (afterIndex: number, breakMins: number) => void
+  isLast: boolean
+}
+
+function SortableTaskRow({
+  task,
+  idx,
+  onTweakDuration,
+  onRemoveTask,
+  onInsertBreakAt,
+  isLast,
+}: SortableTaskRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : "auto",
+  }
+
+  const isBreak = task.category === "break"
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative flex flex-col gap-2">
+      <div
+        className={cn(
+          "flex items-center justify-between p-3.5 md:p-4 rounded-2xl border gap-3 transition-all relative select-none",
+          isDragging
+            ? "shadow-2xl ring-2 ring-indigo-500/60 bg-white dark:bg-slate-800 scale-[1.01] opacity-95 z-40"
+            : isBreak
+            ? "bg-amber-50/40 dark:bg-amber-950/20 border-amber-200/70 dark:border-amber-900/40 hover:border-amber-300"
+            : "bg-white dark:bg-slate-800/70 border-slate-200/90 dark:border-slate-700/80 hover:border-indigo-200 dark:hover:border-indigo-900/60 shadow-xs"
+        )}
+      >
+        {/* Left: Drag Handle + Time badge + details */}
+        <div className="flex items-center gap-2.5 md:gap-3.5 min-w-0 flex-1">
+          {/* Drag Handle */}
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1.5 -ml-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 rounded-lg transition-colors shrink-0 touch-none"
+            title="Drag to reorder task"
+          >
+            <GripVertical size={16} />
+          </button>
+
+          <div className="flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0 font-mono text-center">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+              {task.startTime || "00:00"}
+            </span>
+            <span className="text-[10px] text-slate-400">
+              to {task.endTime || "00:00"}
+            </span>
+          </div>
+
+          <div className="flex flex-col min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              {isBreak ? (
+                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+              ) : (
+                <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+              )}
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+                {task.title}
+              </span>
+              <span
+                className={cn(
+                  "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border shrink-0",
+                  isBreak
+                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                    : "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20"
+                )}
+              >
+                {task.category.replace("_", " ")}
+              </span>
+            </div>
+            {task.description && (
+              <p className="text-xs text-slate-400 truncate mt-0.5">
+                {task.description}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Clean Duration Stepper */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => onTweakDuration(task.id, -15)}
+              className="w-7 h-7 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-700 flex items-center justify-center transition-colors"
+              title="Reduce by 15 mins"
+            >
+              <Minus size={13} />
+            </button>
+
+            <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 min-w-[54px] text-center">
+              {task.durationMinutes >= 60
+                ? `${Math.floor(task.durationMinutes / 60)}h ${task.durationMinutes % 60 ? `${task.durationMinutes % 60}m` : ""}`.trim()
+                : `${task.durationMinutes}m`}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => onTweakDuration(task.id, 15)}
+              className="w-7 h-7 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-700 flex items-center justify-center transition-colors"
+              title="Append 15 mins"
+            >
+              <Plus size={13} />
+            </button>
+          </div>
+
+          {/* Remove button */}
+          <button
+            type="button"
+            onClick={() => onRemoveTask(task.id)}
+            className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center justify-center transition-colors text-xs"
+            title="Remove task"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      {/* Subtle break inserter */}
+      {!isLast && (
+        <div className="flex items-center justify-center -my-1 py-0.5">
+          <button
+            type="button"
+            onClick={() => onInsertBreakAt(idx, 15)}
+            className="px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-semibold hover:border-amber-400 hover:text-amber-600 flex items-center gap-1 transition-all shadow-xs"
+          >
+            <Coffee size={10} className="text-amber-500" />
+            <span>+ 15m Break Here</span>
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function PlannerStrategyCards({
   options,
   onSelectOption,
@@ -74,11 +246,27 @@ export default function PlannerStrategyCards({
 }: Props) {
   // Currently chosen blueprint option for time window confirmation
   const [selectedOptId, setSelectedOptId] = useState<string>(options[0]?.id || "strat-1")
-  // Editable tasks for the active option
+
+  // Sensors for dnd-kit with activation constraint so regular clicks aren't intercepted
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 4,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  // Editable tasks for the active option (ensure guaranteed unique ids)
   const [editableTasksMap, setEditableTasksMap] = useState<Record<string, PlannerTask[]>>(() => {
     const map: Record<string, PlannerTask[]> = {}
     options.forEach((opt) => {
-      map[opt.id] = [...opt.tasks]
+      map[opt.id] = opt.tasks.map((t, idx) => ({
+        ...t,
+        id: t.id || `${opt.id}-task-${idx}-${Date.now()}`,
+      }))
     })
     return map
   })
@@ -110,6 +298,26 @@ export default function PlannerStrategyCards({
     }
   }
 
+  // Handle Drag Reorder
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const currentTasks = editableTasksMap[selectedOptId] || activeOption.tasks
+    const oldIndex = currentTasks.findIndex((t) => t.id === active.id)
+    const newIndex = currentTasks.findIndex((t) => t.id === over.id)
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const reordered = arrayMove(currentTasks, oldIndex, newIndex)
+      // Recalculate timeline so that start and end times cascade in the new order
+      const retimed = recalculateTimeline(reordered)
+      setEditableTasksMap((prev) => ({
+        ...prev,
+        [selectedOptId]: retimed,
+      }))
+    }
+  }
+
   // Tweak duration of a task in the active option
   const handleTweakDuration = (taskId: string, deltaMins: number) => {
     const current = editableTasksMap[selectedOptId] || activeOption.tasks
@@ -124,18 +332,11 @@ export default function PlannerStrategyCards({
     setEditableTasksMap((prev) => ({ ...prev, [selectedOptId]: rippled }))
   }
 
-  const handleSetExactDuration = (taskId: string, mins: number) => {
-    const current = editableTasksMap[selectedOptId] || activeOption.tasks
-    const updated = current.map((t) => (t.id === taskId ? { ...t, durationMinutes: mins } : t))
-    const rippled = recalculateTimeline(updated)
-    setEditableTasksMap((prev) => ({ ...prev, [selectedOptId]: rippled }))
-  }
-
   // Insert break between tasks
   const handleInsertBreakAt = (afterIndex: number, breakMins: number) => {
     const current = editableTasksMap[selectedOptId] || activeOption.tasks
     const newBreak: PlannerTask = {
-      id: "confirm-break-" + Date.now(),
+      id: "confirm-break-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
       title: "Held Break & Cognitive Recharge",
       category: "break",
       durationMinutes: breakMins,
@@ -170,6 +371,16 @@ export default function PlannerStrategyCards({
     onSelectOption(finalOption)
   }
 
+  // Compute live totals
+  const totalFocus = activeTasks
+    .filter((t) => t.category !== "break")
+    .reduce((s, t) => s + (t.durationMinutes || 0), 0)
+  const totalBreak = activeTasks
+    .filter((t) => t.category === "break")
+    .reduce((s, t) => s + (t.durationMinutes || 0), 0)
+  const startStamp = activeTasks[0]?.startTime || "--:--"
+  const endStamp = activeTasks[activeTasks.length - 1]?.endTime || "--:--"
+
   return (
     <div className="relative max-w-4xl mx-auto w-full flex flex-col gap-6">
       {/* Ambient glow */}
@@ -179,14 +390,14 @@ export default function PlannerStrategyCards({
       <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xl p-6 flex flex-col gap-5">
         <div className="flex items-start justify-between flex-wrap gap-4 pb-4 border-b border-slate-100 dark:border-slate-800/80">
           <div className="flex flex-col gap-1">
-            <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 w-fit">
-              <Sparkles size={12} /> Step 2: Time Window Confirmation
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 w-fit">
+              <Sparkles size={12} /> Step 2: Confirm Time Windows
             </div>
             <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
               Confirm Your Schedule & Time Windows
             </h2>
             <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">
-              AI extracted your tasks and cascaded time windows starting from right now. Review or tweak any duration before launching.
+              Drag tasks to reorder, fine-tune durations, or add recharge breaks before activating your day.
             </p>
           </div>
 
@@ -234,38 +445,49 @@ export default function PlannerStrategyCards({
           </div>
         )}
 
-        {/* ─── Schedule Timeline Visualizer Ribbon ─── */}
-        <div className="bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-3.5 flex flex-col gap-2">
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-medium">
-            <span className="flex items-center gap-1.5">
-              <Clock size={13} className="text-indigo-500" />
-              Schedule Span:
-              <strong className="text-slate-900 dark:text-slate-100 font-bold font-mono">
-                {activeTasks[0]?.startTime || "Now"} → {activeTasks[activeTasks.length - 1]?.endTime || ""}
-              </strong>
-            </span>
-            <div className="flex items-center gap-3">
-              <span>Focus: <strong className="text-indigo-600 dark:text-indigo-400 font-bold font-mono">
-                {Math.floor(activeTasks.filter((t) => t.category !== "break").reduce((s, t) => s + (t.durationMinutes || 0), 0) / 60)}h{" "}
-                {activeTasks.filter((t) => t.category !== "break").reduce((s, t) => s + (t.durationMinutes || 0), 0) % 60}m
-              </strong></span>
-              <span>•</span>
-              <span>Breaks: <strong className="text-amber-600 dark:text-amber-400 font-bold font-mono">
-                {activeTasks.filter((t) => t.category === "break").reduce((s, t) => s + (t.durationMinutes || 0), 0)}m
-              </strong></span>
+        {/* Schedule Summary Strip */}
+        <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/70 dark:border-slate-700/60 flex-wrap gap-3">
+          <div className="flex items-center gap-4 text-xs font-mono">
+            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>Starts: <strong className="text-slate-900 dark:text-slate-100">{startStamp}</strong></span>
+            </div>
+            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+              <span className="w-2 h-2 rounded-full bg-indigo-500" />
+              <span>Ends: <strong className="text-slate-900 dark:text-slate-100">{endStamp}</strong></span>
             </div>
           </div>
 
-          {/* Timeline progress blocks */}
-          <div className="w-full h-3 bg-slate-200/70 dark:bg-slate-800 rounded-full overflow-hidden flex gap-0.5 p-0.5">
+          <div className="flex items-center gap-3 text-xs">
+            <span className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-500/20">
+              {Math.floor(totalFocus / 60)}h {totalFocus % 60}m Study Focus
+            </span>
+            {totalBreak > 0 && (
+              <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold border border-amber-500/20 flex items-center gap-1">
+                <Coffee size={12} />
+                {totalBreak}m Recharge
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Visual Timeline Ribbon */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex justify-between items-center text-[11px] text-slate-400 font-mono px-0.5">
+            <span>{startStamp}</span>
+            <span>Flow Timeline</span>
+            <span>{endStamp}</span>
+          </div>
+
+          <div className="w-full h-3 rounded-full bg-slate-100 dark:bg-slate-800 p-0.5 flex gap-0.5 overflow-hidden">
             {activeTasks.map((t, idx) => {
-              const dur = t.durationMinutes || 30
               const isBreak = t.category === "break"
+              const dur = t.durationMinutes || 15
               return (
                 <div
                   key={t.id || idx}
                   className={cn(
-                    "h-full rounded-sm transition-all relative group",
+                    "h-full rounded-sm transition-all",
                     isBreak
                       ? "bg-amber-400 dark:bg-amber-500"
                       : "bg-indigo-500 dark:bg-indigo-400"
@@ -278,118 +500,48 @@ export default function PlannerStrategyCards({
           </div>
         </div>
 
-        {/* ─── Task Confirmation Rows ─── */}
-        <div className="flex flex-col gap-2.5 pt-1">
-          {activeTasks.map((task, idx) => {
-            const isBreak = task.category === "break"
+        {/* Section Header with Drag Reorder Hint */}
+        <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              Task Sequence & Time Windows
+            </span>
+            <span className="text-xs text-slate-400 font-mono">
+              ({activeTasks.length} blocks)
+            </span>
+          </div>
 
-            return (
-              <React.Fragment key={task.id || idx}>
-                <div
-                  className={cn(
-                    "flex items-center justify-between p-4 rounded-2xl border gap-4 transition-all hover:shadow-xs",
-                    isBreak
-                      ? "bg-amber-50/30 dark:bg-amber-950/20 border-amber-200/70 dark:border-amber-900/40"
-                      : "bg-white dark:bg-slate-800/60 border-slate-200/90 dark:border-slate-700/80"
-                  )}
-                >
-                  {/* Left: Time badge & details */}
-                  <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                    <div className="flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0 font-mono text-center">
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                        {task.startTime || "00:00"}
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        to {task.endTime || "00:00"}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        {isBreak ? (
-                          <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                        ) : (
-                          <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
-                        )}
-                        <span className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
-                          {task.title}
-                        </span>
-                        <span
-                          className={cn(
-                            "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border shrink-0",
-                            isBreak
-                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
-                              : "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20"
-                          )}
-                        >
-                          {task.category.replace("_", " ")}
-                        </span>
-                      </div>
-                      {task.description && (
-                        <p className="text-xs text-slate-400 truncate mt-0.5">
-                          {task.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right: Clean Duration Stepper */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
-                      <button
-                        type="button"
-                        onClick={() => handleTweakDuration(task.id, -15)}
-                        className="w-7 h-7 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-700 flex items-center justify-center transition-colors"
-                        title="Reduce by 15 mins"
-                      >
-                        <Minus size={13} />
-                      </button>
-
-                      <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 min-w-[54px] text-center">
-                        {task.durationMinutes >= 60
-                          ? `${Math.floor(task.durationMinutes / 60)}h ${task.durationMinutes % 60 ? `${task.durationMinutes % 60}m` : ""}`.trim()
-                          : `${task.durationMinutes}m`}
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() => handleTweakDuration(task.id, 15)}
-                        className="w-7 h-7 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-700 flex items-center justify-center transition-colors"
-                        title="Append 15 mins"
-                      >
-                        <Plus size={13} />
-                      </button>
-                    </div>
-
-                    {/* Remove button */}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTask(task.id)}
-                      className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center justify-center transition-colors text-xs"
-                      title="Remove task"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-
-                {/* Subtle break inserter */}
-                {idx < activeTasks.length - 1 && (
-                  <div className="flex items-center justify-center -my-1 py-0.5">
-                    <button
-                      type="button"
-                      onClick={() => handleInsertBreakAt(idx, 15)}
-                      className="px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-semibold hover:border-amber-400 hover:text-amber-600 flex items-center gap-1 transition-all shadow-xs"
-                    >
-                      <Coffee size={10} className="text-amber-500" />
-                      <span>+ 15m Break Here</span>
-                    </button>
-                  </div>
-                )}
-              </React.Fragment>
-            )
-          })}
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-100/80 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-200/60 dark:border-slate-700/60">
+            <GripVertical size={13} className="text-indigo-500 shrink-0" />
+            <span>Drag handles to reorder tasks</span>
+          </div>
         </div>
+
+        {/* ─── Task Confirmation Rows (with drag & drop) ─── */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={activeTasks.map((t) => t.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="flex flex-col gap-2.5 pt-1">
+              {activeTasks.map((task, idx) => (
+                <SortableTaskRow
+                  key={task.id}
+                  task={task}
+                  idx={idx}
+                  onTweakDuration={handleTweakDuration}
+                  onRemoveTask={handleRemoveTask}
+                  onInsertBreakAt={handleInsertBreakAt}
+                  isLast={idx === activeTasks.length - 1}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
 
         {/* ─── Final Confirmation CTA Footer ─── */}
         <div className="flex items-center justify-between flex-wrap gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">

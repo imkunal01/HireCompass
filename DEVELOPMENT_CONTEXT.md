@@ -829,3 +829,16 @@ We are actively building the **Preparation Ecosystem** for HireCompass, consisti
     * `npx tsc --noEmit`: Clean (0 errors).
     * `npm run lint`: Clean (0 errors across all planner components).
 
+- **2026-10-15 (Phase 23 Complete — Day Planner Confirmation Deck: Drag-and-Drop Task Reordering with Auto-Timeline Cascading)**:
+  - **User Problem Addressed**:
+    * On Step 2 ("Confirm Time Windows" page), candidates wanted the ability to intuitively reorganize the order of proposed tasks before launching the live cockpit, without having to re-prompt the AI or edit times manually.
+  - **Implementation (`components/features/planner/planner-strategy-cards.tsx`)**:
+    * Integrated `@dnd-kit/core`, `@dnd-kit/sortable`, and `@dnd-kit/utilities` into the confirmation deck.
+    * Added dedicated `GripVertical` drag handles with `cursor-grab active:cursor-grabbing` touch-friendly handles to each sortable task card.
+    * Configured `PointerSensor` with a 4px distance activation constraint to prevent accidental dragging during `-15m` / `+15m` duration tweaks or break additions.
+    * Implemented `handleDragEnd` using `arrayMove` and hooked it directly into `recalculateTimeline()`, instantly cascading start/end time windows in the new order.
+    * Maintained live synchronization with the flow timeline ribbon and confirmation summary totals.
+  - **Verification**:
+    * `npx tsc --noEmit`: Clean (0 errors).
+
+
