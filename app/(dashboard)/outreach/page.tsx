@@ -1,11 +1,12 @@
 "use client"
 
-import React from "react"
+import React, { useEffect, useState } from "react"
 import Link from "next/link"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   Send, Plus, Users, Mail, TrendingUp, Award, Zap,
-  ChevronRight, BarChart3, Loader2, Clock, CheckCircle2, Trash2
+  ChevronRight, BarChart3, Loader2, Clock, CheckCircle2, Trash2,
+  ShieldCheck, AlertTriangle, X, LogIn
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { OutreachCampaign, OutreachStats } from "@/types/outreach"
@@ -102,6 +103,125 @@ function CampaignRow({ campaign, onDelete }: { campaign: OutreachCampaign, onDel
   )
 }
 
+// ── Gmail Connection Banner ───────────────────────────────────────────────────
+function GmailConnectionBanner() {
+  const [status, setStatus] = useState<{ connected: boolean; email: string | null } | null>(null)
+  const [dismissedConnected, setDismissedConnected] = useState(false)
+  const [disconnecting, setDisconnecting] = useState(false)
+
+  // Check URL params for post-OAuth feedback
+  const [urlMsg, setUrlMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search)
+      if (sp.get("gmailConnected") === "1") {
+        setUrlMsg({ type: "success", text: "Gmail connected! Emails will now be sent from your account." })
+        // Clean URL
+        window.history.replaceState({}, "", window.location.pathname)
+      } else if (sp.get("error")) {
+        setUrlMsg({ type: "error", text: sp.get("error")! })
+        window.history.replaceState({}, "", window.location.pathname)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    fetch("/api/outreach/gmail-status")
+      .then((r) => r.json())
+      .then((d) => setStatus({ connected: d.connected, email: d.email }))
+      .catch(() => setStatus({ connected: false, email: null }))
+  }, [])
+
+  const handleDisconnect = async () => {
+    if (!confirm("Disconnect your Gmail? Outreach emails will stop sending until you reconnect.")) return
+    setDisconnecting(true)
+    try {
+      await fetch("/api/outreach/gmail-status", { method: "DELETE" })
+      setStatus({ connected: false, email: null })
+    } finally {
+      setDisconnecting(false)
+    }
+  }
+
+  if (status === null) return null // loading
+
+  // ── URL message toast ────────────────────────────────────────────────────
+  if (urlMsg) {
+    return (
+      <div className={cn(
+        "flex items-start gap-3 rounded-2xl border p-4",
+        urlMsg.type === "success"
+          ? "bg-emerald-50 border-emerald-200"
+          : "bg-rose-50 border-rose-200"
+      )}>
+        {urlMsg.type === "success"
+          ? <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+          : <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />}
+        <p className={cn("text-sm font-medium flex-1",
+          urlMsg.type === "success" ? "text-emerald-800" : "text-rose-800"
+        )}>{urlMsg.text}</p>
+        <button onClick={() => setUrlMsg(null)} className="text-slate-400 hover:text-slate-600">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    )
+  }
+
+  // ── Already connected ────────────────────────────────────────────────────
+  if (status.connected && !dismissedConnected) {
+    return (
+      <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+        <ShieldCheck className="h-5 w-5 text-emerald-600 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-emerald-800">
+            Gmail connected — emails will be sent as{" "}
+            <span className="font-bold">{status.email}</span>
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleDisconnect}
+            disabled={disconnecting}
+            className="text-xs font-semibold text-rose-600 hover:text-rose-800 transition-colors"
+          >
+            {disconnecting ? "Disconnecting…" : "Disconnect"}
+          </button>
+          <button onClick={() => setDismissedConnected(true)}>
+            <X className="h-4 w-4 text-slate-400 hover:text-slate-600" />
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Not connected — show CTA ─────────────────────────────────────────────
+  if (!status.connected) {
+    return (
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 shadow-sm">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
+          <Mail className="h-5 w-5 text-amber-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-slate-900">Connect your Gmail to send outreach emails</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Right now emails go via the system account. Connect your own Gmail so recruiters see your address and can reply directly to you.
+          </p>
+        </div>
+        <a
+          href="/api/auth/gmail-outreach"
+          className="shrink-0 flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 text-sm font-semibold shadow-md hover:shadow-lg hover:-translate-y-px transition-all duration-200"
+        >
+          <LogIn className="h-4 w-4" />
+          Connect Gmail
+        </a>
+      </div>
+    )
+  }
+
+  return null
+}
+
 export default function OutreachHubPage() {
   const qc = useQueryClient()
   const { data: campaigns = [], isLoading: campaignsLoading } = useQuery<OutreachCampaign[]>({
@@ -129,6 +249,9 @@ export default function OutreachHubPage() {
 
   return (
     <div className="space-y-6 max-w-5xl animate-slide-up">
+
+      {/* Gmail Connection Banner */}
+      <GmailConnectionBanner />
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
